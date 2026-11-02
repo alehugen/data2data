@@ -1,3 +1,5 @@
+import { normalizeText, parseNumber } from '@/domain/shared'
+
 export const ColumnType = {
   Number: 'number',
   Date: 'date',
@@ -13,16 +15,16 @@ export interface Column {
   readonly type: ColumnType
 }
 
-const NUMBER_PATTERN = /^-?[\d.,]+$/
-const BOOLEAN_VALUES = new Set(['true', 'false', 'sim', 'não', 'nao', 'yes', 'no'])
+const SAMPLE_SIZE = 100
+const BOOLEAN_VALUES = new Set(['TRUE', 'FALSE', 'SIM', 'NAO', 'YES', 'NO'])
+const DATE_PATTERN = /^(\d{4}-\d{2}-\d{2}|\d{2}[/.]\d{2}[/.]\d{4})$/
 
-/** Infere o tipo de uma coluna a partir de uma amostra de valores. */
-export function inferColumnType(values: string[]): ColumnType {
-  const sample = values.map((v) => v.trim()).filter(Boolean).slice(0, 100)
-  if (sample.length === 0) return ColumnType.Text
+export function inferColumnType(values: readonly string[]): ColumnType {
+  const sample = values.map((v) => v.trim()).filter(Boolean).slice(0, SAMPLE_SIZE)
+  if (!sample.length) return ColumnType.Text
 
-  if (sample.every((v) => NUMBER_PATTERN.test(v))) return ColumnType.Number
-  if (sample.every((v) => BOOLEAN_VALUES.has(v.toLowerCase()))) return ColumnType.Boolean
-  if (sample.every((v) => !Number.isNaN(Date.parse(v)))) return ColumnType.Date
+  if (sample.every((v) => DATE_PATTERN.test(v))) return ColumnType.Date
+  if (sample.every((v) => Number.isFinite(parseNumber(v)))) return ColumnType.Number
+  if (sample.every((v) => BOOLEAN_VALUES.has(normalizeText(v)))) return ColumnType.Boolean
   return ColumnType.Text
 }

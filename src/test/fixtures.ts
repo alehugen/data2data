@@ -1,0 +1,135 @@
+import { utils, write } from 'xlsx'
+
+type DreLine = readonly [label: string, ...values: number[]] | null
+
+export const DRE_MONTHS = [
+  [12, 2025],
+  [1, 2026],
+  [2, 2026],
+  [3, 2026],
+] as const
+
+export const DRE_LINES: readonly DreLine[] = [
+  ['RECEITA OPERACIONAL BRUTA', 0, 1000, 1200, 900],
+  ['Serviços', 0, 400, 500, 300],
+  ['Produtos', 0, 600, 700, 600],
+  null,
+  ['IMPOSTOS SOBRE VENDA', 0, -100, -120, -90],
+  ['Simples Nacional', 0, -100, -120, -90],
+  null,
+  ['CUSTOS DAS MERCADORIAS VENDIDAS', 0, -300, -350, -280],
+  ['REPOSIÇÃO DE ESTOQUE', 0, -200, -250, -200],
+  ['Compra de mercadoria', 0, -100, -100, -80],
+  null,
+  ['LUCRO OPERACIONAL BRUTO', 0, 600, 730, 530],
+  null,
+  ['OUTRAS DESPESAS VARIÁVEIS', 0, 0, 0, 0],
+  ['Taxas de cartão', 0, 0, 0, 0],
+  null,
+  ['MARGEM DE CONTRIBUIÇÃO', 0, 600, 730, 530],
+  null,
+  ['DESPESAS OPERACIONAIS', 0, -500, -520, -600],
+  ['DESPESAS COM PESSOAL', 0, -300, -300, -350],
+  ['Salários', 0, -300, -300, -350],
+  null,
+  ['DESPESAS GERAIS', 0, -200, -220, -250],
+  ['Aluguel', 0, -200, -220, -250],
+  null,
+  ['RESULTADO LÍQUIDO (EBITDA)', 0, 100, 210, -70],
+  null,
+  ['RESULTADO LÍQUIDO', 0, 100, 210, -70],
+  null,
+  ['Variação', 0, 100, 210, -70],
+  ['Saldo inicial', 0, 50, 150, 360],
+  ['Saldo final', 0, 150, 360, 290],
+]
+
+const DUPLICATED_MONTH_VALUE = 999_999
+
+export function dreRows({ labelColumn = 0, lines = DRE_LINES } = {}): string[][] {
+  const firstValueColumn = labelColumn + 2
+  const columnOf = (monthIndex: number) => firstValueColumn + monthIndex * 3
+  const duplicatedColumn = columnOf(DRE_MONTHS.length)
+  const width = duplicatedColumn + 2
+  const blank = () => Array<string>(width).fill('')
+
+  const title = blank()
+  title[labelColumn] = 'DEMONSTRATIVO DE RESULTADO DO EXERCÍCIO'
+
+  const monthRow = blank()
+  const yearRow = blank()
+  yearRow[labelColumn] = 'DESCRIÇÃO CONTAS'
+  DRE_MONTHS.forEach(([month, year], i) => {
+    monthRow[columnOf(i)] = String(month)
+    monthRow[columnOf(i) + 1] = 'AV'
+    yearRow[columnOf(i)] = String(year)
+  })
+  monthRow[duplicatedColumn] = '1'
+  yearRow[duplicatedColumn] = '2026'
+
+  const body = lines.map((line, index) => {
+    const row = blank()
+    if (!line) return row
+    const [label, ...values] = line
+    if (labelColumn > 0) row[0] = String(index + 1)
+    row[labelColumn] = label
+    values.forEach((value, i) => (row[columnOf(i)] = String(value)))
+    row[duplicatedColumn] = String(DUPLICATED_MONTH_VALUE)
+    return row
+  })
+
+  return [title, blank(), monthRow, yearRow, ...body]
+}
+
+export function xlsxFile(name: string, sheets: Record<string, string[][]>): File {
+  const workbook = utils.book_new()
+  for (const [sheetName, rows] of Object.entries(sheets)) {
+    const cells = rows.map((row) => row.map((cell) => (cell !== '' && Number.isFinite(Number(cell)) ? Number(cell) : cell)))
+    utils.book_append_sheet(workbook, utils.aoa_to_sheet(cells), sheetName)
+  }
+  return new File([write(workbook, { type: 'array', bookType: 'xlsx' })], name)
+}
+
+export function latin1File(name: string, content: string): File {
+  const bytes = Uint8Array.from(content, (char) => char.charCodeAt(0))
+  return new File([bytes], name)
+}
+
+export const ABC_HEADER = 'ProCodigo;ProDescricao;Qtde;ValorTotal;Classificacao;Percentual'
+
+export const ABC_SEPTEMBER = [
+  ABC_HEADER,
+  '1;Vacina Alfa;10;5000;A;50',
+  '2;Vacina Beta;5;1000;A;25',
+  '3;Aplicação de brinco;3;300;B;15',
+  '4;Produto Gama;2;400;C;10',
+].join('\r\n')
+
+export const ABC_OCTOBER = [
+  ABC_HEADER,
+  '1;Vacina Alfa;8;4000;A;40',
+  '3;Aplicação de brinco;6;600;A;30',
+  '2;Vacina Beta;4;800;B;20',
+  '5;Produto Novo;2;100;C;10',
+].join('\r\n')
+
+export const PROFIT_HEADER = 'ProCodigo;ProDescricao;Qtde;PedValorTotal;PedICustoGerencial;Imposto;TaxaFinanceira;Lucro'
+
+export const PROFIT_SEPTEMBER = [
+  PROFIT_HEADER,
+  '1;Vacina Alfa;10;5000;4000;0;100;900',
+  '2;Vacina Beta;5;1000;500;0;20;480',
+  '3;Aplicação de brinco;3;300;50;0;5;245',
+  '4;Produto Gama;2;400;300;0;8;92',
+].join('\r\n')
+
+export const PROFIT_OCTOBER = [
+  PROFIT_HEADER,
+  '1;Vacina Alfa;8;4000;3200;0;80;720',
+  '3;Aplicação de brinco;6;600;100;0;10;490',
+  '2;Vacina Beta;4;800;400;0;20;380',
+  '5;Produto Novo;2;100;0;0;0;100',
+  '9;Item Fora da Curva;1;50;60;0;1;-11',
+].join('\r\n')
+
+export const csvRows = (csv: string) => csv.split(/\r?\n/).map((line) => line.split(';'))

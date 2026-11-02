@@ -1,4 +1,4 @@
-import { parseNumber } from '@/domain/shared'
+import { parseNumber, sum } from '@/domain/shared'
 
 export interface ColumnStatistics {
   readonly count: number
@@ -8,16 +8,16 @@ export interface ColumnStatistics {
   readonly max: number
 }
 
-export function computeStatistics(values: string[]): ColumnStatistics {
-  const numbers = values.map(parseNumber).filter((n) => Number.isFinite(n))
-  const count = numbers.length
-  const sum = numbers.reduce((acc, n) => acc + n, 0)
+export function computeStatistics(values: readonly string[]): ColumnStatistics {
+  const numbers = values.map(parseNumber).filter(Number.isFinite)
+  if (!numbers.length) return { count: 0, sum: 0, mean: 0, min: 0, max: 0 }
 
+  const total = sum(numbers)
   return {
-    count,
-    sum,
-    mean: count ? sum / count : 0,
-    min: count ? Math.min(...numbers) : 0,
-    max: count ? Math.max(...numbers) : 0,
+    count: numbers.length,
+    sum: total,
+    mean: total / numbers.length,
+    min: numbers.reduce((a, b) => Math.min(a, b)),
+    max: numbers.reduce((a, b) => Math.max(a, b)),
   }
 }

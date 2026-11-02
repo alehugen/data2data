@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { PhUploadSimple } from '@phosphor-icons/vue'
 import { computed, ref } from 'vue'
 import { SUPPORTED_EXTENSIONS } from '@/domain/ingestion'
 
 defineProps<{ disabled?: boolean }>()
 const emit = defineEmits<{ select: [files: File[]] }>()
 
-// Contador evita "piscar" quando o cursor passa sobre elementos filhos
 const dragDepth = ref(0)
 const isDragging = computed(() => dragDepth.value > 0)
 const accept = SUPPORTED_EXTENSIONS.join(',')
@@ -34,17 +34,14 @@ function onChange(event: Event) {
     ]"
     @dragenter.prevent="dragDepth++"
     @dragover.prevent
-    @dragleave.prevent="dragDepth--"
+    @dragleave.prevent="dragDepth = Math.max(0, dragDepth - 1)"
     @drop.prevent="onDrop"
   >
     <span
       class="flex size-12 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform duration-(--duration-slow) ease-spring group-hover:-translate-y-1"
       :class="isDragging && '-translate-y-1 scale-110'"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-6" aria-hidden="true">
-        <path d="M12 16V4m0 0-4 4m4-4 4 4" />
-        <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-      </svg>
+      <PhUploadSimple :size="24" weight="bold" aria-hidden="true" />
     </span>
     <span class="text-base font-medium text-fg">
       {{ isDragging ? 'Solte para importar' : 'Arraste arquivos aqui ou clique para selecionar' }}

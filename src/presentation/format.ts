@@ -6,6 +6,7 @@ import {
   isValidCnpj,
   isValidCpf,
 } from '@brazilian-utils/brazilian-utils'
+import type { MonthlyReport, Report } from '@/domain/report'
 import type { Period } from '@/domain/shared'
 
 const LOCALE = 'pt-BR'
@@ -20,36 +21,29 @@ const currencyCompactFormatter = new Intl.NumberFormat(LOCALE, {
   maximumFractionDigits: 1,
 })
 const percentFormatter = new Intl.NumberFormat(LOCALE, { style: 'percent', maximumFractionDigits: 1 })
-const dateFormatter = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'short' })
 const monthLongFormatter = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric' })
-
-// ---------- Valores ----------
 
 export const formatNumber = (value: number) => numberFormatter.format(value)
 export const formatCompact = (value: number) => compactFormatter.format(value)
 export const formatCurrency = (value: number) => currencyFormatter.format(value)
-/** R$ 47,8 mil */
 export const formatCurrencyCompact = (value: number) => currencyCompactFormatter.format(value)
-/** Recebe uma fração: 0.25 → "25%" */
 export const formatPercent = (value: number) => percentFormatter.format(value)
-/** 0.12 → "+12%" */
 export const formatSignedPercent = (value: number) => `${value > 0 ? '+' : ''}${percentFormatter.format(value)}`
-export const formatDate = (value: Date) => dateFormatter.format(value)
-
-// ---------- Períodos ----------
 
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
-/** out/26 */
 export const formatPeriod = ({ year, month }: Period) => `${MONTHS[month - 1]}/${String(year).slice(2)}`
-/** outubro de 2026 */
 export const formatPeriodLong = ({ year, month }: Period) => monthLongFormatter.format(new Date(year, month - 1))
+export const formatAbcMonth = (report: MonthlyReport) => (report.period ? formatPeriod(report.period) : report.name)
 
-// ---------- Rótulos ----------
+export function describeReport(report: Report): string {
+  if (report.kind === 'abc') return `Curva ABC · ${formatAbcMonth(report)}`
+  if (report.kind === 'profit') return `Lucro por produto · ${formatAbcMonth(report)}`
+  return report.name
+}
 
 const KEEP_UPPER = new Set(['EBITDA', 'ISS', 'IPI', 'ICMS', 'PIS', 'COFINS', 'IRPJ', 'CSLL', 'INSS', 'FGTS', 'DRE', 'ABC', 'HPV'])
 
-/** "CUSTOS DAS MERCADORIAS VENDIDAS" → "Custos das mercadorias vendidas" (siglas preservadas). */
 export function prettifyLabel(label: string): string {
   const text = label.trim()
   if (text !== text.toUpperCase()) return text
@@ -59,13 +53,14 @@ export function prettifyLabel(label: string): string {
     .replace(/^\p{L}/u, (char) => char.toUpperCase())
 }
 
-// ---------- Documentos (via @brazilian-utils) ----------
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+
+export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]!)
 
 export { formatCep, formatCnpj, formatCpf, formatPhone, isValidCnpj, isValidCpf }
 
 const onlyDigits = (value: string) => value.replace(/\D/g, '')
 
-/** Formata CPF ou CNPJ automaticamente pelo número de dígitos. */
 export function formatDocument(value: string): string {
   const digits = onlyDigits(value)
   if (digits.length === 11) return formatCpf(digits)

@@ -1,8 +1,7 @@
-import { SourceFile, type FileParser } from '@/domain/ingestion'
-import { recognizeReports, type Report, type ReportRepository } from '@/domain/report'
+import { SourceFile, type FileParser, type RawTable } from '@/domain/ingestion'
+import { isMonthlyReport, recognizeReports, type Report, type ReportRepository } from '@/domain/report'
 import { DomainError, periodKey } from '@/domain/shared'
 
-/** Lê o arquivo, reconhece o tipo de relatório e o persiste. */
 export class ImportFileUseCase {
   private readonly parsers: readonly FileParser[]
   private readonly repository: ReportRepository
@@ -14,24 +13,35 @@ export class ImportFileUseCase {
 
   async execute(file: File): Promise<Report[]> {
     const source = SourceFile.fromFile(file)
-    const parser = this.parsers.find((p) => p.format === source.format)
-    if (!parser) throw new DomainError(`Nenhum parser registrado para o formato "${source.format}"`)
+    const tables = await this.parse(source)
+    const reports = recognizeReports(tables, source.format)
 
-    const reports = recognizeReports(await parser.parse(source), source.format)
-    await this.replaceSamePeriodAbc(reports)
+    await this.replaceSameMonth(reports)
     await Promise.all(reports.map((report) => this.repository.save(report)))
     return reports
   }
 
-  /** Reimportar a Curva ABC de um mês substitui a versão anterior daquele mês. */
-  private async replaceSamePeriodAbc(incoming: Report[]) {
-    const keys = new Set(
-      incoming.flatMap((r) => (r.kind === 'abc' && r.period ? [periodKey(r.period)] : [])),
-    )
+  private async parse(source: SourceFile): Promise<RawTable[]> {
+    const parser = this.parsers.find((p) => p.format === source.format)
+    if (!parser) throw new DomainError(`Nenhum leitor disponível para arquivos .${source.format}`)
+
+    try {
+      return await parser.parse(source)
+    } catch (error) {
+      if (error instanceof DomainError) throw error
+      throw new DomainError(`Não foi possível ler ${source.name}. Verifique se o arquivo não está corrompido ou protegido.`)
+    }
+  }
+
+  private async replaceSameMonth(incoming: Report[]) {
+    const monthKey = (report: Report) =>
+      isMonthlyReport(report) && report.period ? `${report.kind}:${periodKey(report.period)}` : null
+
+    const keys = new Set(incoming.map(monthKey).filter(Boolean))
     if (!keys.size) return
 
     const existing = await this.repository.findAll()
-    const outdated = existing.filter((r) => r.kind === 'abc' && r.period && keys.has(periodKey(r.period)))
-    await Promise.all(outdated.map((r) => this.repository.remove(r.id)))
+    const outdated = existing.filter((report) => keys.has(monthKey(report)))
+    await Promise.all(outdated.map((report) => this.repository.remove(report.id)))
   }
 }

@@ -7,7 +7,7 @@ import { SVGRenderer } from 'echarts/renderers'
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
-import { formatCurrency, formatCurrencyCompact, prettifyLabel } from '@/presentation/format'
+import { escapeHtml, formatCurrency, formatCurrencyCompact, prettifyLabel } from '@/presentation/format'
 
 use([BarChart, GridComponent, TooltipComponent, SVGRenderer])
 
@@ -23,11 +23,6 @@ const theme = useChartTheme()
 const ROW_HEIGHT = 34
 const height = computed(() => `${props.steps.length * ROW_HEIGHT + 32}px`)
 
-/**
- * Cascata horizontal, lida de cima para baixo como a DRE.
- * Cada barra flutua de `start` a `end`; com empilhamento por sinal do ECharts,
- * três séries (base invisível + parte positiva + parte negativa) cobrem até barras que cruzam o zero.
- */
 const bars = computed(() => {
   let running = 0
   return props.steps.map((step) => {
@@ -43,30 +38,42 @@ const bars = computed(() => {
 })
 
 const option = computed<EChartsOption>(() => {
-  const { chrome, polarity, tooltip, fontFamily } = theme.value
+  const { chrome, polarity, axisTooltip, fontFamily } = theme.value
   const colorOf = (step: WaterfallStep) =>
     step.isTotal ? polarity.total : step.value >= 0 ? polarity.positive : polarity.negative
 
-  const visible = (key: 'positive' | 'negative') =>
-    bars.value.map(({ step, ...parts }) => ({
-      value: parts[key],
-      itemStyle: { color: colorOf(step), borderRadius: key === 'positive' ? [0, 4, 4, 0] : [4, 0, 0, 4] },
-    }))
+  const visibleSeries = (sign: 'positive' | 'negative') => ({
+    type: 'bar' as const,
+    stack: 'waterfall',
+    barMaxWidth: 20,
+    data: bars.value.map(({ step, ...parts }) => ({
+      value: parts[sign],
+      itemStyle: { color: colorOf(step), borderRadius: sign === 'positive' ? [0, 4, 4, 0] : [4, 0, 0, 4] },
+    })),
+    label: {
+      show: true,
+      position: sign === 'positive' ? ('right' as const) : ('left' as const),
+      color: chrome.text,
+      formatter: ({ dataIndex }: { dataIndex: number }) => {
+        const step = props.steps[dataIndex]
+        const labelled = step?.isTotal && (step.value >= 0) === (sign === 'positive')
+        return labelled ? formatCurrencyCompact(step.value) : ''
+      },
+    },
+  })
 
   return {
     textStyle: { fontFamily },
     animationDuration: 500,
     grid: { left: 8, right: 64, top: 8, bottom: 24, containLabel: true },
     tooltip: {
-      ...tooltip,
-      trigger: 'axis',
-      axisPointer: { type: 'shadow', shadowStyle: { color: `${chrome.grid}99` } },
+      ...axisTooltip,
       formatter: (params) => {
         const index = (Array.isArray(params) ? params[0] : params)?.dataIndex ?? 0
         const step = props.steps[index]
         if (!step) return ''
         const kind = step.isTotal ? 'Resultado' : step.value >= 0 ? 'Aumenta' : 'Reduz'
-        return `${prettifyLabel(step.label)}<br/><span style="color:${chrome.textMuted}">${kind}</span> <b>${formatCurrency(step.value)}</b>`
+        return `${escapeHtml(prettifyLabel(step.label))}<br/><span style="color:${chrome.textMuted}">${kind}</span> <b>${formatCurrency(step.value)}</b>`
       },
     },
     xAxis: {
@@ -84,8 +91,8 @@ const option = computed<EChartsOption>(() => {
         width: 190,
         overflow: 'truncate',
         color: chrome.textMuted,
-        // Totais em destaque, como as linhas de resultado da DRE
-        formatter: (value: string, index: number) => (props.steps[index]?.isTotal ? `{total|${value}}` : value),
+        formatter: (value: string, index: number) =>
+          props.steps[index]?.isTotal ? `{total|${value.replace(/[{}|]/g, '')}}` : value,
         rich: { total: { color: chrome.text, fontWeight: 600 } },
       },
     },
@@ -97,37 +104,8 @@ const option = computed<EChartsOption>(() => {
         itemStyle: { color: 'transparent' },
         data: bars.value.map((b) => b.base),
       },
-      {
-        type: 'bar',
-        stack: 'waterfall',
-        barMaxWidth: 20,
-        data: visible('positive'),
-        // Rótulo só nos totais (seleção, não um número em cada barra)
-        label: {
-          show: true,
-          position: 'right',
-          color: chrome.text,
-          formatter: ({ dataIndex }) => {
-            const step = props.steps[dataIndex]
-            return step?.isTotal && step.value >= 0 ? formatCurrencyCompact(step.value) : ''
-          },
-        },
-      },
-      {
-        type: 'bar',
-        stack: 'waterfall',
-        barMaxWidth: 20,
-        data: visible('negative'),
-        label: {
-          show: true,
-          position: 'left',
-          color: chrome.text,
-          formatter: ({ dataIndex }) => {
-            const step = props.steps[dataIndex]
-            return step?.isTotal && step.value < 0 ? formatCurrencyCompact(step.value) : ''
-          },
-        },
-      },
+      visibleSeries('positive'),
+      visibleSeries('negative'),
     ],
   }
 })

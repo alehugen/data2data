@@ -23,13 +23,23 @@ Arraste os arquivos para a página: o app reconhece o tipo de relatório pelo co
 - Ranking de itens colorido por classe, ordenável por quantidade ou faturamento.
 - **Entre meses:** evolução do faturamento por classe e movimentação de cada item (novo, subiu, caiu, manteve, saiu).
 
+### Lucro por produto mensal (`.csv`)
+
+Cruzado com a Curva ABC do mesmo mês, pelo código do produto, para verificar se o volume vendido se converte em lucro:
+
+- **Indicadores:** lucro, margem de lucro, custo gerencial e impostos e taxas, com variação frente ao mês anterior.
+- **Lucro por classe:** fatia de cada classe em quantidade, faturamento e lucro, e a margem de cada classe.
+- **Matriz volume × margem:** cada item posicionado pela quantidade vendida e pela margem, com as médias do mês como referência.
+- **Cascata da venda ao lucro** e ranking de lucro por item.
+- **Pontos de análise cruzados:** itens da classe A com margem abaixo da média ("vende muito, lucra pouco"), itens B/C com margem acima da média, itens com prejuízo, custo não cadastrado e divergências entre os dois relatórios.
+
 ### Outras tabelas
 
 Qualquer CSV ou planilha não reconhecida vira uma tabela genérica, com tipos de coluna inferidos, estatísticas e um gráfico de ranking.
 
 ### Pontos de análise automáticos
 
-Cada painel traz frases objetivas geradas a partir dos dados, por exemplo:
+Cada painel traz frases objetivas geradas a partir dos dados. Todo card tem um ícone de informação que, ao passar o mouse (ou focar pelo teclado), explica como aquele número foi calculado. Exemplos:
 
 > *A receita bruta caiu 9,7% em relação a set/26.*
 > *EBITDA positivo em 4 dos últimos 12 meses.*
@@ -43,6 +53,7 @@ O tipo de relatório é identificado pelo **conteúdo**, não pelo nome do arqui
 |---|---|
 | **DRE** | Planilha com uma linha de meses (1 a 12) e, logo abaixo, a linha dos anos. Se houver várias abas, é usada a que contém **"DRE Geral"** no nome. É preciso existir a linha "Receita operacional bruta". |
 | **Curva ABC** | CSV com as colunas de descrição, quantidade e classificação. São aceitos `ProCodigo`, `ProDescricao`, `Qtde`, `ValorTotal`, `Classificacao`, `Percentual` e variações como `Código`, `Quantidade`, `Classe` e `Curva`. |
+| **Lucro por produto** | CSV com descrição, valor vendido, custo e lucro. São aceitos `ProDescricao`, `PedValorTotal`, `PedICustoGerencial`, `Imposto`, `TaxaFinanceira`, `Lucro` e variações como `Valor total`, `Custo` e `Taxas`. |
 | **Tabela genérica** | Qualquer outro CSV, XLSX ou XLS. |
 
 Detalhes da leitura:
@@ -54,7 +65,7 @@ Detalhes da leitura:
   - Um cabeçalho igual à soma das linhas abaixo é um **grupo**.
   - Um cabeçalho seguido de outro título em maiúsculas é uma **seção**.
 - **Períodos da DRE:** meses repetidos são ignorados (vale a primeira ocorrência), e meses zerados no início e no fim são descartados.
-- **Curva ABC reimportada:** importar de novo o mesmo mês substitui a versão anterior.
+- **Relatórios mensais reimportados:** importar de novo a Curva ABC ou o lucro de um mês substitui a versão anterior daquele mês.
 
 ## Começando
 
@@ -72,6 +83,9 @@ Acesse o endereço exibido no terminal (por padrão, `http://localhost:5173`).
 | `npm run dev` | Servidor de desenvolvimento com hot reload |
 | `npm run build` | Checagem de tipos (`vue-tsc`) e build de produção em `dist/` |
 | `npm run preview` | Serve o build de produção localmente |
+| `npm test` | Roda os testes uma vez |
+| `npm run test:watch` | Roda os testes em modo observação |
+| `npm run coverage` | Roda os testes com relatório de cobertura (falha se a cobertura mínima não for atingida) |
 
 > Os dados importados ficam apenas na memória do navegador: ao recarregar a página, é preciso importar os arquivos novamente.
 
@@ -84,6 +98,8 @@ Acesse o endereço exibido no terminal (por padrão, `http://localhost:5173`).
 | Estado e rotas | Pinia, Vue Router |
 | Leitura de arquivos | [Papa Parse](https://www.papaparse.com/) (CSV), [SheetJS](https://sheetjs.com/) (XLSX/XLS) |
 | Gráficos | [ECharts](https://echarts.apache.org/) + vue-echarts |
+| Ícones | [Phosphor Icons](https://phosphoricons.com/) |
+| Testes | [Vitest](https://vitest.dev/), Vue Test Utils, happy-dom |
 | Formatação | `Intl` (moeda, números e datas em pt-BR), `@brazilian-utils/brazilian-utils` (CPF, CNPJ, CEP), Maska (máscaras de input) |
 
 A SheetJS é instalada a partir do [CDN oficial](https://cdn.sheetjs.com/), pois o pacote `xlsx` publicado no npm está desatualizado e tem vulnerabilidades conhecidas.
@@ -96,13 +112,14 @@ Arquitetura limpa com DDD. A regra de dependência é **`presentation → applic
 src/
 ├── domain/                 # Regras de negócio puras (sem Vue nem bibliotecas)
 │   ├── shared.ts           # Identifier, DomainError, Period, parseNumber, normalizeText
-│   ├── report.ts           # Report (DRE | ABC | Dataset), ReportRepository, recognizeReports
-│   ├── ingestion/          # SourceFile, FileFormat, porta FileParser
+│   ├── report.ts           # Report (DRE | ABC | Lucro | Dataset), ReportRepository, recognizeReports
+│   ├── ingestion/          # SourceFile, FileFormat, porta FileParser, leitura de cabeçalhos por apelido
 │   ├── dre/                # DreReport: interpreta a DRE e reconstrói a hierarquia
 │   ├── abc/                # AbcReport: Curva ABC de um mês
+│   ├── profit/             # ProfitReport: lucro por produto de um mês
 │   ├── dataset/            # Dataset genérico
 │   └── analysis/           # Estatísticas de colunas
-├── application/            # Casos de uso: importar, consultar e analisar relatórios
+├── application/            # Casos de uso: importar, consultar e analisar relatórios; cruzamento ABC × lucro
 ├── infrastructure/         # Adapters: parsers CSV/XLSX, repositório em memória
 │   └── container.ts        # Composition root (injeção de dependências)
 ├── presentation/           # Vue
@@ -112,6 +129,11 @@ src/
 │   ├── router.ts
 │   ├── format.ts           # Formatadores pt-BR
 │   └── main.css            # Tailwind, tokens de tema e animações
+├── test/                   # Testes (Vitest), espelhando as camadas
+│   ├── domain/
+│   ├── application/
+│   ├── presentation/
+│   └── fixtures.ts         # Relatórios sintéticos (DRE, Curva ABC, lucro)
 ├── App.vue
 └── main.ts
 ```
@@ -136,13 +158,22 @@ Divisão de responsabilidades:
 2. Inclua o novo tipo na união `Report` e em `recognizeReports` (`domain/report.ts`).
 3. Crie o caso de uso de análise em `application/` e a página em `presentation/pages/`.
 
+## Testes
+
+A suíte fica em `src/test/`, separada por camada:
+
+- **domain/** e **application/**: rodam em Node. Cobrem a leitura de cada relatório (inclusive casos de borda: encoding, números em vários formatos, cabeçalhos repetidos, meses no nome do arquivo), os cálculos de cada análise e a importação ponta a ponta com os leitores reais de CSV e XLSX.
+- **presentation/**: formatadores, geração dos pontos de análise e componentes (em DOM simulado com happy-dom).
+
+Os dados de teste são **sintéticos** (`src/test/fixtures.ts`) e reproduzem a estrutura dos relatórios reais sem expor dados de empresas. A cobertura mínima de domínio, aplicação e infraestrutura é verificada em `npm run coverage`.
+
 ## Visualização de dados
 
 - **Paleta categórica:** ordem fixa, validada para daltonismo nos temas claro e escuro.
 - **Cores com papel fixo:**
   - Classes A/B/C sempre com as mesmas cores.
   - Cascata com azul para aumentos, vermelho para reduções e cinza para totais.
-- **A cor nunca carrega a informação sozinha:** há legendas, ícones (▲ ▼) e valores em texto.
+- **A cor nunca carrega a informação sozinha:** há legendas, ícones e valores em texto.
 - **Movimento:** as animações respeitam a preferência de movimento reduzido do sistema (`prefers-reduced-motion`).
 
 ## Roadmap

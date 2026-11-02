@@ -1,3 +1,4 @@
+export * from './AbcProfitability'
 export * from './AnalyzeAbcUseCase'
 export * from './AnalyzeDatasetUseCase'
 export * from './AnalyzeDreUseCase'

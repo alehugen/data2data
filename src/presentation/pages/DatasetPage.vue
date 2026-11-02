@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import ChartCard from '@/presentation/components/ChartCard.vue'
+import InsightList from '@/presentation/components/InsightList.vue'
+import NotFound from '@/presentation/components/NotFound.vue'
+import PageHeader from '@/presentation/components/PageHeader.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import { useDatasetAnalysis } from '@/presentation/composables/useDatasetAnalysis'
@@ -12,33 +15,14 @@ const PREVIEW_ROWS = 20
 </script>
 
 <template>
-  <div v-if="!dataset" class="animate-fade-up space-y-2">
-    <p class="text-fg-muted">Tabela não encontrada. Os dados ficam só na memória: importe o arquivo novamente.</p>
-    <RouterLink to="/" class="link">Voltar</RouterLink>
-  </div>
+  <NotFound v-if="!dataset" message="Tabela não encontrada." />
 
   <section v-else class="space-y-8">
-    <div class="animate-fade-up">
-      <RouterLink to="/" class="group inline-flex items-center gap-1 rounded-md text-sm text-fg-subtle hover:text-accent">
-        <span class="transition-transform duration-(--duration-base) ease-soft group-hover:-translate-x-0.5">←</span>
-        Voltar
-      </RouterLink>
-      <h1 class="mt-2 text-2xl font-semibold">{{ dataset.name }}</h1>
-    </div>
+    <PageHeader :title="dataset.name" :subtitle="`${dataset.rowCount} linhas · ${dataset.columns.length} colunas`" />
 
     <div v-if="analysis" class="space-y-3">
       <h2 class="text-lg font-semibold">Pontos de análise</h2>
-      <ul class="grid gap-3 sm:grid-cols-2">
-        <li
-          v-for="(insight, i) in analysis.insights"
-          :key="insight.title"
-          class="card card-interactive animate-fade-up stagger p-4"
-          :style="{ '--i': i }"
-        >
-          <p class="font-medium">{{ insight.title }}</p>
-          <p class="mt-1 text-sm text-fg-muted">{{ insight.description }}</p>
-        </li>
-      </ul>
+      <InsightList :insights="analysis.insights" />
     </div>
 
     <div v-if="analysis?.breakdowns.length" class="space-y-3">
@@ -49,6 +33,7 @@ const PREVIEW_ROWS = 20
           :key="breakdown.valueKey"
           :title="`${breakdown.valueKey} por ${breakdown.categoryKey}`"
           subtitle="Soma por categoria, do maior para o menor"
+          info="Soma da coluna numérica agrupada pela primeira coluna de texto da tabela. Acima de 10 categorias, as menores são somadas em Outros."
           class="animate-fade-up stagger"
           :style="{ '--i': i }"
         >
@@ -68,10 +53,18 @@ const PREVIEW_ROWS = 20
     >
       <h3 class="font-semibold">{{ column.label }}</h3>
       <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Soma" :value="formatNumber(statistics.sum)" />
-        <StatCard label="Média" :value="formatNumber(statistics.mean)" />
-        <StatCard label="Mínimo" :value="formatNumber(statistics.min)" />
-        <StatCard label="Máximo" :value="formatNumber(statistics.max)" />
+        <StatCard
+          label="Soma"
+          :value="formatNumber(statistics.sum)"
+          :info="`Soma de todos os valores numéricos da coluna (${statistics.count} valores).`"
+        />
+        <StatCard
+          label="Média"
+          :value="formatNumber(statistics.mean)"
+          info="Soma ÷ quantidade de valores numéricos. Células vazias ou com texto não entram na conta."
+        />
+        <StatCard label="Mínimo" :value="formatNumber(statistics.min)" info="Menor valor numérico encontrado na coluna." />
+        <StatCard label="Máximo" :value="formatNumber(statistics.max)" info="Maior valor numérico encontrado na coluna." />
       </div>
     </div>
 

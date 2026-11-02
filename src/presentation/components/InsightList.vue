@@ -1,14 +1,16 @@
 <script setup lang="ts">
-export interface InsightItem {
-  title: string
-  description: string
-  tone?: 'positive' | 'negative' | 'neutral'
+import { PhLightbulb, PhTrendDown, PhTrendUp } from '@phosphor-icons/vue'
+import type { Component } from 'vue'
+import type { Insight, InsightTone } from '@/domain/analysis'
+import InfoTip from './InfoTip.vue'
+
+defineProps<{ insights: readonly Insight[] }>()
+
+const TONES: Record<InsightTone, { icon: Component; label: string; classes: string }> = {
+  positive: { icon: PhTrendUp, label: 'Ponto positivo', classes: 'bg-success-soft text-success' },
+  negative: { icon: PhTrendDown, label: 'Ponto de atenção', classes: 'bg-danger-soft text-danger' },
+  neutral: { icon: PhLightbulb, label: 'Observação', classes: 'bg-surface-muted text-fg-subtle' },
 }
-
-defineProps<{ insights: InsightItem[] }>()
-
-const ICONS = { positive: '▲', negative: '▼', neutral: '•' }
-const LABELS = { positive: 'Ponto positivo', negative: 'Ponto de atenção', neutral: 'Observação' }
 </script>
 
 <template>
@@ -20,21 +22,18 @@ const LABELS = { positive: 'Ponto positivo', negative: 'Ponto de atenção', neu
       :style="{ '--i': i }"
     >
       <span
-        class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs"
-        :class="{
-          'bg-success-soft text-success': insight.tone === 'positive',
-          'bg-danger-soft text-danger': insight.tone === 'negative',
-          'bg-surface-muted text-fg-subtle': !insight.tone || insight.tone === 'neutral',
-        }"
-        :title="LABELS[insight.tone ?? 'neutral']"
+        class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full"
+        :class="TONES[insight.tone].classes"
+        :title="TONES[insight.tone].label"
       >
-        <span aria-hidden="true">{{ ICONS[insight.tone ?? 'neutral'] }}</span>
-        <span class="sr-only">{{ LABELS[insight.tone ?? 'neutral'] }}</span>
+        <component :is="TONES[insight.tone].icon" :size="16" weight="bold" aria-hidden="true" />
+        <span class="sr-only">{{ TONES[insight.tone].label }}</span>
       </span>
-      <div>
+      <div class="min-w-0 flex-1">
         <p class="font-medium">{{ insight.title }}</p>
         <p class="mt-0.5 text-sm text-fg-muted">{{ insight.description }}</p>
       </div>
+      <InfoTip :text="insight.explanation" class="-mt-1 -mr-2 shrink-0" />
     </li>
   </ul>
 </template>

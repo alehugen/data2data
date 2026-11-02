@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import ThemeSwitcher from '@/presentation/components/ThemeSwitcher.vue'
+import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
+import { ThemePreference, useTheme } from '@/presentation/composables/useTheme'
+
+const { preference } = useTheme()
+
+const THEME_OPTIONS = [
+  { value: ThemePreference.Light, label: 'Claro' },
+  { value: ThemePreference.Dark, label: 'Escuro' },
+  { value: ThemePreference.System, label: 'Sistema' },
+]
 </script>
 
 <template>
@@ -11,7 +20,7 @@ import ThemeSwitcher from '@/presentation/components/ThemeSwitcher.vue'
           >2</span
         >data
       </RouterLink>
-      <ThemeSwitcher />
+      <SegmentedControl v-model="preference" :options="THEME_OPTIONS" label="Tema" />
     </nav>
   </header>
 

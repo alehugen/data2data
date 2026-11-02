@@ -7,24 +7,20 @@ import { SVGRenderer } from 'echarts/renderers'
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
-import { formatCompact, formatNumber } from '@/presentation/format'
+import { escapeHtml, formatCompact, formatNumber } from '@/presentation/format'
 
-// Registro tree-shaken: só entra no bundle o que este gráfico usa
 use([BarChart, GridComponent, TooltipComponent, SVGRenderer])
 
 export interface RankingItem {
   label: string
   value: number
-  /** Cor da barra (ex.: classe ABC); padrão é a primeira cor da paleta */
   color?: string
-  /** Linha extra no tooltip (ex.: "50,6% da receita") */
   detail?: string
 }
 
 const props = withDefaults(
   defineProps<{
     items: RankingItem[]
-    /** Nome da medida, exibido no tooltip */
     valueLabel: string
     formatValue?: (value: number) => string
     formatAxis?: (value: number) => string
@@ -38,7 +34,7 @@ const BAR_HEIGHT = 30
 const height = computed(() => `${props.items.length * BAR_HEIGHT + 40}px`)
 
 const option = computed<EChartsOption>(() => {
-  const { chrome, series, tooltip, fontFamily } = theme.value
+  const { chrome, series, axisTooltip, fontFamily } = theme.value
 
   return {
     textStyle: { fontFamily },
@@ -46,15 +42,13 @@ const option = computed<EChartsOption>(() => {
     animationEasing: 'cubicOut',
     grid: { left: 8, right: 24, top: 8, bottom: 24, containLabel: true },
     tooltip: {
-      ...tooltip,
-      trigger: 'axis',
-      axisPointer: { type: 'shadow', shadowStyle: { color: `${chrome.grid}99` } },
+      ...axisTooltip,
       formatter: (params) => {
         const index = (Array.isArray(params) ? params[0] : params)?.dataIndex ?? 0
         const item = props.items[index]
         if (!item) return ''
-        const detail = item.detail ? `<br/><span style="color:${chrome.textMuted}">${item.detail}</span>` : ''
-        return `${item.label}<br/>${props.valueLabel}: <b>${props.formatValue(item.value)}</b>${detail}`
+        const detail = item.detail ? `<br/><span style="color:${chrome.textMuted}">${escapeHtml(item.detail)}</span>` : ''
+        return `${escapeHtml(item.label)}<br/>${escapeHtml(props.valueLabel)}: <b>${props.formatValue(item.value)}</b>${detail}`
       },
     },
     xAxis: {
@@ -64,7 +58,7 @@ const option = computed<EChartsOption>(() => {
     },
     yAxis: {
       type: 'category',
-      inverse: true, // maior valor no topo
+      inverse: true,
       data: props.items.map((item) => item.label),
       axisTick: { show: false },
       axisLine: { lineStyle: { color: chrome.axis } },

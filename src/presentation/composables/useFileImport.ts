@@ -8,21 +8,25 @@ export function useFileImport() {
   const errors = ref<string[]>([])
   const { refresh } = useReports()
 
-  /** Importa todos os arquivos; uma falha não impede os demais. */
-  async function importFiles(files: FileList | File[]): Promise<Report[]> {
+  async function importFiles(files: readonly File[]): Promise<Report[]> {
     isImporting.value = true
     errors.value = []
+    const imported: Report[] = []
 
-    const results = await Promise.allSettled([...files].map((file) => container.importFile.execute(file)))
-    errors.value = results.flatMap((result) =>
-      result.status === 'rejected'
-        ? [result.reason instanceof Error ? result.reason.message : 'Erro desconhecido ao importar arquivo']
-        : [],
-    )
+    try {
+      for (const file of files) {
+        try {
+          imported.push(...(await container.importFile.execute(file)))
+        } catch (error) {
+          errors.value.push(error instanceof Error ? error.message : `Erro inesperado ao importar ${file.name}`)
+        }
+      }
+      await refresh()
+    } finally {
+      isImporting.value = false
+    }
 
-    await refresh()
-    isImporting.value = false
-    return results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+    return imported
   }
 
   return { isImporting, errors, importFiles }

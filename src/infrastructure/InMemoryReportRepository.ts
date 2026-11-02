@@ -8,14 +8,8 @@ export class InMemoryReportRepository implements ReportRepository {
     this.store.set(report.id, report)
   }
 
-  async findById(id: Identifier): Promise<Report | null> {
-    return this.store.get(id) ?? null
-  }
-
   async findAll(): Promise<Report[]> {
-    return [...this.store.values()].sort(
-      (a, b) => b.importedAt.getTime() - a.importedAt.getTime(),
-    )
+    return [...this.store.values()].sort((a, b) => b.importedAt.getTime() - a.importedAt.getTime())
   }
 
   async remove(id: Identifier): Promise<void> {

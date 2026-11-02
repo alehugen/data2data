@@ -4,34 +4,31 @@ import {
   normalizeText,
   parseNumber,
   periodKey,
+  sum,
   type Identifier,
   type Period,
 } from '@/domain/shared'
 
 export const DreLineKind = {
-  /** Agrupa outros grupos (ex.: DESPESAS OPERACIONAIS) */
   Section: 'section',
-  /** Soma de contas (ex.: IMPOSTOS SOBRE VENDA) */
   Group: 'group',
   Account: 'account',
-  /** Subtotal da DRE (ex.: LUCRO BRUTO, EBITDA) */
   Result: 'result',
-  /** Linhas de caixa fora da cascata (Variação, Saldo inicial/final) */
   Balance: 'balance',
 } as const
 
 export type DreLineKind = (typeof DreLineKind)[keyof typeof DreLineKind]
 
+export type DreAggregation = 'sum' | 'first' | 'last'
 export interface DreLine {
   readonly id: string
   readonly label: string
   readonly kind: DreLineKind
   readonly parentId: string | null
-  /** Um valor por período, alinhado a DreReport.periods */
+  readonly aggregation: DreAggregation
   readonly values: readonly number[]
 }
 
-/** Linhas-chave da DRE gerencial, reconhecidas pelo nome. */
 export const DreMetric = {
   GrossRevenue: 'grossRevenue',
   SalesTaxes: 'salesTaxes',
@@ -56,32 +53,24 @@ const METRIC_LABELS: Record<DreMetric, string[]> = {
   endingCash: ['SALDO FINAL'],
 }
 
-/** Aba preferida quando a planilha tem várias DREs (ex.: "DRE Unidades" e "DFC DRE Geral"). */
 const PREFERRED_SHEET = 'DRE GERAL'
 
-/**
- * Aggregate root: Demonstração do Resultado do Exercício mensal.
- * Valores seguem o sinal da planilha: receitas positivas, custos e despesas negativos.
- */
 export class DreReport {
   readonly kind = 'dre' as const
-  readonly id: Identifier
+  readonly id: Identifier = createIdentifier()
+  readonly importedAt = new Date()
   readonly name: string
   readonly periods: readonly Period[]
   readonly lines: readonly DreLine[]
-  readonly importedAt: Date
   private readonly metrics: ReadonlyMap<DreMetric, DreLine>
 
   private constructor(name: string, periods: Period[], lines: DreLine[]) {
-    this.id = createIdentifier()
     this.name = name
     this.periods = periods
     this.lines = lines
-    this.importedAt = new Date()
     this.metrics = matchMetrics(lines)
   }
 
-  /** Escolhe a aba de DRE de uma planilha (prioriza "DRE Geral") e a interpreta. */
   static fromTables(tables: readonly RawTable[]): DreReport | null {
     const preferred = tables.filter((t) => normalizeText(t.sheet ?? '').includes(PREFERRED_SHEET))
     const others = tables.filter((t) => !preferred.includes(t))
@@ -96,8 +85,10 @@ export class DreReport {
     const header = findPeriodHeader(table.rows)
     if (!header) return null
 
-    const entries = table.rows.slice(header.rowIndex + 2).map((row) => ({
-      label: (row[0] ?? '').trim(),
+    const dataRows = table.rows.slice(header.rowIndex + 2)
+    const labelColumn = findLabelColumn(dataRows, header.columns[0]!)
+    const entries = dataRows.map((row) => ({
+      label: (row[labelColumn] ?? '').trim(),
       values: header.columns.map((col) => {
         const value = parseNumber(row[col] ?? '')
         return Number.isFinite(value) ? value : 0
@@ -112,7 +103,6 @@ export class DreReport {
     const trimmed = lines.map((line) => ({ ...line, values: line.values.slice(start, end + 1) }))
     const report = new DreReport(table.name, header.periods.slice(start, end + 1), trimmed)
 
-    // Sem receita bruta não é uma DRE reconhecível
     return report.metric(DreMetric.GrossRevenue) ? report : null
   }
 
@@ -124,22 +114,13 @@ export class DreReport {
     return this.lines.filter((line) => line.parentId === lineId)
   }
 
-  /**
-   * Valor de uma linha em um conjunto de períodos: soma os meses, exceto saldos
-   * (saldo inicial pega o primeiro mês, saldo final o último).
-   */
   valueOf(line: DreLine | undefined, periodIndexes: readonly number[]): number {
     if (!line || !periodIndexes.length) return 0
-    const label = normalizeText(line.label)
-    if (label.startsWith('SALDO')) {
-      const index = label.includes('FINAL') ? periodIndexes.at(-1) : periodIndexes[0]
-      return line.values[index ?? 0] ?? 0
-    }
-    return periodIndexes.reduce((acc, i) => acc + (line.values[i] ?? 0), 0)
+    if (line.aggregation === 'first') return line.values[periodIndexes[0]!] ?? 0
+    if (line.aggregation === 'last') return line.values[periodIndexes.at(-1)!] ?? 0
+    return sum(periodIndexes.map((i) => line.values[i] ?? 0))
   }
 }
-
-// ---------- Interpretação da planilha ----------
 
 interface PeriodHeader {
   rowIndex: number
@@ -150,10 +131,6 @@ interface PeriodHeader {
 const isMonthCell = (value: string | undefined) => /^\d{1,2}$/.test(value?.trim() ?? '') && Number(value) >= 1 && Number(value) <= 12
 const isYearCell = (value: string | undefined) => /^(19|20)\d{2}$/.test(value?.trim() ?? '')
 
-/**
- * Procura a linha com os meses (1..12) que tenha, logo abaixo, os anos.
- * Meses repetidos são ignorados (fica a primeira ocorrência).
- */
 function findPeriodHeader(rows: string[][]): PeriodHeader | null {
   for (let rowIndex = 0; rowIndex < Math.min(rows.length - 1, 30); rowIndex++) {
     const monthRow = rows[rowIndex] ?? []
@@ -176,24 +153,36 @@ function findPeriodHeader(rows: string[][]): PeriodHeader | null {
   return null
 }
 
+function findLabelColumn(rows: string[][], firstPeriodColumn: number): number {
+  let best = 0
+  let bestCount = -1
+  for (let col = 0; col < firstPeriodColumn; col++) {
+    const count = rows.filter((row) => /\p{L}/u.test(row[col] ?? '')).length
+    if (count > bestCount) [best, bestCount] = [col, count]
+  }
+  return best
+}
+
 const isUpperLabel = (label: string) => /\p{L}/u.test(label) && label === label.toUpperCase()
 
-/** Grupo é a soma das linhas abaixo dele (tolerância de centavos). */
+function aggregationOf(label: string): DreAggregation {
+  const normalized = normalizeText(label)
+  if (!normalized.startsWith('SALDO')) return 'sum'
+  return normalized.includes('FINAL') ? 'last' : 'first'
+}
+
 const isSumOf = (parent: number[], children: number[][]) =>
   parent.every((value, i) => {
     const sum = children.reduce((acc, child) => acc + (child[i] ?? 0), 0)
     return Math.abs(value - sum) <= 0.5 + Math.abs(value) * 1e-6
   })
 
-/**
- * A DRE vem em blocos separados por linhas em branco:
- * - bloco de uma linha → resultado (Lucro Bruto, EBITDA...)
- * - cabeçalho = soma das demais → grupo com suas contas
- * - cabeçalho seguido de outro título em maiúsculas → seção (agrupa os grupos seguintes)
- * - caso contrário → linhas avulsas de saldo
- */
-function classifyLines(entries: { label: string; values: number[] }[]): DreLine[] {
-  const blocks: { label: string; values: number[] }[][] = [[]]
+interface Entry {
+  label: string
+  values: number[]
+}
+function classifyLines(entries: Entry[]): DreLine[] {
+  const blocks: Entry[][] = [[]]
   for (const entry of entries) {
     if (entry.label) blocks.at(-1)!.push(entry)
     else if (blocks.at(-1)!.length) blocks.push([])
@@ -201,13 +190,13 @@ function classifyLines(entries: { label: string; values: number[] }[]): DreLine[
 
   const lines: DreLine[] = []
   let section: string | null = null
-  const add = (entry: { label: string; values: number[] }, kind: DreLineKind, parentId: string | null) => {
+  const add = (entry: Entry, kind: DreLineKind, parentId: string | null) => {
     const id = `l${lines.length}`
-    lines.push({ id, label: entry.label, kind, parentId, values: entry.values })
+    lines.push({ id, label: entry.label, kind, parentId, aggregation: aggregationOf(entry.label), values: entry.values })
     return id
   }
 
-  const processBlock = (block: { label: string; values: number[] }[]) => {
+  const processBlock = (block: Entry[]) => {
     const [head, ...rest] = block
     if (!head) return
 
@@ -237,7 +226,6 @@ function classifyLines(entries: { label: string; values: number[] }[]): DreLine[
   return lines
 }
 
-/** Primeiro e último período com algum valor diferente de zero. */
 function activeRange(lines: DreLine[], periodCount: number): [number, number] | null {
   const active = Array.from({ length: periodCount }, (_, i) => lines.some((line) => line.values[i] !== 0))
   const start = active.indexOf(true)

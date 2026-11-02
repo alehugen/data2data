@@ -1,27 +1,22 @@
 import Papa from 'papaparse'
 import { FileFormat, type FileParser, type RawTable, type SourceFile } from '@/domain/ingestion'
-import { DomainError } from '@/domain/shared'
 
-/** Adapter CSV via Papa Parse: detecta delimitador, aspas e quebras de linha. */
 export class CsvFileParser implements FileParser {
   readonly format = FileFormat.Csv
 
   async parse(file: SourceFile): Promise<RawTable[]> {
     const text = decode(await file.content.arrayBuffer())
-    const result = Papa.parse<string[]>(text, {
+    const { data } = Papa.parse<string[]>(text, {
       skipEmptyLines: 'greedy',
       transform: (value) => value.trim(),
     })
 
-    if (result.errors.length && !result.data.length) {
-      throw new DomainError(`Não foi possível ler o CSV: ${result.errors[0]?.message}`)
-    }
-
-    return [{ name: file.name.replace(/\.[^.]+$/, ''), rows: result.data }]
+    return [{ name: file.baseName, rows: data.filter((row) => !row.every(isOnlySeparators)) }]
   }
 }
 
-/** Sistemas brasileiros costumam exportar em Windows-1252 (Latin-1); tenta UTF-8 primeiro. */
+const isOnlySeparators = (cell: string) => /^[\s;,|\t]*$/.test(cell)
+
 function decode(buffer: ArrayBuffer): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(buffer)

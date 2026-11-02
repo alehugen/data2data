@@ -1,21 +1,20 @@
 <script setup lang="ts">
+import { PhArrowDownRight, PhArrowUpRight, PhMinus } from '@phosphor-icons/vue'
 import { computed } from 'vue'
 import { formatSignedPercent } from '@/presentation/format'
+import InfoTip from './InfoTip.vue'
 
 const props = withDefaults(
   defineProps<{
     label: string
     value: string | number
-    /** Linha de apoio (ex.: "Margem 42,9%") */
     hint?: string
-    /** Variação como fração (0.12 = +12%) */
     delta?: number | null
-    /** Período de comparação (ex.: "set/26") */
     deltaLabel?: string
-    /** Para indicadores em que cair é bom (ex.: custos) */
     lowerIsBetter?: boolean
+    info?: string
   }>(),
-  { hint: undefined, delta: null, deltaLabel: undefined, lowerIsBetter: false },
+  { hint: undefined, delta: null, deltaLabel: undefined, lowerIsBetter: false, info: undefined },
 )
 
 const tone = computed(() => {
@@ -26,7 +25,10 @@ const tone = computed(() => {
 
 <template>
   <div class="card card-interactive flex flex-col p-4">
-    <p class="text-sm text-fg-subtle">{{ label }}</p>
+    <div class="flex items-start justify-between gap-2">
+      <p class="text-sm text-fg-subtle">{{ label }}</p>
+      <InfoTip v-if="info" :text="info" class="-mt-1 -mr-2" />
+    </div>
     <p class="mt-1 text-2xl font-semibold text-fg">{{ value }}</p>
     <p v-if="hint" class="text-sm text-fg-muted">{{ hint }}</p>
     <p
@@ -34,7 +36,9 @@ const tone = computed(() => {
       class="mt-2 inline-flex items-center gap-1 text-xs font-medium"
       :class="{ 'text-success': tone === 'good', 'text-danger': tone === 'bad', 'text-fg-subtle': tone === 'neutral' }"
     >
-      <span aria-hidden="true">{{ delta > 0 ? '▲' : delta < 0 ? '▼' : '•' }}</span>
+      <PhArrowUpRight v-if="delta > 0" :size="14" weight="bold" aria-hidden="true" />
+      <PhArrowDownRight v-else-if="delta < 0" :size="14" weight="bold" aria-hidden="true" />
+      <PhMinus v-else :size="14" weight="bold" aria-hidden="true" />
       {{ formatSignedPercent(delta) }}
       <span v-if="deltaLabel" class="font-normal text-fg-subtle">vs {{ deltaLabel }}</span>
     </p>

@@ -1,5 +1,7 @@
 import { ABC_CLASSES, type AbcClass, type AbcItem, type AbcReport } from '@/domain/abc'
-import { comparePeriods, type Identifier } from '@/domain/shared'
+import type { ProfitReport } from '@/domain/profit'
+import { comparePeriods, periodKey, sum, type Identifier, type Period } from '@/domain/shared'
+import { analyzeProfitability, type AbcProfitability } from './AbcProfitability'
 
 export interface AbcTotals {
   readonly items: number
@@ -10,6 +12,7 @@ export interface AbcTotals {
 export interface AbcMonthSummary extends AbcTotals {
   readonly report: AbcReport
   readonly byClass: Record<AbcClass, AbcTotals>
+  readonly profitReport: ProfitReport | null
 }
 
 export const AbcMovement = {
@@ -35,14 +38,12 @@ export interface AbcItemMovement {
 }
 
 export interface AbcAnalysis {
-  /** Todos os meses importados, em ordem cronológica */
   readonly months: AbcMonthSummary[]
   readonly current: AbcMonthSummary
   readonly previous: AbcMonthSummary | null
-  /** Itens do mês na ordem do relatório, com participação acumulada (Pareto) */
   readonly ranking: (AbcItem & { readonly cumulativeShare: number })[]
-  /** Comparação item a item com o mês anterior (vazio se não houver) */
   readonly movements: AbcItemMovement[]
+  readonly profitability: AbcProfitability | null
 }
 
 const CLASS_RANK: Record<AbcClass, number> = { A: 0, B: 1, C: 2 }
@@ -57,19 +58,11 @@ const MOVEMENT_ORDER: AbcMovement[] = [
 
 const totalsOf = (items: readonly AbcItem[]): AbcTotals => ({
   items: items.length,
-  quantity: items.reduce((acc, item) => acc + item.quantity, 0),
-  value: items.reduce((acc, item) => acc + item.value, 0),
+  quantity: sum(items.map((item) => item.quantity)),
+  value: sum(items.map((item) => item.value)),
 })
 
-function summarize(report: AbcReport): AbcMonthSummary {
-  const byClass = Object.fromEntries(
-    ABC_CLASSES.map((abcClass) => [abcClass, totalsOf(report.items.filter((i) => i.abcClass === abcClass))]),
-  ) as Record<AbcClass, AbcTotals>
-  return { report, ...totalsOf(report.items), byClass }
-}
-
-/** Ordem cronológica; relatórios sem mês identificado vão para o fim, por data de importação. */
-function chronological(a: AbcReport, b: AbcReport): number {
+function chronological(a: { period: Period | null; importedAt: Date }, b: { period: Period | null; importedAt: Date }) {
   if (a.period && b.period) return comparePeriods(a.period, b.period)
   if (a.period) return -1
   if (b.period) return 1
@@ -77,9 +70,16 @@ function chronological(a: AbcReport, b: AbcReport): number {
 }
 
 export class AnalyzeAbcUseCase {
-  /** Sem `reportId`, analisa o mês mais recente. */
-  execute(reports: readonly AbcReport[], reportId?: Identifier): AbcAnalysis | null {
-    const months = [...reports].sort(chronological).map(summarize)
+  execute(
+    reports: readonly AbcReport[],
+    profitReports: readonly ProfitReport[] = [],
+    reportId?: Identifier,
+  ): AbcAnalysis | null {
+    const profitByMonth = new Map(
+      profitReports.flatMap((report) => (report.period ? [[periodKey(report.period), report] as const] : [])),
+    )
+    const months = [...reports].sort(chronological).map((report) => this.summarize(report, profitByMonth))
+
     const currentIndex = reportId ? months.findIndex((m) => m.report.id === reportId) : months.length - 1
     const current = months[currentIndex]
     if (!current) return null
@@ -97,6 +97,22 @@ export class AnalyzeAbcUseCase {
       previous,
       ranking,
       movements: previous ? this.compare(previous.report, current.report) : [],
+      profitability: current.profitReport
+        ? analyzeProfitability(current.report, current.profitReport, previous?.profitReport ?? null)
+        : null,
+    }
+  }
+
+  private summarize(report: AbcReport, profitByMonth: ReadonlyMap<string, ProfitReport>): AbcMonthSummary {
+    const byClass = Object.fromEntries(
+      ABC_CLASSES.map((abcClass) => [abcClass, totalsOf(report.items.filter((i) => i.abcClass === abcClass))]),
+    ) as Record<AbcClass, AbcTotals>
+
+    return {
+      report,
+      ...totalsOf(report.items),
+      byClass,
+      profitReport: report.period ? (profitByMonth.get(periodKey(report.period)) ?? null) : null,
     }
   }
 
@@ -109,32 +125,26 @@ export class AnalyzeAbcUseCase {
       .map((code) => {
         const old = before.get(code)
         const now = after.get(code)
-        const movement = !old
-          ? AbcMovement.New
-          : !now
-            ? AbcMovement.Gone
-            : CLASS_RANK[now.abcClass] < CLASS_RANK[old.abcClass]
-              ? AbcMovement.Up
-              : CLASS_RANK[now.abcClass] > CLASS_RANK[old.abcClass]
-                ? AbcMovement.Down
-                : AbcMovement.Same
-
         return {
           code,
           description: (now ?? old)!.description,
           from: old?.abcClass ?? null,
           to: now?.abcClass ?? null,
-          movement,
+          movement: movementOf(old?.abcClass, now?.abcClass),
           quantity: now?.quantity ?? 0,
           previousQuantity: old?.quantity ?? 0,
           value: now?.value ?? 0,
           previousValue: old?.value ?? 0,
         }
       })
-      .sort(
-        (a, b) =>
-          MOVEMENT_ORDER.indexOf(a.movement) - MOVEMENT_ORDER.indexOf(b.movement) ||
-          b.value - a.value,
-      )
+      .sort((a, b) => MOVEMENT_ORDER.indexOf(a.movement) - MOVEMENT_ORDER.indexOf(b.movement) || b.value - a.value)
   }
+}
+
+function movementOf(before: AbcClass | undefined, after: AbcClass | undefined): AbcMovement {
+  if (!before) return AbcMovement.New
+  if (!after) return AbcMovement.Gone
+  if (CLASS_RANK[after] < CLASS_RANK[before]) return AbcMovement.Up
+  if (CLASS_RANK[after] > CLASS_RANK[before]) return AbcMovement.Down
+  return AbcMovement.Same
 }

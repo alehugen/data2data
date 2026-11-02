@@ -20,7 +20,6 @@ const share = (value: number) => (total.value ? value / total.value : 0)
       <span class="font-medium">{{ title }}</span>
       <span class="text-fg-subtle">{{ formatValue(total) }}</span>
     </div>
-    <!-- Barra 100% empilhada; 2px de respiro entre segmentos -->
     <div class="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" :aria-label="`${title} por classe`">
       <div
         v-for="segment in segments.filter((s) => s.value > 0)"
@@ -30,7 +29,6 @@ const share = (value: number) => (total.value ? value / total.value : 0)
         :title="`${segment.label}: ${formatValue(segment.value)}`"
       />
     </div>
-    <!-- Valores em texto (a cor nunca carrega a informação sozinha) -->
     <ul class="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-fg-muted">
       <li v-for="segment in segments" :key="segment.label" class="flex items-center gap-1.5">
         <span class="size-2 rounded-full" :style="{ background: segment.color }" aria-hidden="true" />

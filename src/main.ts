@@ -10,7 +10,6 @@ const pinia = createPinia()
 
 app.use(pinia).use(router)
 
-// Inicializa o tema antes do mount para aplicar a classe .dark e ouvir o sistema
 useThemeStore(pinia)
 
 app.mount('#app')

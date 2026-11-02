@@ -5,22 +5,18 @@ export interface CategoryTotal {
   readonly total: number
 }
 
-/** Soma de uma coluna numérica agrupada por uma coluna categórica. */
 export interface CategoryBreakdown {
   readonly categoryKey: string
   readonly valueKey: string
   readonly items: CategoryTotal[]
 }
 
-export const OTHER_CATEGORY = 'Outros'
+const OTHER_CATEGORY = 'Outros'
+const EMPTY_CATEGORY = '(vazio)'
 
-/**
- * Agrupa e ordena do maior para o menor. Acima de `limit` categorias,
- * o excedente é somado em "Outros" para manter o gráfico legível.
- */
 export function computeBreakdown(
-  categories: string[],
-  values: string[],
+  categories: readonly string[],
+  values: readonly string[],
   limit = 10,
 ): CategoryTotal[] {
   const totals = new Map<string, number>()
@@ -28,7 +24,7 @@ export function computeBreakdown(
   categories.forEach((rawCategory, i) => {
     const value = parseNumber(values[i] ?? '')
     if (!Number.isFinite(value)) return
-    const category = rawCategory.trim() || '(vazio)'
+    const category = rawCategory.trim() || EMPTY_CATEGORY
     totals.set(category, (totals.get(category) ?? 0) + value)
   })
 

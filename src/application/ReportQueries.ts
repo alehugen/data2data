@@ -13,18 +13,6 @@ export class ListReportsUseCase {
   }
 }
 
-export class GetReportUseCase {
-  private readonly repository: ReportRepository
-
-  constructor(repository: ReportRepository) {
-    this.repository = repository
-  }
-
-  execute(id: Identifier): Promise<Report | null> {
-    return this.repository.findById(id)
-  }
-}
-
 export class RemoveReportUseCase {
   private readonly repository: ReportRepository
 

@@ -18,7 +18,6 @@ export interface DatasetAnalysis {
   readonly insights: Insight[]
 }
 
-/** Gera estatísticas, agrupamentos e pontos de análise iniciais para um Dataset. */
 export class AnalyzeDatasetUseCase {
   execute(dataset: Dataset): DatasetAnalysis {
     const numericColumns = dataset.columns
@@ -28,7 +27,6 @@ export class AnalyzeDatasetUseCase {
         statistics: computeStatistics(dataset.columnValues(column.key)),
       }))
 
-    // Primeira coluna de texto vira a dimensão de agrupamento padrão
     const categoryColumn = dataset.columns.find((column) => column.type === ColumnType.Text)
     const breakdowns: CategoryBreakdown[] = categoryColumn
       ? numericColumns.map(({ column }) => ({
@@ -45,6 +43,8 @@ export class AnalyzeDatasetUseCase {
       {
         title: 'Visão geral',
         description: `${dataset.rowCount} linhas e ${dataset.columns.length} colunas, sendo ${numericColumns.length} numéricas.`,
+        tone: 'neutral',
+        explanation: 'Contagem de linhas preenchidas e colunas da tabela. Uma coluna é numérica quando todos os seus valores podem ser lidos como número.',
       },
       ...breakdowns.flatMap(({ categoryKey, valueKey, items }) => {
         const [top] = items
@@ -55,6 +55,8 @@ export class AnalyzeDatasetUseCase {
           {
             title: `Maior ${valueKey}`,
             description: `"${top.category}" concentra ${share}% do total de ${valueKey} por ${categoryKey}.`,
+            tone: 'neutral' as const,
+            explanation: `Soma de ${valueKey} agrupada por ${categoryKey} (a primeira coluna de texto da tabela). Percentual = maior grupo ÷ soma de todos os grupos.`,
           },
         ]
       }),

@@ -1,17 +1,22 @@
 <script setup lang="ts">
+import { PhCaretRight } from '@phosphor-icons/vue'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DreLineKind, DreMetric, type DreLine, type DreReport } from '@/domain/dre'
 import { formatPercent, formatPeriod, prettifyLabel } from '@/presentation/format'
+import InfoTip from './InfoTip.vue'
+import SegmentedControl from './SegmentedControl.vue'
 
 const props = defineProps<{ report: DreReport; highlight: number[] }>()
 
+const TABLE_INFO =
+  'Valores como na planilha: receitas positivas, custos e despesas negativos. AV % = cada linha ÷ receita bruta do mesmo mês. Clique em um grupo para ver as contas que o compõem; a coluna destacada é o período selecionado.'
+
 const MODES = [
-  { key: 'value', label: 'Valores (R$)' },
-  { key: 'av', label: 'AV % da receita' },
+  { value: 'value', label: 'Valores (R$)' },
+  { value: 'av', label: 'AV % da receita' },
 ] as const
-const mode = ref<(typeof MODES)[number]['key']>('value')
+const mode = ref<(typeof MODES)[number]['value']>('value')
 const showZero = ref(false)
-// Seções começam abertas (mostram os grupos); grupos começam fechados (escondem as contas)
 const expanded = ref(new Set(props.report.lines.filter((l) => l.kind === DreLineKind.Section).map((l) => l.id)))
 
 const integer = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 })
@@ -44,7 +49,6 @@ function cell(line: DreLine, index: number) {
   return base && value ? formatPercent(value / base) : '–'
 }
 
-// Começa mostrando os meses mais recentes (fim da rolagem horizontal)
 const scroller = useTemplateRef('scroller')
 const scrollToHighlight = () => {
   const el = scroller.value
@@ -58,24 +62,14 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
 <template>
   <div class="card overflow-hidden">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
-      <div role="radiogroup" aria-label="Exibir" class="flex rounded-lg border border-line bg-surface-muted p-0.5 text-sm">
-        <button
-          v-for="option in MODES"
-          :key="option.key"
-          type="button"
-          role="radio"
-          :aria-checked="mode === option.key"
-          class="rounded-md px-2.5 py-1"
-          :class="mode === option.key ? 'bg-surface text-fg shadow-card' : 'text-fg-subtle hover:text-fg'"
-          @click="mode = option.key"
-        >
-          {{ option.label }}
-        </button>
+      <SegmentedControl v-model="mode" :options="MODES" label="Exibir" />
+      <div class="flex items-center gap-3">
+        <label class="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
+          <input v-model="showZero" type="checkbox" class="size-4 accent-accent" />
+          Mostrar contas zeradas
+        </label>
+        <InfoTip :text="TABLE_INFO" label="Como ler a tabela" />
       </div>
-      <label class="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
-        <input v-model="showZero" type="checkbox" class="size-4 accent-(--accent)" />
-        Mostrar contas zeradas
-      </label>
     </div>
 
     <div ref="scroller" class="max-h-[70vh] overflow-auto">
@@ -118,12 +112,13 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
                 :aria-expanded="expanded.has(line.id)"
                 @click="toggle(line)"
               >
-                <span
-                  class="inline-block text-xs transition-transform duration-(--duration-base) ease-soft"
+                <PhCaretRight
+                  :size="12"
+                  weight="bold"
+                  class="transition-transform duration-(--duration-base) ease-soft"
                   :class="expanded.has(line.id) && 'rotate-90'"
                   aria-hidden="true"
-                  >▶</span
-                >
+                />
                 {{ prettifyLabel(line.label) }}
               </button>
               <span v-else>{{ prettifyLabel(line.label) }}</span>

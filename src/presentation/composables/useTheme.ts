@@ -9,7 +9,6 @@ export const ThemePreference = {
 
 export type ThemePreference = (typeof ThemePreference)[keyof typeof ThemePreference]
 
-/** Chave e default também usados pelo script inline do index.html (evita flash de tema). */
 const STORAGE_KEY = 'data2data:theme'
 const DEFAULT_THEME: ThemePreference = ThemePreference.Dark
 
@@ -40,27 +39,18 @@ export const useThemeStore = defineStore('theme', () => {
       : preference.value === ThemePreference.Dark,
   )
 
-  // Store é singleton: estes efeitos são registrados uma única vez
   watchEffect(() => document.documentElement.classList.toggle('dark', isDark.value))
 
   watchEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, preference.value)
     } catch {
-      // Armazenamento indisponível (modo privado etc.): o tema só não persiste
     }
   })
 
-  function setPreference(value: ThemePreference) {
-    preference.value = value
-  }
-
-  return { preference, isDark, setPreference }
+  return { preference, isDark }
 })
 
 export function useTheme() {
-  const store = useThemeStore()
-  const { preference, isDark } = storeToRefs(store)
-
-  return { preference, isDark, setTheme: store.setPreference }
+  return storeToRefs(useThemeStore())
 }

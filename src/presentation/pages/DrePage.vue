@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { DreMetric } from '@/domain/dre'
 import ChartCard from '@/presentation/components/ChartCard.vue'
 import DreTable from '@/presentation/components/DreTable.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
+import NotFound from '@/presentation/components/NotFound.vue'
+import PageHeader from '@/presentation/components/PageHeader.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
+import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import TrendChart from '@/presentation/components/TrendChart.vue'
 import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
-import { DRE_MARGIN_LABELS, DRE_METRIC_LABELS, useDreAnalysis } from '@/presentation/composables/useDreAnalysis'
-import { useReports } from '@/presentation/composables/useReports'
+import { DRE_MARGIN_LABELS, DRE_METRIC_INFO, DRE_METRIC_LABELS, useDreAnalysis } from '@/presentation/composables/useDreAnalysis'
 import {
   formatCurrency,
   formatCurrencyCompact,
@@ -20,13 +22,11 @@ import {
 } from '@/presentation/format'
 
 const props = defineProps<{ id: string }>()
-const { refresh } = useReports()
 const { report, selections, selectedKey, analysis, periodLabels, insights } = useDreAnalysis(() => props.id)
 const theme = useChartTheme()
 
-onMounted(() => {
-  if (!report.value) refresh()
-})
+const monthOptions = computed(() => selections.value.filter((o) => o.type === 'month'))
+const yearOptions = computed(() => selections.value.filter((o) => o.type === 'year'))
 
 const months = computed(() => report.value?.periods.map(formatPeriod) ?? [])
 const highlightIndex = computed(() => (analysis.value?.indexes.length === 1 ? analysis.value.indexes[0] : undefined))
@@ -37,10 +37,22 @@ const kpiCards = computed(() =>
     label: DRE_METRIC_LABELS[kpi.metric],
     value: formatCurrencyCompact(kpi.value),
     hint: kpi.margin !== null ? `${DRE_MARGIN_LABELS[kpi.metric] ?? 'Margem'} ${formatPercent(kpi.margin)}` : undefined,
-    // Variação relativa sobre a base absoluta (funciona para valores negativos)
     delta: kpi.previous ? (kpi.value - kpi.previous) / Math.abs(kpi.previous) : null,
+    info: DRE_METRIC_INFO[kpi.metric],
   })),
 )
+
+const INFO = {
+  waterfall:
+    'Parte da receita bruta e aplica, na ordem da DRE, cada grupo de custos e despesas (vermelho reduz, azul aumenta) até o resultado. As barras cinza são os subtotais da própria planilha; subtotais iguais em sequência aparecem uma vez só.',
+  revenue: 'Receita bruta e EBITDA de cada mês, em reais. EBITDA abaixo de zero indica operação no prejuízo naquele mês.',
+  margins: 'Cada linha é o resultado do mês ÷ receita bruta do mês. Meses sem receita ficam em branco.',
+  expenses:
+    'Grupos de custos e despesas anteriores ao EBITDA no período selecionado, do maior para o menor. O tooltip mostra quanto cada um consome da receita bruta.',
+  mix: 'Contas que formam a receita bruta, empilhadas mês a mês. Só aparecem as contas com movimento.',
+  cash: 'Saldo final de caixa informado na DRE para cada mês (saldo inicial + variação).',
+  insights: 'Frases geradas automaticamente a partir dos números. Passe o mouse no ícone de cada card para ver o cálculo.',
+}
 
 const revenueSeries = computed(() => {
   const a = analysis.value
@@ -52,7 +64,7 @@ const revenueSeries = computed(() => {
 })
 
 const marginSeries = computed(() =>
-  (analysis.value?.margins ?? []).map((m) => ({
+  (analysis.value?.monthly.margins ?? []).map((m) => ({
     name: DRE_MARGIN_LABELS[m.metric] ?? m.metric,
     type: 'line' as const,
     data: m.values,
@@ -60,7 +72,7 @@ const marginSeries = computed(() =>
 )
 
 const mixSeries = computed(() =>
-  (analysis.value?.revenueMix ?? []).map((s) => ({
+  (analysis.value?.monthly.revenueMix ?? []).map((s) => ({
     name: prettifyLabel(s.label),
     type: 'bar' as const,
     stack: 'mix',
@@ -78,22 +90,10 @@ const expenseItems = computed(() =>
 </script>
 
 <template>
-  <div v-if="!report" class="animate-fade-up space-y-2">
-    <p class="text-fg-muted">DRE não encontrada. Os dados ficam só na memória: importe a planilha novamente.</p>
-    <RouterLink to="/" class="link">Voltar ao início</RouterLink>
-  </div>
+  <NotFound v-if="!report" message="DRE não encontrada." />
 
   <section v-else-if="analysis" class="space-y-8">
-    <header class="flex animate-fade-up flex-wrap items-end justify-between gap-4">
-      <div>
-        <RouterLink to="/" class="group inline-flex items-center gap-1 rounded-md text-sm text-fg-subtle hover:text-accent">
-          <span class="transition-transform duration-(--duration-base) ease-soft group-hover:-translate-x-0.5">←</span>
-          Voltar
-        </RouterLink>
-        <h1 class="mt-2 text-2xl font-semibold">Demonstração do resultado</h1>
-        <p class="text-sm text-fg-subtle">{{ report.name }}</p>
-      </div>
-
+    <PageHeader title="Demonstração do resultado" :subtitle="report.name">
       <label class="flex flex-col gap-1 text-sm">
         <span class="text-fg-subtle">Período</span>
         <select
@@ -101,16 +101,15 @@ const expenseItems = computed(() =>
           class="rounded-lg border border-line bg-surface px-3 py-2 text-fg shadow-card hover:border-line-strong"
         >
           <optgroup label="Mês">
-            <option v-for="s in selections.filter((o) => o.type === 'month')" :key="s.key" :value="s.key">{{ s.label }}</option>
+            <option v-for="s in monthOptions" :key="s.key" :value="s.key">{{ s.label }}</option>
           </optgroup>
           <optgroup label="Acumulado no ano">
-            <option v-for="s in selections.filter((o) => o.type === 'year')" :key="s.key" :value="s.key">{{ s.label }}</option>
+            <option v-for="s in yearOptions" :key="s.key" :value="s.key">{{ s.label }}</option>
           </optgroup>
         </select>
       </label>
-    </header>
+    </PageHeader>
 
-    <!-- Indicadores do período -->
     <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
       <StatCard
         v-for="(kpi, i) in kpiCards"
@@ -122,34 +121,37 @@ const expenseItems = computed(() =>
         :hint="kpi.hint"
         :delta="kpi.delta"
         :delta-label="periodLabels.previous"
+        :info="kpi.info"
       />
     </div>
 
     <div class="space-y-3">
-      <h2 class="text-lg font-semibold">Pontos de análise</h2>
+      <SectionHeading title="Pontos de análise" :info="INFO.insights" />
       <InsightList :insights="insights" />
     </div>
 
     <ChartCard
       title="Da receita ao resultado"
       :subtitle="`Cascata da DRE: ${periodLabels.currentLong}`"
+      :info="INFO.waterfall"
       class="animate-fade-up"
     >
       <WaterfallChart :steps="analysis.waterfall" />
     </ChartCard>
 
     <div class="grid gap-3 lg:grid-cols-2">
-      <ChartCard title="Receita e EBITDA" subtitle="Evolução mensal" class="animate-fade-up stagger" style="--i: 0">
+      <ChartCard title="Receita e EBITDA" subtitle="Evolução mensal" :info="INFO.revenue" class="animate-fade-up stagger" style="--i: 0">
         <TrendChart :categories="months" :series="revenueSeries" :highlight-index="highlightIndex" />
       </ChartCard>
 
-      <ChartCard title="Margens" subtitle="Percentual da receita bruta, mês a mês" class="animate-fade-up stagger" style="--i: 1">
+      <ChartCard title="Margens" subtitle="Percentual da receita bruta, mês a mês" :info="INFO.margins" class="animate-fade-up stagger" style="--i: 1">
         <TrendChart :categories="months" :series="marginSeries" format="percent" :highlight-index="highlightIndex" />
       </ChartCard>
 
       <ChartCard
         title="Para onde vai a receita"
         :subtitle="`Custos e despesas operacionais: ${periodLabels.currentLong}`"
+        :info="INFO.expenses"
         class="animate-fade-up stagger"
         style="--i: 2"
       >
@@ -165,6 +167,7 @@ const expenseItems = computed(() =>
         v-if="mixSeries.length > 1"
         title="Composição da receita"
         subtitle="Receita bruta por origem"
+        :info="INFO.mix"
         class="animate-fade-up stagger"
         style="--i: 3"
       >
@@ -175,6 +178,7 @@ const expenseItems = computed(() =>
         v-if="analysis.monthly.cash"
         :title="DRE_METRIC_LABELS[DreMetric.EndingCash]"
         subtitle="Saldo final de cada mês"
+        :info="INFO.cash"
         class="animate-fade-up stagger lg:col-span-2"
         style="--i: 4"
       >
@@ -188,7 +192,7 @@ const expenseItems = computed(() =>
     </div>
 
     <div class="space-y-3">
-      <h2 class="text-lg font-semibold">DRE completa</h2>
+      <SectionHeading title="DRE completa" />
       <DreTable :report="report" :highlight="analysis.indexes" />
     </div>
   </section>

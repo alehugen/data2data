@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 
-/* Só o subconjunto latino da Roboto (cobre todos os acentos do português) */
 @font-face {
   font-family: 'Roboto Variable';
   font-style: normal;
@@ -9,7 +8,6 @@
   src: url('@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2') format('woff2-variations');
 }
 
-/* Dark mode controlado pela classe .dark no <html> (ver useTheme) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -22,22 +20,13 @@
   --color-brand-600: oklch(0.52 0.22 265);
   --color-brand-700: oklch(0.45 0.2 265);
 
-  /* Movimento: todas as interações usam estas curvas e durações */
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 150ms;
   --duration-base: 220ms;
   --duration-slow: 360ms;
 
-  --animate-fade-in: fade-in var(--duration-slow) var(--ease-soft) both;
   --animate-fade-up: fade-up var(--duration-slow) var(--ease-soft) both;
-  --animate-scale-in: scale-in var(--duration-base) var(--ease-soft) both;
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-  }
 
   @keyframes fade-up {
     from {
@@ -45,16 +34,8 @@
       transform: translateY(8px);
     }
   }
-
-  @keyframes scale-in {
-    from {
-      opacity: 0;
-      transform: scale(0.96);
-    }
-  }
 }
 
-/* Tokens semânticos: os componentes usam bg-canvas, bg-surface, text-fg, border-line... */
 @theme inline {
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
@@ -74,7 +55,6 @@
   --color-success-soft: var(--success-soft);
 
   --shadow-card: var(--elevation-1);
-  --shadow-card-hover: var(--elevation-2);
 }
 
 :root {
@@ -133,14 +113,12 @@
     background-color: color-mix(in oklch, var(--accent) 25%, transparent);
   }
 
-  /* Transição suave padrão para tudo que é interativo */
   :where(a, button, input, select, textarea, summary, label, [role='button'], [tabindex]) {
     transition-property: color, background-color, border-color, box-shadow, opacity, transform, outline-color;
     transition-duration: var(--duration-base);
     transition-timing-function: var(--ease-soft);
   }
 
-  /* Foco visível consistente (apenas teclado, não no clique) */
   :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
@@ -156,16 +134,20 @@
   }
 }
 
-/* ---------- Cards ---------- */
 
 @utility card {
+  position: relative;
   border-radius: var(--radius-xl);
   border: 1px solid var(--line);
   background-color: var(--surface);
   box-shadow: var(--elevation-1);
+
+  &:hover,
+  &:focus-within {
+    z-index: 10;
+  }
 }
 
-/* Card clicável: eleva no hover, afunda levemente no clique */
 @utility card-interactive {
   transition-property: transform, box-shadow, border-color, background-color;
   transition-duration: var(--duration-base);
@@ -183,7 +165,6 @@
   }
 }
 
-/* ---------- Botões ---------- */
 
 @utility btn {
   display: inline-flex;
@@ -229,15 +210,6 @@
   }
 }
 
-@utility btn-ghost {
-  color: var(--fg-subtle);
-
-  &:not(:disabled):hover {
-    background-color: var(--surface-muted);
-    color: var(--fg);
-  }
-}
-
 @utility btn-danger {
   color: var(--fg-subtle);
 
@@ -247,9 +219,7 @@
   }
 }
 
-/* ---------- Links ---------- */
 
-/* Sublinhado que cresce da esquerda no hover */
 @utility link {
   color: var(--accent);
   background-image: linear-gradient(currentColor, currentColor);
@@ -263,12 +233,10 @@
   }
 }
 
-/* Escalonamento para listas animadas: style="--i: index" */
 @utility stagger {
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 
-/* ---------- Transições do Vue (<Transition name="page|list">) ---------- */
 
 .page-enter-active,
 .page-leave-active {
@@ -316,7 +284,6 @@
   opacity: 0;
 }
 
-/* ---------- Acessibilidade: respeita quem prefere menos movimento ---------- */
 
 @media (prefers-reduced-motion: reduce) {
   *,

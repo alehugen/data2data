@@ -20,7 +20,6 @@ export interface TrendSeries {
   name: string
   type: 'bar' | 'line'
   data: (number | null)[]
-  /** Cor fixa (ex.: classe ABC); sem ela, segue a ordem da paleta categórica */
   color?: string
   stack?: string
 }
@@ -31,7 +30,6 @@ const props = withDefaults(
     series: TrendSeries[]
     format?: 'currency' | 'percent' | 'number'
     height?: number
-    /** Destaca a categoria do período selecionado */
     highlightIndex?: number
   }>(),
   { format: 'currency', height: 280, highlightIndex: undefined },
@@ -46,7 +44,7 @@ const formatters = {
 }
 
 const option = computed<EChartsOption>(() => {
-  const { chrome, series: palette, tooltip, fontFamily } = theme.value
+  const { chrome, series: palette, axisTooltip, fontFamily } = theme.value
   const { full, axis } = formatters[props.format]
   const hasLegend = props.series.length > 1
   const stackTops = new Map(props.series.filter((s) => s.stack).map((s) => [s.stack, s.name]))
@@ -59,9 +57,7 @@ const option = computed<EChartsOption>(() => {
       ? { top: 0, left: 0, icon: 'roundRect', itemWidth: 10, itemHeight: 10, textStyle: { color: chrome.textMuted } }
       : undefined,
     tooltip: {
-      ...tooltip,
-      trigger: 'axis',
-      axisPointer: { type: 'shadow', shadowStyle: { color: `${chrome.grid}99` } },
+      ...axisTooltip,
       valueFormatter: (value) => (value == null ? '—' : full(Number(value))),
     },
     xAxis: {
@@ -95,7 +91,6 @@ const option = computed<EChartsOption>(() => {
           connectNulls: false,
         }
       }
-      // Ponta arredondada só na extremidade do dado (topo da pilha / fim da barra)
       const roundsEnd = !s.stack || stackTops.get(s.stack) === s.name
       return {
         type: 'bar',

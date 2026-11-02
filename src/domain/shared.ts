@@ -9,27 +9,39 @@ export class DomainError extends Error {
   }
 }
 
-// ---------- Texto e números ----------
-
-/** "Receita  Líquida" → "RECEITA LIQUIDA": compara rótulos ignorando acento, caixa e espaços. */
 export const normalizeText = (value: string): string =>
-  value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase()
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
 
-/**
- * Aceita "1234.5", "1.234,56" / "12,2222" (pt-BR, vírgula decimal) e "1,234.56" (en-US).
- * Vazio vira NaN.
- */
 export function parseNumber(value: string): number {
-  const text = value.trim().replace(/[R$\s%]/g, '')
+  let text = value.trim().replace(/R\$|%|\s/g, '').replace(/−/g, '-')
   if (!text) return Number.NaN
-  const hasDecimalComma = /,\d+$/.test(text) && !/\.\d+$/.test(text) && !/,\d{3}$/.test(text)
-  const normalized = hasDecimalComma
+  const accountingNegative = /^\(.*\)$/.test(text)
+  if (accountingNegative) text = text.slice(1, -1)
+  const commas = (text.match(/,/g) ?? []).length
+  const lastComma = text.lastIndexOf(',')
+  const lastDot = text.lastIndexOf('.')
+
+  const decimalComma = commas === 1 && lastComma > lastDot && !/^-?\d{1,3},\d{3}$/.test(text)
+  const thousandDots = commas === 0 && /^-?\d{1,3}(\.\d{3})+$/.test(text)
+
+  const normalized = decimalComma
     ? text.replace(/\./g, '').replace(',', '.')
-    : text.replace(/,/g, '')
-  return Number(normalized)
+    : thousandDots
+      ? text.replace(/\./g, '')
+      : text.replace(/,/g, '')
+
+  if (!/^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(normalized)) return Number.NaN
+  const number = Number(normalized)
+  return accountingNegative ? -number : number
 }
 
-// ---------- Período mensal ----------
+export const sum = (values: readonly number[]): number =>
+  values.reduce((acc, value) => (Number.isFinite(value) ? acc + value : acc), 0)
 
 export interface Period {
   readonly year: number
@@ -40,24 +52,44 @@ export const periodKey = ({ year, month }: Period): string => `${year}-${String(
 
 export const comparePeriods = (a: Period, b: Period): number => a.year - b.year || a.month - b.month
 
-const MONTH_PREFIXES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
+const MONTH_PATTERNS = [
+  'JAN(?:EIRO)?',
+  'FEV(?:EREIRO)?',
+  'MAR(?:CO)?',
+  'ABR(?:IL)?',
+  'MAI(?:O)?',
+  'JUN(?:HO)?',
+  'JUL(?:HO)?',
+  'AGO(?:STO)?',
+  'SET(?:EMBRO)?',
+  'OUT(?:UBRO)?',
+  'NOV(?:EMBRO)?',
+  'DEZ(?:EMBRO)?',
+]
 
-/** Extrai o mês de textos como "set.2026", "setembro 2026", "09-2026" ou "2026_09". */
+const MONTH_NAME_REGEX = new RegExp(
+  `(?<![A-Z])(${MONTH_PATTERNS.map((p) => `(${p})`).join('|')})(?![A-Z])[\\s._\\-/]*(?:DE\\s+)?(\\d{4}|\\d{2})(?!\\d)`,
+)
+
+const toYear = (digits: string) => (digits.length === 2 ? 2000 + Number(digits) : Number(digits))
+const isValidMonth = (month: number) => month >= 1 && month <= 12
+
 export function parsePeriodFromText(text: string): Period | null {
   const normalized = normalizeText(text)
 
-  const byName = normalized.match(/\b(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[A-Z]*[\s._\-/]*(\d{4})\b/)
-  if (byName?.[1] && byName[2]) {
-    return { year: Number(byName[2]), month: MONTH_PREFIXES.indexOf(byName[1]) + 1 }
+  const byName = normalized.match(MONTH_NAME_REGEX)
+  if (byName) {
+    const monthIndex = byName.slice(2, 14).findIndex(Boolean)
+    return { year: toYear(byName[14]!), month: monthIndex + 1 }
   }
 
-  const monthFirst = normalized.match(/\b(\d{1,2})[._\-/](\d{4})\b/)
-  if (monthFirst?.[1] && monthFirst[2] && Number(monthFirst[1]) <= 12) {
+  const monthFirst = normalized.match(/(?<!\d)(\d{1,2})[._\-/](\d{4})(?!\d)/)
+  if (monthFirst && isValidMonth(Number(monthFirst[1]))) {
     return { year: Number(monthFirst[2]), month: Number(monthFirst[1]) }
   }
 
-  const yearFirst = normalized.match(/\b(\d{4})[._\-/](\d{1,2})\b/)
-  if (yearFirst?.[1] && yearFirst[2] && Number(yearFirst[2]) <= 12) {
+  const yearFirst = normalized.match(/(?<!\d)(\d{4})[._\-/](\d{1,2})(?!\d)/)
+  if (yearFirst && isValidMonth(Number(yearFirst[2]))) {
     return { year: Number(yearFirst[1]), month: Number(yearFirst[2]) }
   }
 
