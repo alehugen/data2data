@@ -77,8 +77,14 @@
   --success-soft: var(--color-green-50);
   --focus-ring: color-mix(in oklch, var(--accent) 55%, transparent);
 
-  --elevation-1: 0 1px 2px oklch(0.2 0.02 265 / 0.06);
-  --elevation-2: 0 2px 4px oklch(0.2 0.02 265 / 0.05), 0 8px 24px -6px oklch(0.2 0.02 265 / 0.14);
+  --elevation-1: 0 1px 2px oklch(0.2 0.02 265 / 0.06), 0 3px 8px -2px oklch(0.2 0.02 265 / 0.1);
+  --elevation-2: 0 4px 8px -2px oklch(0.2 0.02 265 / 0.08), 0 14px 32px -8px oklch(0.2 0.02 265 / 0.22);
+  --elevation-header: 0 1px 2px oklch(0.2 0.02 265 / 0.05), 0 8px 24px -10px oklch(0.2 0.02 265 / 0.28);
+
+  --layer-raised: 10;
+  --layer-nav: 30;
+  --layer-header: 40;
+  --layer-tooltip: 50;
 }
 
 :root.dark {
@@ -100,8 +106,9 @@
   --success: var(--color-green-400);
   --success-soft: oklch(0.3 0.07 150);
 
-  --elevation-1: 0 1px 2px oklch(0 0 0 / 0.4);
-  --elevation-2: 0 2px 4px oklch(0 0 0 / 0.3), 0 10px 28px -6px oklch(0 0 0 / 0.55);
+  --elevation-1: inset 0 1px 0 oklch(1 0 0 / 0.04), 0 1px 2px oklch(0 0 0 / 0.5), 0 6px 14px -4px oklch(0 0 0 / 0.5);
+  --elevation-2: inset 0 1px 0 oklch(1 0 0 / 0.07), 0 6px 12px -4px oklch(0 0 0 / 0.55), 0 18px 40px -10px oklch(0 0 0 / 0.75);
+  --elevation-header: 0 1px 0 oklch(1 0 0 / 0.04), 0 10px 30px -8px oklch(0 0 0 / 0.8);
 }
 
 @layer base {
@@ -137,6 +144,7 @@
 
 @utility card {
   position: relative;
+  min-width: 0;
   border-radius: var(--radius-xl);
   border: 1px solid var(--line);
   background-color: var(--surface);
@@ -144,7 +152,7 @@
 
   &:hover,
   &:focus-within {
-    z-index: 10;
+    z-index: var(--layer-raised);
   }
 }
 

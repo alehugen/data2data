@@ -6,7 +6,10 @@ import DreTable from '@/presentation/components/DreTable.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
 import NotFound from '@/presentation/components/NotFound.vue'
 import PageHeader from '@/presentation/components/PageHeader.vue'
+import PageSection from '@/presentation/components/PageSection.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
+import ReportLayout from '@/presentation/components/ReportLayout.vue'
+import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import TrendChart from '@/presentation/components/TrendChart.vue'
@@ -54,6 +57,16 @@ const INFO = {
   insights: 'Frases geradas automaticamente a partir dos números. Passe o mouse no ícone de cada card para ver o cálculo.',
 }
 
+const navSections = computed<NavSection[]>(() => [
+  { id: 'indicadores', label: 'Indicadores' },
+  { id: 'analise', label: 'Pontos de análise' },
+  { id: 'cascata', label: 'Da receita ao resultado' },
+  { id: 'evolucao', label: 'Receita e margens' },
+  { id: 'custos', label: 'Custos e receita' },
+  ...(analysis.value?.monthly.cash ? [{ id: 'caixa', label: 'Saldo de caixa' }] : []),
+  { id: 'dre-completa', label: 'DRE completa' },
+])
+
 const revenueSeries = computed(() => {
   const a = analysis.value
   if (!a) return []
@@ -92,7 +105,7 @@ const expenseItems = computed(() =>
 <template>
   <NotFound v-if="!report" message="DRE não encontrada." />
 
-  <section v-else-if="analysis" class="space-y-8">
+  <div v-else-if="analysis" class="space-y-6">
     <PageHeader title="Demonstração do resultado" :subtitle="report.name">
       <label class="flex flex-col gap-1 text-sm">
         <span class="text-fg-subtle">Período</span>
@@ -110,90 +123,97 @@ const expenseItems = computed(() =>
       </label>
     </PageHeader>
 
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-      <StatCard
-        v-for="(kpi, i) in kpiCards"
-        :key="kpi.key"
-        class="animate-fade-up stagger"
-        :style="{ '--i': i }"
-        :label="kpi.label"
-        :value="kpi.value"
-        :hint="kpi.hint"
-        :delta="kpi.delta"
-        :delta-label="periodLabels.previous"
-        :info="kpi.info"
-      />
-    </div>
+    <ReportLayout :sections="navSections">
+      <PageSection id="indicadores" class="space-y-3">
+        <SectionHeading title="Indicadores" :subtitle="`Resultado de ${periodLabels.currentLong}`" />
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <StatCard
+            v-for="(kpi, i) in kpiCards"
+            :key="kpi.key"
+            class="animate-fade-up stagger"
+            :style="{ '--i': i }"
+            :label="kpi.label"
+            :value="kpi.value"
+            :hint="kpi.hint"
+            :delta="kpi.delta"
+            :delta-label="periodLabels.previous"
+            :info="kpi.info"
+          />
+        </div>
+      </PageSection>
 
-    <div class="space-y-3">
-      <SectionHeading title="Pontos de análise" :info="INFO.insights" />
-      <InsightList :insights="insights" />
-    </div>
+      <PageSection id="analise" class="space-y-3">
+        <SectionHeading title="Pontos de análise" :info="INFO.insights" />
+        <InsightList :insights="insights" />
+      </PageSection>
 
-    <ChartCard
-      title="Da receita ao resultado"
-      :subtitle="`Cascata da DRE: ${periodLabels.currentLong}`"
-      :info="INFO.waterfall"
-      class="animate-fade-up"
-    >
-      <WaterfallChart :steps="analysis.waterfall" />
-    </ChartCard>
+      <PageSection id="cascata">
+        <ChartCard
+          title="Da receita ao resultado"
+          :subtitle="`Cascata da DRE: ${periodLabels.currentLong}`"
+          :info="INFO.waterfall"
+          class="animate-fade-up"
+        >
+          <WaterfallChart :steps="analysis.waterfall" />
+        </ChartCard>
+      </PageSection>
 
-    <div class="grid gap-3 lg:grid-cols-2">
-      <ChartCard title="Receita e EBITDA" subtitle="Evolução mensal" :info="INFO.revenue" class="animate-fade-up stagger" style="--i: 0">
-        <TrendChart :categories="months" :series="revenueSeries" :highlight-index="highlightIndex" />
-      </ChartCard>
+      <PageSection id="evolucao" class="grid gap-3 xl:grid-cols-2">
+        <ChartCard title="Receita e EBITDA" subtitle="Evolução mensal" :info="INFO.revenue" class="animate-fade-up">
+          <TrendChart :categories="months" :series="revenueSeries" :highlight-index="highlightIndex" />
+        </ChartCard>
 
-      <ChartCard title="Margens" subtitle="Percentual da receita bruta, mês a mês" :info="INFO.margins" class="animate-fade-up stagger" style="--i: 1">
-        <TrendChart :categories="months" :series="marginSeries" format="percent" :highlight-index="highlightIndex" />
-      </ChartCard>
+        <ChartCard title="Margens" subtitle="Percentual da receita bruta, mês a mês" :info="INFO.margins" class="animate-fade-up">
+          <TrendChart :categories="months" :series="marginSeries" format="percent" :highlight-index="highlightIndex" />
+        </ChartCard>
+      </PageSection>
 
-      <ChartCard
-        title="Para onde vai a receita"
-        :subtitle="`Custos e despesas operacionais: ${periodLabels.currentLong}`"
-        :info="INFO.expenses"
-        class="animate-fade-up stagger"
-        style="--i: 2"
-      >
-        <RankingBarChart
-          :items="expenseItems"
-          value-label="Valor"
-          :format-value="formatCurrency"
-          :format-axis="formatCurrencyCompact"
-        />
-      </ChartCard>
+      <PageSection id="custos" class="grid gap-3 xl:grid-cols-2">
+        <ChartCard
+          title="Para onde vai a receita"
+          :subtitle="`Custos e despesas operacionais: ${periodLabels.currentLong}`"
+          :info="INFO.expenses"
+          class="animate-fade-up"
+        >
+          <RankingBarChart
+            :items="expenseItems"
+            value-label="Valor"
+            :format-value="formatCurrency"
+            :format-axis="formatCurrencyCompact"
+          />
+        </ChartCard>
 
-      <ChartCard
-        v-if="mixSeries.length > 1"
-        title="Composição da receita"
-        subtitle="Receita bruta por origem"
-        :info="INFO.mix"
-        class="animate-fade-up stagger"
-        style="--i: 3"
-      >
-        <TrendChart :categories="months" :series="mixSeries" :highlight-index="highlightIndex" />
-      </ChartCard>
+        <ChartCard
+          v-if="mixSeries.length > 1"
+          title="Composição da receita"
+          subtitle="Receita bruta por origem"
+          :info="INFO.mix"
+          class="animate-fade-up"
+        >
+          <TrendChart :categories="months" :series="mixSeries" :highlight-index="highlightIndex" />
+        </ChartCard>
+      </PageSection>
 
-      <ChartCard
-        v-if="analysis.monthly.cash"
-        :title="DRE_METRIC_LABELS[DreMetric.EndingCash]"
-        subtitle="Saldo final de cada mês"
-        :info="INFO.cash"
-        class="animate-fade-up stagger lg:col-span-2"
-        style="--i: 4"
-      >
-        <TrendChart
-          :categories="months"
-          :series="[{ name: 'Saldo final', type: 'line', data: analysis.monthly.cash, color: theme.series[0] }]"
-          :highlight-index="highlightIndex"
-          :height="240"
-        />
-      </ChartCard>
-    </div>
+      <PageSection v-if="analysis.monthly.cash" id="caixa">
+        <ChartCard
+          :title="DRE_METRIC_LABELS[DreMetric.EndingCash]"
+          subtitle="Saldo final de cada mês"
+          :info="INFO.cash"
+          class="animate-fade-up"
+        >
+          <TrendChart
+            :categories="months"
+            :series="[{ name: 'Saldo final', type: 'line', data: analysis.monthly.cash, color: theme.series[0] }]"
+            :highlight-index="highlightIndex"
+            :height="240"
+          />
+        </ChartCard>
+      </PageSection>
 
-    <div class="space-y-3">
-      <SectionHeading title="DRE completa" />
-      <DreTable :report="report" :highlight="analysis.indexes" />
-    </div>
-  </section>
+      <PageSection id="dre-completa" class="space-y-3">
+        <SectionHeading title="DRE completa" />
+        <DreTable :report="report" :highlight="analysis.indexes" />
+      </PageSection>
+    </ReportLayout>
+  </div>
 </template>

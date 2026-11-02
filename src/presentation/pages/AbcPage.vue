@@ -7,7 +7,10 @@ import AbcBadge from '@/presentation/components/AbcBadge.vue'
 import ChartCard from '@/presentation/components/ChartCard.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
 import PageHeader from '@/presentation/components/PageHeader.vue'
+import PageSection from '@/presentation/components/PageSection.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
+import ReportLayout from '@/presentation/components/ReportLayout.vue'
+import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
@@ -200,6 +203,27 @@ const profitRanking = computed(() =>
   })),
 )
 
+const navSections = computed<NavSection[]>(() => {
+  const data = analysis.value
+  if (!data) return []
+  return [
+    { id: 'indicadores', label: 'Indicadores' },
+    { id: 'analise', label: 'Pontos de análise' },
+    { id: 'classes', label: 'Classes e ranking' },
+    ...(data.months.length > 1 ? [{ id: 'evolucao', label: 'Evolução mensal' }] : []),
+    ...(data.profitability
+      ? [
+          { id: 'lucratividade', label: 'Lucratividade' },
+          { id: 'volume-margem', label: 'Volume × margem', nested: true },
+          { id: 'lucro-por-item', label: 'Lucro por item', nested: true },
+          { id: 'tabela-lucro', label: 'Tabela de lucro', nested: true },
+        ]
+      : []),
+    ...(data.previous && data.movements.length ? [{ id: 'movimentacao', label: 'Movimentação' }] : []),
+    { id: 'itens', label: 'Itens do mês' },
+  ]
+})
+
 const movementTone: Record<AbcMovement, string> = {
   new: 'bg-accent-soft text-accent',
   up: 'bg-success-soft text-success',
@@ -216,7 +240,7 @@ const movementTone: Record<AbcMovement, string> = {
     <RouterLink to="/" class="link">Importar relatórios</RouterLink>
   </div>
 
-  <section v-else-if="current" class="space-y-8">
+  <div v-else-if="current" class="space-y-6">
     <PageHeader
       title="Curva ABC"
       :subtitle="
@@ -240,278 +264,288 @@ const movementTone: Record<AbcMovement, string> = {
       </button>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatCard
-        v-for="(kpi, i) in kpis"
-        :key="kpi.label"
-        class="animate-fade-up stagger"
-        :style="{ '--i': i }"
-        :label="kpi.label"
-        :value="kpi.value"
-        :delta="kpi.delta"
-        :delta-label="previousLabel"
-        :info="kpi.info"
-      />
-    </div>
-
-    <div class="space-y-3">
-      <SectionHeading title="Pontos de análise" subtitle="Vendas e classificação ABC" />
-      <InsightList :insights="insights" />
-    </div>
-
-    <div class="grid gap-3 lg:grid-cols-5">
-      <ChartCard
-        title="Distribuição por classe"
-        :subtitle="`Quanto cada classe representa em ${currentLabel}`"
-        :info="INFO.distribution"
-        class="animate-fade-up lg:col-span-2"
-      >
-        <div class="space-y-5">
-          <ShareBar title="Itens" :segments="classSegments((c) => current!.byClass[c].items)" :format-value="(v) => `${formatNumber(v)} itens`" />
-          <ShareBar title="Quantidade" :segments="classSegments((c) => current!.byClass[c].quantity)" :format-value="(v) => `${formatNumber(v)} un.`" />
-          <ShareBar title="Faturamento" :segments="classSegments((c) => current!.byClass[c].value)" :format-value="formatCurrency" />
-          <ShareBar
-            v-if="profitability"
-            title="Lucro"
-            :segments="classSegments((c) => Math.max(0, profitability!.byClass[c].profit))"
-            :format-value="formatCurrency"
+    <ReportLayout :sections="navSections">
+      <PageSection id="indicadores" class="space-y-3">
+        <SectionHeading title="Indicadores de vendas" :subtitle="`Resultado de ${currentLabel}`" />
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            v-for="(kpi, i) in kpis"
+            :key="kpi.label"
+            class="animate-fade-up stagger"
+            :style="{ '--i': i }"
+            :label="kpi.label"
+            :value="kpi.value"
+            :delta="kpi.delta"
+            :delta-label="previousLabel"
+            :info="kpi.info"
           />
         </div>
-      </ChartCard>
+      </PageSection>
 
-      <ChartCard
-        title="Ranking de itens"
-        subtitle="Cor indica a classe ABC"
-        :info="INFO.ranking"
-        class="animate-fade-up stagger lg:col-span-3"
-        style="--i: 1"
-      >
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <ul class="flex gap-4 text-xs text-fg-subtle" aria-label="Legenda">
-            <li v-for="abcClass in ABC_CLASSES" :key="abcClass" class="flex items-center gap-1.5">
-              <span class="size-2.5 rounded-sm" :style="{ background: theme.abcClass[abcClass] }" />Classe {{ abcClass }}
-            </li>
-          </ul>
-          <SegmentedControl v-model="rankingBy" :options="RANKING_OPTIONS" label="Ordenar por" size="sm" />
-        </div>
-        <RankingBarChart
-          :items="rankingItems"
-          :value-label="rankingBy === 'quantity' ? 'Quantidade' : 'Faturamento'"
-          :format-value="rankingBy === 'quantity' ? formatNumber : formatCurrency"
-          :format-axis="rankingBy === 'quantity' ? formatNumber : formatCurrencyCompact"
-        />
-      </ChartCard>
-    </div>
+      <PageSection id="analise" class="space-y-3">
+        <SectionHeading title="Pontos de análise" subtitle="Vendas e classificação ABC" />
+        <InsightList :insights="insights" />
+      </PageSection>
 
-    <ChartCard
-      v-if="analysis.months.length > 1"
-      title="Evolução mensal"
-      subtitle="Faturamento por classe em cada mês importado"
-      :info="INFO.evolution"
-      class="animate-fade-up"
-    >
-      <TrendChart :categories="evolution.categories" :series="evolution.series" :highlight-index="currentIndex" />
-    </ChartCard>
-
-    <section v-if="profitability" class="space-y-6 border-t border-line pt-8">
-      <SectionHeading
-        title="Lucratividade"
-        :subtitle="`Cruzamento da Curva ABC com o relatório de lucro por produto de ${currentLabel}`"
-      />
-
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          v-for="(kpi, i) in profitKpis"
-          :key="kpi.label"
-          class="animate-fade-up stagger"
-          :style="{ '--i': i }"
-          :label="kpi.label"
-          :value="kpi.value"
-          :hint="kpi.hint"
-          :delta="kpi.delta"
-          :delta-label="previousLabel"
-          :lower-is-better="kpi.lowerIsBetter"
-          :info="kpi.info"
-        />
-      </div>
-
-      <InsightList :insights="profitInsights" />
-
-      <div class="grid gap-3 lg:grid-cols-2">
-        <ChartCard title="Da venda ao lucro" :subtitle="`Composição do resultado de ${currentLabel}`" :info="INFO.profitWaterfall">
-          <WaterfallChart :steps="profitWaterfall" />
-        </ChartCard>
-
-        <ChartCard title="Lucro por classe" subtitle="Fatia de cada classe em quantidade, faturamento e lucro" :info="INFO.classProfit">
+      <PageSection id="classes" class="grid gap-3 lg:grid-cols-5">
+        <ChartCard
+          title="Distribuição por classe"
+          :subtitle="`Quanto cada classe representa em ${currentLabel}`"
+          :info="INFO.distribution"
+          class="animate-fade-up lg:col-span-2"
+        >
           <div class="space-y-5">
+            <ShareBar title="Itens" :segments="classSegments((c) => current!.byClass[c].items)" :format-value="(v) => `${formatNumber(v)} itens`" />
             <ShareBar title="Quantidade" :segments="classSegments((c) => current!.byClass[c].quantity)" :format-value="(v) => `${formatNumber(v)} un.`" />
             <ShareBar title="Faturamento" :segments="classSegments((c) => current!.byClass[c].value)" :format-value="formatCurrency" />
-            <ShareBar title="Lucro" :segments="classSegments((c) => Math.max(0, profitability!.byClass[c].profit))" :format-value="formatCurrency" />
-            <dl class="grid grid-cols-3 gap-2 text-center text-xs">
-              <div v-for="abcClass in ABC_CLASSES" :key="abcClass" class="rounded-lg bg-surface-muted p-2">
-                <dt class="text-fg-subtle">Margem classe {{ abcClass }}</dt>
-                <dd class="text-base font-semibold text-fg">{{ formatPercent(profitability.byClass[abcClass].margin ?? 0) }}</dd>
-              </div>
-            </dl>
+            <ShareBar
+              v-if="profitability"
+              title="Lucro"
+              :segments="classSegments((c) => Math.max(0, profitability!.byClass[c].profit))"
+              :format-value="formatCurrency"
+            />
           </div>
         </ChartCard>
+
+        <ChartCard
+          title="Ranking de itens"
+          subtitle="Cor indica a classe ABC"
+          :info="INFO.ranking"
+          class="animate-fade-up stagger lg:col-span-3"
+          style="--i: 1"
+        >
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <ul class="flex gap-4 text-xs text-fg-subtle" aria-label="Legenda">
+              <li v-for="abcClass in ABC_CLASSES" :key="abcClass" class="flex items-center gap-1.5">
+                <span class="size-2.5 rounded-sm" :style="{ background: theme.abcClass[abcClass] }" />Classe {{ abcClass }}
+              </li>
+            </ul>
+            <SegmentedControl v-model="rankingBy" :options="RANKING_OPTIONS" label="Ordenar por" size="sm" />
+          </div>
+          <RankingBarChart
+            :items="rankingItems"
+            :value-label="rankingBy === 'quantity' ? 'Quantidade' : 'Faturamento'"
+            :format-value="rankingBy === 'quantity' ? formatNumber : formatCurrency"
+            :format-axis="rankingBy === 'quantity' ? formatNumber : formatCurrencyCompact"
+          />
+        </ChartCard>
+      </PageSection>
+
+      <PageSection v-if="analysis.months.length > 1" id="evolucao">
+        <ChartCard
+          title="Evolução mensal"
+          subtitle="Faturamento por classe em cada mês importado"
+          :info="INFO.evolution"
+          class="animate-fade-up"
+        >
+          <TrendChart :categories="evolution.categories" :series="evolution.series" :highlight-index="currentIndex" />
+        </ChartCard>
+      </PageSection>
+
+      <PageSection v-if="profitability" id="lucratividade" class="space-y-6 border-t border-line pt-8">
+        <SectionHeading
+          title="Lucratividade"
+          :subtitle="`Cruzamento da Curva ABC com o relatório de lucro por produto de ${currentLabel}`"
+        />
+
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            v-for="(kpi, i) in profitKpis"
+            :key="kpi.label"
+            class="animate-fade-up stagger"
+            :style="{ '--i': i }"
+            :label="kpi.label"
+            :value="kpi.value"
+            :hint="kpi.hint"
+            :delta="kpi.delta"
+            :delta-label="previousLabel"
+            :lower-is-better="kpi.lowerIsBetter"
+            :info="kpi.info"
+          />
+        </div>
+
+        <InsightList :insights="profitInsights" />
+
+        <div class="grid gap-3 lg:grid-cols-2">
+          <ChartCard title="Da venda ao lucro" :subtitle="`Composição do resultado de ${currentLabel}`" :info="INFO.profitWaterfall">
+            <WaterfallChart :steps="profitWaterfall" />
+          </ChartCard>
+
+          <ChartCard title="Lucro por classe" subtitle="Fatia de cada classe em quantidade, faturamento e lucro" :info="INFO.classProfit">
+            <div class="space-y-5">
+              <ShareBar title="Quantidade" :segments="classSegments((c) => current!.byClass[c].quantity)" :format-value="(v) => `${formatNumber(v)} un.`" />
+              <ShareBar title="Faturamento" :segments="classSegments((c) => current!.byClass[c].value)" :format-value="formatCurrency" />
+              <ShareBar title="Lucro" :segments="classSegments((c) => Math.max(0, profitability!.byClass[c].profit))" :format-value="formatCurrency" />
+              <dl class="grid grid-cols-3 gap-2 text-center text-xs">
+                <div v-for="abcClass in ABC_CLASSES" :key="abcClass" class="rounded-lg bg-surface-muted p-2">
+                  <dt class="text-fg-subtle">Margem classe {{ abcClass }}</dt>
+                  <dd class="text-base font-semibold text-fg">{{ formatPercent(profitability.byClass[abcClass].margin ?? 0) }}</dd>
+                </div>
+              </dl>
+            </div>
+          </ChartCard>
+        </div>
+
+        <PageSection id="volume-margem">
+          <ChartCard title="Volume × margem" subtitle="Onde está o lucro de verdade" :info="INFO.matrix">
+            <ul class="mb-2 flex flex-wrap gap-4 text-xs text-fg-subtle" aria-label="Legenda">
+              <li v-for="abcClass in ABC_CLASSES" :key="abcClass" class="flex items-center gap-1.5">
+                <span class="size-2.5 rounded-full" :style="{ background: theme.abcClass[abcClass] }" />Classe {{ abcClass }}
+              </li>
+            </ul>
+            <VolumeMarginChart
+              :points="matrixPoints"
+              :average-margin="profitability.totals.margin ?? 0"
+              :average-quantity="averageQuantity"
+            />
+          </ChartCard>
+        </PageSection>
+
+        <PageSection id="lucro-por-item">
+          <ChartCard title="Lucro por item" subtitle="Do mais ao menos lucrativo" :info="INFO.profitRanking">
+            <RankingBarChart
+              :items="profitRanking"
+              value-label="Lucro"
+              :format-value="formatCurrency"
+              :format-axis="formatCurrencyCompact"
+            />
+          </ChartCard>
+        </PageSection>
+
+        <PageSection id="tabela-lucro" class="space-y-3">
+          <SectionHeading :title="`Lucratividade por item: ${currentLabel}`" :info="INFO.profitTable" />
+          <div class="card overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-surface-muted text-left">
+                <tr>
+                  <th class="px-3 py-2 font-medium">Item</th>
+                  <th class="px-3 py-2 font-medium">Classe</th>
+                  <th class="px-3 py-2 text-right font-medium">Qtde</th>
+                  <th class="px-3 py-2 text-right font-medium">Valor vendido</th>
+                  <th class="px-3 py-2 text-right font-medium">Custo</th>
+                  <th class="px-3 py-2 text-right font-medium">Impostos e taxas</th>
+                  <th class="px-3 py-2 text-right font-medium">Lucro</th>
+                  <th class="px-3 py-2 text-right font-medium">Margem</th>
+                  <th class="px-3 py-2 text-right font-medium">Lucro/un.</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line tabular-nums">
+                <tr
+                  v-for="item in profitability.items"
+                  :key="item.code"
+                  class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30"
+                >
+                  <td class="px-3 py-2">
+                    <span class="inline-flex items-center gap-1.5">
+                      {{ item.description }}
+                      <span v-if="item.costMissing" class="inline-flex text-danger" title="Custo não cadastrado">
+                        <PhWarning :size="16" weight="fill" aria-hidden="true" />
+                        <span class="sr-only">Custo não cadastrado</span>
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></td>
+                  <td class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</td>
+                  <td class="px-3 py-2 text-right">{{ formatCurrency(item.revenue) }}</td>
+                  <td class="px-3 py-2 text-right">{{ formatCurrency(item.cost) }}</td>
+                  <td class="px-3 py-2 text-right">{{ formatCurrency(item.tax + item.financialFee) }}</td>
+                  <td class="px-3 py-2 text-right font-medium" :class="item.profit < 0 && 'text-danger'">{{ formatCurrency(item.profit) }}</td>
+                  <td class="px-3 py-2 text-right">{{ item.margin !== null ? formatPercent(item.margin) : '–' }}</td>
+                  <td class="px-3 py-2 text-right text-fg-subtle">{{ item.profitPerUnit !== null ? formatCurrency(item.profitPerUnit) : '–' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </PageSection>
+      </PageSection>
+
+      <div v-else class="card flex animate-fade-up items-start gap-3 border-dashed p-4 text-sm text-fg-muted">
+        <PhWarning :size="20" class="shrink-0 text-fg-subtle" aria-hidden="true" />
+        <p>
+          Importe o relatório de <strong class="font-medium text-fg">lucro por produto</strong> de {{ currentLabel }} para ver a
+          lucratividade cruzada com a Curva ABC.
+        </p>
       </div>
 
-      <ChartCard title="Volume × margem" subtitle="Onde está o lucro de verdade" :info="INFO.matrix">
-        <ul class="mb-2 flex flex-wrap gap-4 text-xs text-fg-subtle" aria-label="Legenda">
-          <li v-for="abcClass in ABC_CLASSES" :key="abcClass" class="flex items-center gap-1.5">
-            <span class="size-2.5 rounded-full" :style="{ background: theme.abcClass[abcClass] }" />Classe {{ abcClass }}
-          </li>
-        </ul>
-        <VolumeMarginChart
-          :points="matrixPoints"
-          :average-margin="profitability.totals.margin ?? 0"
-          :average-quantity="averageQuantity"
-        />
-      </ChartCard>
-
-      <ChartCard title="Lucro por item" subtitle="Do mais ao menos lucrativo" :info="INFO.profitRanking">
-        <RankingBarChart
-          :items="profitRanking"
-          value-label="Lucro"
-          :format-value="formatCurrency"
-          :format-axis="formatCurrencyCompact"
-        />
-      </ChartCard>
-
-      <div class="space-y-3">
-        <SectionHeading :title="`Lucratividade por item: ${currentLabel}`" :info="INFO.profitTable" />
+      <PageSection v-if="previous && analysis.movements.length" id="movimentacao" class="space-y-3">
+        <SectionHeading :title="`Movimentação: ${previousLabel} → ${currentLabel}`" :info="INFO.movement" />
         <div class="card overflow-x-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-surface-muted text-left">
               <tr>
                 <th class="px-3 py-2 font-medium">Item</th>
                 <th class="px-3 py-2 font-medium">Classe</th>
-                <th class="px-3 py-2 text-right font-medium">Qtde</th>
-                <th class="px-3 py-2 text-right font-medium">Valor vendido</th>
-                <th class="px-3 py-2 text-right font-medium">Custo</th>
-                <th class="px-3 py-2 text-right font-medium">Impostos e taxas</th>
-                <th class="px-3 py-2 text-right font-medium">Lucro</th>
-                <th class="px-3 py-2 text-right font-medium">Margem</th>
-                <th class="px-3 py-2 text-right font-medium">Lucro/un.</th>
+                <th class="px-3 py-2 font-medium">Situação</th>
+                <th class="px-3 py-2 text-right font-medium">Quantidade</th>
+                <th class="px-3 py-2 text-right font-medium">Faturamento</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-line tabular-nums">
-              <tr
-                v-for="item in profitability.items"
-                :key="item.code"
-                class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30"
-              >
-                <td class="px-3 py-2">
+              <tr v-for="m in analysis.movements" :key="m.code" class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30">
+                <td class="px-3 py-2">{{ m.description }}</td>
+                <td class="px-3 py-2 whitespace-nowrap">
                   <span class="inline-flex items-center gap-1.5">
-                    {{ item.description }}
-                    <span v-if="item.costMissing" class="inline-flex text-danger" title="Custo não cadastrado">
-                      <PhWarning :size="16" weight="fill" aria-hidden="true" />
-                      <span class="sr-only">Custo não cadastrado</span>
-                    </span>
+                    <AbcBadge :abc-class="m.from" />
+                    <span aria-hidden="true" class="text-fg-subtle">→</span>
+                    <AbcBadge :abc-class="m.to" />
                   </span>
                 </td>
-                <td class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></td>
-                <td class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</td>
-                <td class="px-3 py-2 text-right">{{ formatCurrency(item.revenue) }}</td>
-                <td class="px-3 py-2 text-right">{{ formatCurrency(item.cost) }}</td>
-                <td class="px-3 py-2 text-right">{{ formatCurrency(item.tax + item.financialFee) }}</td>
-                <td class="px-3 py-2 text-right font-medium" :class="item.profit < 0 && 'text-danger'">{{ formatCurrency(item.profit) }}</td>
-                <td class="px-3 py-2 text-right">{{ item.margin !== null ? formatPercent(item.margin) : '–' }}</td>
-                <td class="px-3 py-2 text-right text-fg-subtle">{{ item.profitPerUnit !== null ? formatCurrency(item.profitPerUnit) : '–' }}</td>
+                <td class="px-3 py-2">
+                  <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="movementTone[m.movement]">
+                    {{ MOVEMENT_LABELS[m.movement] }}
+                  </span>
+                </td>
+                <td class="px-3 py-2 text-right whitespace-nowrap">
+                  {{ formatNumber(m.quantity) }}
+                  <span class="ml-1 text-xs" :class="m.quantity - m.previousQuantity >= 0 ? 'text-success' : 'text-danger'">
+                    ({{ m.quantity - m.previousQuantity >= 0 ? '+' : '' }}{{ formatNumber(m.quantity - m.previousQuantity) }})
+                  </span>
+                </td>
+                <td class="px-3 py-2 text-right whitespace-nowrap">
+                  {{ formatCurrency(m.value) }}
+                  <span class="ml-1 text-xs" :class="m.value - m.previousValue >= 0 ? 'text-success' : 'text-danger'">
+                    ({{ m.value - m.previousValue >= 0 ? '+' : '' }}{{ formatCurrencyCompact(m.value - m.previousValue) }})
+                  </span>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
-    </section>
+      </PageSection>
 
-    <div v-else class="card flex animate-fade-up items-start gap-3 border-dashed p-4 text-sm text-fg-muted">
-      <PhWarning :size="20" class="shrink-0 text-fg-subtle" aria-hidden="true" />
-      <p>
-        Importe o relatório de <strong class="font-medium text-fg">lucro por produto</strong> de {{ currentLabel }} para ver a
-        lucratividade cruzada com a Curva ABC.
-      </p>
-    </div>
-
-    <div v-if="previous && analysis.movements.length" class="space-y-3">
-      <SectionHeading :title="`Movimentação: ${previousLabel} → ${currentLabel}`" :info="INFO.movement" />
-      <div class="card overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-surface-muted text-left">
-            <tr>
-              <th class="px-3 py-2 font-medium">Item</th>
-              <th class="px-3 py-2 font-medium">Classe</th>
-              <th class="px-3 py-2 font-medium">Situação</th>
-              <th class="px-3 py-2 text-right font-medium">Quantidade</th>
-              <th class="px-3 py-2 text-right font-medium">Faturamento</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-line tabular-nums">
-            <tr v-for="m in analysis.movements" :key="m.code" class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30">
-              <td class="px-3 py-2">{{ m.description }}</td>
-              <td class="px-3 py-2 whitespace-nowrap">
-                <span class="inline-flex items-center gap-1.5">
-                  <AbcBadge :abc-class="m.from" />
-                  <span aria-hidden="true" class="text-fg-subtle">→</span>
-                  <AbcBadge :abc-class="m.to" />
-                </span>
-              </td>
-              <td class="px-3 py-2">
-                <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="movementTone[m.movement]">
-                  {{ MOVEMENT_LABELS[m.movement] }}
-                </span>
-              </td>
-              <td class="px-3 py-2 text-right whitespace-nowrap">
-                {{ formatNumber(m.quantity) }}
-                <span class="ml-1 text-xs" :class="m.quantity - m.previousQuantity >= 0 ? 'text-success' : 'text-danger'">
-                  ({{ m.quantity - m.previousQuantity >= 0 ? '+' : '' }}{{ formatNumber(m.quantity - m.previousQuantity) }})
-                </span>
-              </td>
-              <td class="px-3 py-2 text-right whitespace-nowrap">
-                {{ formatCurrency(m.value) }}
-                <span class="ml-1 text-xs" :class="m.value - m.previousValue >= 0 ? 'text-success' : 'text-danger'">
-                  ({{ m.value - m.previousValue >= 0 ? '+' : '' }}{{ formatCurrencyCompact(m.value - m.previousValue) }})
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="space-y-3">
-      <SectionHeading :title="`Itens de ${currentLabel}`" :info="INFO.items_table" />
-      <div class="card overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-surface-muted text-left">
-            <tr>
-              <th class="px-3 py-2 font-medium">#</th>
-              <th class="px-3 py-2 font-medium">Item</th>
-              <th class="px-3 py-2 font-medium">Classe</th>
-              <th class="px-3 py-2 text-right font-medium">Quantidade</th>
-              <th class="px-3 py-2 text-right font-medium">Participação</th>
-              <th class="px-3 py-2 text-right font-medium">Acumulado</th>
-              <th class="px-3 py-2 text-right font-medium">Faturamento</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-line tabular-nums">
-            <tr
-              v-for="(item, i) in analysis.ranking"
-              :key="item.code"
-              class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30"
-            >
-              <td class="px-3 py-2 text-fg-subtle">{{ i + 1 }}</td>
-              <td class="px-3 py-2">{{ item.description }}</td>
-              <td class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></td>
-              <td class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</td>
-              <td class="px-3 py-2 text-right">{{ formatPercent(item.share) }}</td>
-              <td class="px-3 py-2 text-right text-fg-subtle">{{ formatPercent(item.cumulativeShare) }}</td>
-              <td class="px-3 py-2 text-right">{{ formatCurrency(item.value) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+      <PageSection id="itens" class="space-y-3">
+        <SectionHeading :title="`Itens de ${currentLabel}`" :info="INFO.items_table" />
+        <div class="card overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-surface-muted text-left">
+              <tr>
+                <th class="px-3 py-2 font-medium">#</th>
+                <th class="px-3 py-2 font-medium">Item</th>
+                <th class="px-3 py-2 font-medium">Classe</th>
+                <th class="px-3 py-2 text-right font-medium">Quantidade</th>
+                <th class="px-3 py-2 text-right font-medium">Participação</th>
+                <th class="px-3 py-2 text-right font-medium">Acumulado</th>
+                <th class="px-3 py-2 text-right font-medium">Faturamento</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line tabular-nums">
+              <tr
+                v-for="(item, i) in analysis.ranking"
+                :key="item.code"
+                class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30"
+              >
+                <td class="px-3 py-2 text-fg-subtle">{{ i + 1 }}</td>
+                <td class="px-3 py-2">{{ item.description }}</td>
+                <td class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></td>
+                <td class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</td>
+                <td class="px-3 py-2 text-right">{{ formatPercent(item.share) }}</td>
+                <td class="px-3 py-2 text-right text-fg-subtle">{{ formatPercent(item.cumulativeShare) }}</td>
+                <td class="px-3 py-2 text-right">{{ formatCurrency(item.value) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
+    </ReportLayout>
+  </div>
 </template>

@@ -37,6 +37,10 @@ Cruzado com a Curva ABC do mesmo mês, pelo código do produto, para verificar s
 
 Qualquer CSV ou planilha não reconhecida vira uma tabela genérica, com tipos de coluna inferidos, estatísticas e um gráfico de ranking.
 
+### Navegação
+
+As páginas de relatório têm um menu de seções (lateral no desktop, barra horizontal no celular) que rola suavemente até cada parte e destaca a seção visível.
+
 ### Pontos de análise automáticos
 
 Cada painel traz frases objetivas geradas a partir dos dados. Todo card tem um ícone de informação que, ao passar o mouse (ou focar pelo teclado), explica como aquele número foi calculado. Exemplos:

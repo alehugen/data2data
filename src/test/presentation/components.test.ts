@@ -1,14 +1,16 @@
 import { mount, RouterLinkStub } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DreReport } from '@/domain/dre'
+import AppFooter from '@/presentation/components/AppFooter.vue'
 import DreTable from '@/presentation/components/DreTable.vue'
 import InfoTip from '@/presentation/components/InfoTip.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
-import { dreRows } from '@/test/fixtures'
 import InsightList from '@/presentation/components/InsightList.vue'
 import ReportCard from '@/presentation/components/ReportCard.vue'
+import SectionNav from '@/presentation/components/SectionNav.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
+import { dreRows } from '@/test/fixtures'
 
 describe('InfoTip', () => {
   it('liga o botão ao texto da explicação para leitores de tela', () => {
@@ -146,5 +148,47 @@ describe('DreTable', () => {
 
   it('destaca a coluna do período selecionado', () => {
     expect(mountTable().get('[data-highlight]').text()).toBe('mar/26')
+  })
+})
+
+describe('SectionNav', () => {
+  const sections = [
+    { id: 'indicadores', label: 'Indicadores' },
+    { id: 'lucro', label: 'Lucro', nested: true },
+  ]
+
+  it('lista as seções como links para as âncoras', () => {
+    const wrapper = mount(SectionNav, { props: { sections } })
+    const links = wrapper.findAll('a')
+    expect(links.map((link) => [link.text(), link.attributes('href')])).toEqual([
+      ['Indicadores', '#indicadores'],
+      ['Lucro', '#lucro'],
+    ])
+  })
+
+  it('rola suavemente até a seção clicada e a marca como atual', async () => {
+    const target = document.createElement('section')
+    target.id = 'lucro'
+    target.scrollIntoView = vi.fn()
+    document.body.appendChild(target)
+
+    const wrapper = mount(SectionNav, { props: { sections }, attachTo: document.body })
+    await wrapper.findAll('a')[1]!.trigger('click')
+
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(wrapper.findAll('a')[1]!.attributes('aria-current')).toBe('location')
+
+    wrapper.unmount()
+    target.remove()
+  })
+})
+
+describe('AppFooter', () => {
+  it('assina o projeto com link para o LinkedIn em nova aba', () => {
+    const link = mount(AppFooter).get('a')
+    expect(link.text()).toContain('Alessandro Hugen')
+    expect(link.attributes('href')).toBe('https://www.linkedin.com/in/alehugen')
+    expect(link.attributes('target')).toBe('_blank')
+    expect(link.attributes('rel')).toContain('noopener')
   })
 })

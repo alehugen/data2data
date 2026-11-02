@@ -21,7 +21,7 @@ const tooltipId = useId()
     <span
       :id="tooltipId"
       role="tooltip"
-      class="pointer-events-none invisible absolute top-full right-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] translate-y-1 rounded-lg border border-line bg-surface p-3 text-left text-xs leading-relaxed font-normal text-fg-muted opacity-0 shadow-lg transition duration-(--duration-base) ease-soft group-focus-within/info:visible group-focus-within/info:translate-y-0 group-focus-within/info:opacity-100 group-hover/info:visible group-hover/info:translate-y-0 group-hover/info:opacity-100"
+      class="pointer-events-none invisible absolute top-full right-0 z-(--layer-tooltip) mt-2 w-72 max-w-[calc(100vw-2rem)] translate-y-1 rounded-lg border border-line bg-surface p-3 text-left text-xs leading-relaxed font-normal text-fg-muted opacity-0 shadow-lg transition duration-(--duration-base) ease-soft group-focus-within/info:visible group-focus-within/info:translate-y-0 group-focus-within/info:opacity-100 group-hover/info:visible group-hover/info:translate-y-0 group-hover/info:opacity-100"
     >
       {{ text }}
     </span>
