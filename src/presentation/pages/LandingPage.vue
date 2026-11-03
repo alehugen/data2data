@@ -89,14 +89,14 @@ const TIPS = [
 
 <template>
   <div class="space-y-24">
-    <section class="grid items-center gap-12 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:pt-10">
-      <div class="max-w-2xl">
-        <h1 class="animate-rise text-[2.75rem] leading-[1.05] font-bold tracking-[-0.035em] sm:text-display">
-          Veja onde a empresa ganha e onde perde dinheiro.
+    <section class="grid items-start gap-14 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,29rem)] lg:gap-20 lg:pt-12">
+      <div class="max-w-2xl lg:pt-16">
+        <h1 class="animate-rise text-[3rem] leading-none font-bold tracking-[-0.04em] sm:text-display">
+          Imprima o mês e veja a conta fechar.
         </h1>
-        <p class="mt-6 max-w-xl animate-rise text-lg leading-relaxed text-body [animation-delay:80ms]">
-          Importe a DRE, a Curva ABC e o lucro por produto. O data2data monta os indicadores, os gráficos e os pontos
-          de análise, e explica como cada número foi calculado.
+        <p class="mt-7 max-w-xl animate-rise text-lg leading-relaxed text-body sm:text-xl [animation-delay:80ms]">
+          Importe a DRE, a Curva ABC e o lucro por produto. O data2data soma linha por linha, como um cupom, aponta o
+          que comeu a margem e explica como cada número foi calculado.
         </p>
         <div class="mt-8 flex animate-rise flex-wrap gap-3 [animation-delay:160ms]">
           <Button as-child size="lg" class="h-11 px-5 text-base shadow-primary">
@@ -122,12 +122,21 @@ const TIPS = [
         </p>
       </div>
 
-      <figure class="animate-rise rounded-2xl border border-border bg-card p-6 shadow-floating [animation-delay:200ms] sm:p-8">
-        <SampleStatement
-          :lines="sampleStatement"
-          :caption="`DRE de exemplo, ${formatPeriodLong(samplePeriod)}`"
+      <figure class="mx-auto w-full max-w-md lg:mx-0">
+        <div
+          class="relative z-(--layer-raised) -mx-3 h-5 rounded-t-2xl bg-printer shadow-[inset_0_-6px_10px_rgb(0_0_0/0.6)]"
+          aria-hidden="true"
         />
-        <figcaption class="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+        <div class="[clip-path:inset(0_-4rem_-6rem_-4rem)]">
+          <div class="origin-top rotate-[1.2deg] animate-print drop-shadow-[0_28px_32px_rgb(8_6_28/0.35)] [animation-delay:300ms]">
+            <SampleStatement
+              :lines="sampleStatement"
+              issuer="Cafeteria exemplo"
+              :caption="`DRE de ${formatPeriodLong(samplePeriod)}`"
+            />
+          </div>
+        </div>
+        <figcaption class="mt-8 text-center text-sm text-muted-foreground">
           Números da cafeteria fictícia que vem nos modelos.
         </figcaption>
       </figure>

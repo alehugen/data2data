@@ -4,6 +4,8 @@ Transforma relatórios brutos (planilhas e CSVs exportados de sistemas de gestã
 
 Arraste os arquivos para a página: o app reconhece o tipo de relatório pelo conteúdo e monta a análise correspondente. Todo o processamento acontece **no navegador**, e nenhum dado é enviado para servidores.
 
+![Página inicial do data2data: título "Imprima o mês e veja a conta fechar." ao lado de uma DRE de exemplo impressa como cupom](docs/home.png)
+
 ## Como usar
 
 1. **Prepare os arquivos:** exporte os relatórios do seu sistema ou baixe um dos **modelos** na página inicial e preencha com os seus números.
@@ -126,7 +128,7 @@ Acesse o endereço exibido no terminal (por padrão, `http://localhost:5173`).
 | Leitura de arquivos | [Papa Parse](https://www.papaparse.com/) (CSV), [SheetJS](https://sheetjs.com/) (XLSX/XLS) |
 | Gráficos | [ECharts](https://echarts.apache.org/) + vue-echarts |
 | Ícones | [Phosphor Icons](https://phosphoricons.com/) |
-| Fonte | Inter, servida localmente |
+| Fontes | Space Grotesk e Courier Prime (cupom), servidas localmente |
 | Testes | [Vitest](https://vitest.dev/), Vue Test Utils, happy-dom |
 
 A SheetJS é instalada a partir do [CDN oficial](https://cdn.sheetjs.com/), pois o pacote `xlsx` publicado no npm está desatualizado e tem vulnerabilidades conhecidas.

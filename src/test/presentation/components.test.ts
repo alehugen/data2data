@@ -59,21 +59,33 @@ describe('SampleStatement', () => {
     { label: 'Resultado', value: 600, kind: 'total' },
   ] as const
 
-  it('é uma tabela legível com a legenda e os valores em reais', () => {
-    const wrapper = mount(SampleStatement, { props: { lines, caption: 'DRE de exemplo' } })
-    expect(wrapper.get('caption').text()).toBe('DRE de exemplo')
-    expect(wrapper.findAll('tbody th').map((th) => th.text())).toEqual(['Receita bruta', 'Custos', 'Resultado'])
-    expect(wrapper.findAll('tbody tr')[1]!.text()).toMatch(/-R\$\s?400/)
+  const mountReceipt = (items: readonly { label: string; value: number; kind: 'start' | 'step' | 'total' }[] = lines) =>
+    mount(SampleStatement, { props: { lines: items, caption: 'DRE de exemplo', issuer: 'Cafeteria' } })
+
+  it('lista as linhas numa tabela com emissor e legenda', () => {
+    const wrapper = mountReceipt()
+    expect(wrapper.get('caption').text()).toBe('Cafeteria DRE de exemplo')
+    expect(wrapper.findAll('tbody th').map((th) => th.text())).toEqual(['Receita bruta', 'Custos'])
+    const cost = wrapper.findAll('tbody td')[1]!
+    expect(cost.text()).toBe('-400')
+    expect(cost.classes()).toContain('text-paper-loss')
   })
 
-  it('desenha cada passo a partir do total acumulado', () => {
-    const bars = mount(SampleStatement, { props: { lines, caption: 'DRE' } }).findAll('td[aria-hidden] span')
-    expect(bars.map((bar) => bar.attributes('style'))).toEqual([
-      expect.stringContaining('left: 0%'),
-      expect.stringContaining('left: 60%'),
-      expect.stringContaining('left: 0%'),
+  it('fecha com o resultado, a margem e o carimbo no azul', () => {
+    const text = mountReceipt().text()
+    expect(text).toMatch(/Resultado\s*R\$\s?600/)
+    expect(text).toContain('60% da receita')
+    expect(text).toContain('No azul')
+  })
+
+  it('carimba no vermelho quando o resultado é negativo', () => {
+    const wrapper = mountReceipt([
+      { label: 'Receita bruta', value: 1000, kind: 'start' },
+      { label: 'Custos', value: -1200, kind: 'step' },
+      { label: 'Resultado', value: -200, kind: 'total' },
     ])
-    expect(bars[1]!.classes()).toContain('bg-destructive')
+    expect(wrapper.text()).toContain('No vermelho')
+    expect(wrapper.text()).toContain('-20% da receita')
   })
 })
 

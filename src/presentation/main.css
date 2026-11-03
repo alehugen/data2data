@@ -3,21 +3,40 @@
 @import 'shadcn-vue/tailwind.css';
 
 @font-face {
-  font-family: 'Inter Variable';
+  font-family: 'Space Grotesk Variable';
   font-style: normal;
   font-display: swap;
-  font-weight: 100 900;
-  src: url('@fontsource-variable/inter/files/inter-latin-opsz-normal.woff2') format('woff2-variations');
+  font-weight: 300 700;
+  src: url('@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/courier-prime/files/courier-prime-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/courier-prime/files/courier-prime-latin-700-normal.woff2') format('woff2');
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-printer: #0e0d22;
 
-  --text-display: 3.75rem;
-  --text-display--line-height: 1.04;
-  --text-display--letter-spacing: -0.035em;
+  --font-receipt: 'Courier Prime', ui-monospace, 'Courier New', monospace;
+
+  --text-display: 4.5rem;
+  --text-display--line-height: 0.98;
+  --text-display--letter-spacing: -0.04em;
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
@@ -26,12 +45,20 @@
   --duration-base: 260ms;
   --duration-slow: 420ms;
 
-  --animate-draw: draw 900ms var(--ease-out) both;
   --animate-rise: rise 640ms var(--ease-out) both;
+  --animate-print: print 1400ms cubic-bezier(0.45, 0, 0.2, 1) both;
+  --animate-stamp: stamp 420ms var(--ease-spring) both;
 
-  @keyframes draw {
+  @keyframes print {
     from {
-      transform: scaleX(0);
+      transform: translateY(-100%);
+    }
+  }
+
+  @keyframes stamp {
+    from {
+      opacity: 0;
+      transform: scale(1.8);
     }
   }
 
@@ -69,6 +96,11 @@
   --color-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-rule: var(--paper-rule);
+  --color-paper-loss: var(--paper-loss);
+  --color-paper-gain: var(--paper-gain);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -78,87 +110,88 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   --shadow-card: var(--elevation-1);
-  --shadow-raised: var(--elevation-2);
-  --shadow-floating: var(--elevation-3);
   --shadow-primary: var(--elevation-primary);
 }
 
 :root {
   color-scheme: light;
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  --background: #f3f6f4;
-  --foreground: #16242e;
-  --body: #3b4f59;
+  --background: #f3f2fa;
+  --foreground: #1c1a36;
+  --body: #45426e;
   --card: #ffffff;
-  --card-foreground: #16242e;
+  --card-foreground: #1c1a36;
   --popover: #ffffff;
-  --popover-foreground: #16242e;
-  --primary: #edbe4c;
-  --primary-foreground: #16242e;
-  --marker-ink: #875800;
-  --secondary: #e8eeeb;
-  --secondary-foreground: #16242e;
-  --muted: #e8eeeb;
-  --muted-foreground: #5c7079;
-  --accent: color-mix(in oklch, var(--primary) 24%, var(--card));
-  --accent-foreground: #6b4600;
-  --destructive: #b23a2e;
-  --destructive-soft: #f8e3e0;
-  --success: #1f7550;
-  --success-soft: #ddf0e6;
-  --border: #d6dfdb;
-  --border-strong: #b7c5c0;
-  --input: #c9d4cf;
-  --ring: #875800;
+  --popover-foreground: #1c1a36;
+  --primary: #7fe3bd;
+  --primary-foreground: #0f2a20;
+  --marker-ink: #137a52;
+  --secondary: #e9e7f5;
+  --secondary-foreground: #1c1a36;
+  --muted: #e9e7f5;
+  --muted-foreground: #66628e;
+  --accent: color-mix(in oklch, var(--primary) 26%, var(--card));
+  --accent-foreground: #0e6544;
+  --destructive: #c4314b;
+  --destructive-soft: #fbe3e8;
+  --success: #157a50;
+  --success-soft: #dcf5ea;
+  --border: #dedbef;
+  --border-strong: #c3bfe0;
+  --input: #cfcbe6;
+  --ring: #137a52;
 
-  --elevation-1: 0 1px 2px rgb(22 36 46 / 0.04), 0 2px 6px -2px rgb(22 36 46 / 0.05);
-  --elevation-2: 0 1px 2px rgb(22 36 46 / 0.04), 0 6px 14px -4px rgb(22 36 46 / 0.08),
-    0 18px 36px -14px rgb(22 36 46 / 0.16);
-  --elevation-3: 0 2px 4px rgb(22 36 46 / 0.04), 0 12px 24px -8px rgb(22 36 46 / 0.1),
-    0 36px 64px -24px rgb(22 36 46 / 0.22);
-  --elevation-primary: 0 1px 2px rgb(135 88 0 / 0.18), 0 6px 16px -6px rgb(237 190 76 / 0.7);
+  --paper: #fbfbf7;
+  --paper-ink: #1a1a1a;
+  --paper-rule: #a3a3a3;
+  --paper-loss: #b3261e;
+  --paper-gain: #1f8a5b;
+  --glow: transparent;
+
+  --elevation-1: 0 1px 2px rgb(28 26 54 / 0.04), 0 2px 6px -2px rgb(28 26 54 / 0.06);
+  --elevation-2: 0 1px 2px rgb(28 26 54 / 0.04), 0 6px 14px -4px rgb(28 26 54 / 0.09),
+    0 18px 36px -14px rgb(28 26 54 / 0.18);
+  --elevation-primary: 0 1px 2px rgb(19 122 82 / 0.2), 0 8px 20px -8px rgb(70 200 150 / 0.75);
 
   --layer-raised: 10;
   --layer-nav: 30;
   --layer-header: 40;
-  --layer-tooltip: 50;
 }
 
 :root.dark {
   color-scheme: dark;
 
-  --background: #13212b;
-  --foreground: #e8eeea;
-  --body: #b7c5c2;
-  --card: #1a2b37;
-  --card-foreground: #e8eeea;
-  --popover: #20333f;
-  --popover-foreground: #e8eeea;
-  --primary: #e9bb52;
-  --primary-foreground: #13212b;
-  --marker-ink: #edc468;
-  --secondary: #223543;
-  --secondary-foreground: #e8eeea;
-  --muted: #223543;
-  --muted-foreground: #8ba0a8;
-  --accent: color-mix(in oklch, var(--primary) 16%, var(--card));
-  --accent-foreground: #f2d38b;
-  --destructive: #ee7466;
+  --background: #1c1a36;
+  --foreground: #efedff;
+  --body: #cfcbf5;
+  --card: #24224a;
+  --card-foreground: #efedff;
+  --popover: #2b2955;
+  --popover-foreground: #efedff;
+  --primary: #7fe3bd;
+  --primary-foreground: #0f2a20;
+  --marker-ink: #8ee8c6;
+  --secondary: #2b2955;
+  --secondary-foreground: #efedff;
+  --muted: #2b2955;
+  --muted-foreground: #a7a3d6;
+  --accent: color-mix(in oklch, var(--primary) 14%, var(--card));
+  --accent-foreground: #b5f0d8;
+  --destructive: #ff8fa3;
   --destructive-soft: color-mix(in oklch, var(--destructive) 16%, var(--card));
-  --success: #63c094;
-  --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
-  --border: #2b404f;
-  --border-strong: #3b5364;
-  --input: #3b5364;
-  --ring: #e9bb52;
+  --success: #7fe3bd;
+  --success-soft: color-mix(in oklch, var(--success) 14%, var(--card));
+  --border: #35326a;
+  --border-strong: #4c4890;
+  --input: #4c4890;
+  --ring: #7fe3bd;
+  --glow: #2c2a5c;
 
-  --elevation-1: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 1px 2px rgb(0 0 0 / 0.2), 0 2px 8px -2px rgb(0 0 0 / 0.22);
-  --elevation-2: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 2px 4px rgb(0 0 0 / 0.2), 0 10px 20px -6px rgb(0 0 0 / 0.32),
-    0 24px 44px -16px rgb(0 0 0 / 0.5);
-  --elevation-3: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 4px 8px rgb(0 0 0 / 0.2), 0 18px 36px -10px rgb(0 0 0 / 0.4),
-    0 44px 72px -28px rgb(0 0 0 / 0.6);
-  --elevation-primary: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(233 187 82 / 0.55);
+  --elevation-1: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(8 6 28 / 0.3), 0 2px 8px -2px rgb(8 6 28 / 0.3);
+  --elevation-2: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 4px rgb(8 6 28 / 0.3), 0 10px 20px -6px rgb(8 6 28 / 0.4),
+    0 24px 44px -16px rgb(8 6 28 / 0.6);
+  --elevation-primary: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 22px -8px rgb(127 227 189 / 0.55);
 }
 
 @layer base {
@@ -171,13 +204,14 @@
   }
 
   body {
-    font-optical-sizing: auto;
+    background-image: radial-gradient(1200px 640px at 80% -10%, var(--glow), transparent 70%);
+    background-repeat: no-repeat;
   }
 
   h1,
   h2,
   h3 {
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     text-wrap: balance;
   }
 
@@ -199,6 +233,11 @@
 @utility figure {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+@utility receipt-edge {
+  --tooth: 18px;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / var(--tooth) 100%;
 }
 
 @utility card-interactive {

@@ -9,19 +9,19 @@ const SERIES = {
 const CHROME = {
   light: {
     surface: '#ffffff',
-    text: '#16242e',
-    textMuted: '#5c7079',
-    axis: '#b7c5c0',
-    grid: '#e3eae7',
-    tooltipBorder: '#d6dfdb',
+    text: '#1c1a36',
+    textMuted: '#66628e',
+    axis: '#c3bfe0',
+    grid: '#e9e7f5',
+    tooltipBorder: '#dedbef',
   },
   dark: {
-    surface: '#20333f',
-    text: '#e8eeea',
-    textMuted: '#8ba0a8',
-    axis: '#3b5364',
-    grid: '#253a48',
-    tooltipBorder: '#3b5364',
+    surface: '#2b2955',
+    text: '#efedff',
+    textMuted: '#a7a3d6',
+    axis: '#4c4890',
+    grid: '#302d5e',
+    tooltipBorder: '#4c4890',
   },
 }
 
@@ -50,7 +50,7 @@ export function useChartTheme() {
         total: chrome.textMuted,
       },
       abcClass: { A: series[0]!, B: series[1]!, C: series[2]! },
-      fontFamily: "'Inter Variable', ui-sans-serif, system-ui, sans-serif",
+      fontFamily: "'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif",
       axisTooltip: {
         ...tooltip,
         trigger: 'axis' as const,

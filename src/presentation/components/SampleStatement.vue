@@ -1,66 +1,66 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { StatementLine } from '@/presentation/composables/useTemplates'
-import { formatCurrencyWhole } from '@/presentation/format'
+import { formatCurrencyWhole, formatNumberWhole, formatPercent } from '@/presentation/format'
 
-const props = defineProps<{ lines: readonly StatementLine[]; caption: string }>()
+const props = defineProps<{ lines: readonly StatementLine[]; caption: string; issuer: string }>()
 
-const rows = computed(() => {
-  const base = Math.max(props.lines[0]?.value ?? 0, 1)
-  let running = 0
-  return props.lines.map((line, index) => {
-    const from = line.kind === 'step' ? running : 0
-    const to = line.kind === 'step' ? running + line.value : line.value
-    running = to
-    const left = Math.max(0, Math.min(from, to)) / base
-    const width = Math.abs(to - from) / base
-    const tone: keyof typeof BAR_CLASSES = line.kind === 'total' ? 'total' : line.value < 0 ? 'loss' : 'gain'
-    return { ...line, index, left, width: Math.min(width, 1 - left), tone }
-  })
+const items = computed(() => props.lines.slice(0, -1))
+const result = computed(() => props.lines.at(-1))
+const margin = computed(() => {
+  const revenue = props.lines[0]?.value ?? 0
+  return revenue && result.value ? result.value.value / revenue : null
 })
-
-const BAR_CLASSES = {
-  gain: 'bg-success origin-left',
-  loss: 'bg-destructive origin-right',
-  total: 'bg-primary origin-left',
-}
+const positive = computed(() => (result.value?.value ?? 0) >= 0)
 </script>
 
 <template>
-  <table class="w-full text-sm">
-    <caption class="pb-5 text-left text-lg font-semibold tracking-tight text-foreground">
-      {{ caption }}
-    </caption>
-    <thead class="sr-only">
-      <tr>
-        <th scope="col">Linha da DRE</th>
-        <th scope="col">Proporção da receita</th>
-        <th scope="col">Valor</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr
-        v-for="row in rows"
-        :key="row.label"
-        class="border-border"
-        :class="row.kind === 'total' ? 'border-t font-semibold text-foreground' : 'text-body'"
+  <div class="receipt-edge bg-paper px-7 pt-7 pb-11 font-receipt text-[0.95rem] leading-snug text-paper-ink sm:px-9">
+    <table class="w-full">
+      <caption class="pb-1 text-center">
+        <span class="block font-bold tracking-wide uppercase">{{ issuer }}</span>
+        {{ caption }}
+      </caption>
+      <thead class="sr-only">
+        <tr>
+          <th scope="col">Linha da DRE</th>
+          <th scope="col">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="(line, index) in items"
+          :key="line.label"
+          :class="[
+            line.kind === 'total' && 'font-bold',
+            (line.kind === 'total' || index === 0) && '[&>*]:border-t-2 [&>*]:border-dashed [&>*]:border-paper-rule [&>*]:pt-2.5',
+          ]"
+        >
+          <th scope="row" class="pb-1 text-left [font-weight:inherit]">
+            <span class="flex items-baseline gap-1.5">
+              {{ line.label }}
+              <span class="min-w-4 flex-1 border-b-2 border-dotted border-paper-rule/70" aria-hidden="true" />
+            </span>
+          </th>
+          <td class="pb-1 pl-1.5 text-right whitespace-nowrap tabular-nums" :class="line.value < 0 && 'text-paper-loss'">
+            {{ formatNumberWhole(line.value) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div v-if="result" class="mt-1.5 border-t-2 border-dashed border-paper-rule pt-4 text-center">
+      <p>{{ result.label }}</p>
+      <p class="mt-1 text-[1.9rem] font-bold tracking-tight tabular-nums" :class="!positive && 'text-paper-loss'">
+        {{ formatCurrencyWhole(result.value) }}
+      </p>
+      <p v-if="margin !== null">{{ formatPercent(margin) }} da receita</p>
+      <p
+        class="mt-3 inline-block -rotate-6 animate-stamp border-[3px] px-3 py-0.5 font-bold tracking-widest uppercase [animation-delay:1800ms]"
+        :class="positive ? 'border-paper-gain text-paper-gain' : 'border-paper-loss text-paper-loss'"
       >
-        <th scope="row" class="py-2.5 pr-3 text-left [font-weight:inherit]">
-          {{ row.label }}
-        </th>
-        <td class="w-[36%] py-2.5" aria-hidden="true">
-          <div class="relative h-2.5">
-            <span
-              class="absolute inset-y-0 animate-draw rounded-xs transition-[left,width] duration-(--duration-slow) ease-out"
-              :class="BAR_CLASSES[row.tone]"
-              :style="{ left: `${row.left * 100}%`, width: `max(2px, ${row.width * 100}%)`, animationDelay: `${450 + row.index * 70}ms` }"
-            />
-          </div>
-        </td>
-        <td class="py-2.5 pl-3 text-right figure whitespace-nowrap" :class="row.value < 0 && 'text-destructive'">
-          {{ formatCurrencyWhole(row.value) }}
-        </td>
-      </tr>
-    </tbody>
-  </table>
+        {{ positive ? 'No azul' : 'No vermelho' }}
+      </p>
+    </div>
+  </div>
 </template>
