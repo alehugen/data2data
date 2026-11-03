@@ -5,20 +5,23 @@ const LINKEDIN_URL = 'https://www.linkedin.com/in/alehugen'
 </script>
 
 <template>
-  <footer class="mt-16 border-t border-border">
+  <footer class="mt-20 border-t border-border">
     <div
-      class="mx-auto flex max-w-7xl flex-col items-center gap-3 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:justify-between"
+      class="mx-auto flex max-w-7xl flex-col items-start gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"
     >
-      <p>data<span class="text-primary">2</span>data · seus dados são processados só no navegador</p>
+      <p>
+        <span class="font-figure font-bold text-foreground">data<span class="highlighter px-px">2</span>data</span>
+        processa seus arquivos só no navegador.
+      </p>
       <p class="flex items-center gap-1">
         Feito por
         <a
           :href="LINKEDIN_URL"
           target="_blank"
           rel="noopener noreferrer"
-          class="group inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-body hover:bg-muted hover:text-primary"
+          class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-body transition-colors hover:bg-muted hover:text-foreground"
         >
-          <PhLinkedinLogo :size="16" weight="fill" class="transition-transform duration-(--duration-base) ease-spring group-hover:scale-110" aria-hidden="true" />
+          <PhLinkedinLogo :size="16" weight="fill" aria-hidden="true" />
           Alessandro Hugen
           <span class="sr-only">(LinkedIn, abre em nova aba)</span>
         </a>

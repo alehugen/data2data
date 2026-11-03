@@ -16,6 +16,8 @@ export interface TemplateInfo {
 
 const { lastMonth, fileSuffix } = container.templates
 
+export type StatementLine = ReturnType<typeof container.templates.statement>[number]
+
 const TEMPLATES: TemplateInfo[] = [
   {
     kind: 'dre',
@@ -77,5 +79,17 @@ export function useTemplates() {
 
   const loadSample = (): Promise<Report[]> => importFiles(container.templates.samples())
 
-  return { templates: TEMPLATES, downloading, downloadError, loadingSample: isImporting, download, loadSample }
+  const samplePeriod = lastMonth()
+  const sampleStatement = container.templates.statement(samplePeriod.month - 1)
+
+  return {
+    templates: TEMPLATES,
+    samplePeriod,
+    sampleStatement,
+    downloading,
+    downloadError,
+    loadingSample: isImporting,
+    download,
+    loadSample,
+  }
 }

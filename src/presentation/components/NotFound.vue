@@ -3,9 +3,11 @@ defineProps<{ message: string }>()
 </script>
 
 <template>
-  <div class="animate-fade-up space-y-2">
-    <p class="text-body">{{ message }}</p>
-    <p class="text-sm text-muted-foreground">Os dados ficam só na memória do navegador: ao recarregar a página, importe os arquivos novamente.</p>
+  <div class="max-w-xl space-y-3 py-8">
+    <h1 class="text-3xl font-bold tracking-tight">{{ message }}</h1>
+    <p class="text-body">
+      Os dados ficam só na memória do navegador. Depois de recarregar a página, importe os arquivos de novo.
+    </p>
     <RouterLink :to="{ name: 'import' }" class="link">Ir para a importação</RouterLink>
   </div>
 </template>

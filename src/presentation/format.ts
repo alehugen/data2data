@@ -12,12 +12,14 @@ const currencyCompactFormatter = new Intl.NumberFormat(LOCALE, {
   notation: 'compact',
   maximumFractionDigits: 1,
 })
+const currencyWholeFormatter = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 const percentFormatter = new Intl.NumberFormat(LOCALE, { style: 'percent', maximumFractionDigits: 1 })
 const monthLongFormatter = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric' })
 
 export const formatNumber = (value: number) => numberFormatter.format(value)
 export const formatCompact = (value: number) => compactFormatter.format(value)
 export const formatCurrency = (value: number) => currencyFormatter.format(value)
+export const formatCurrencyWhole = (value: number) => currencyWholeFormatter.format(value)
 export const formatCurrencyCompact = (value: number) => currencyCompactFormatter.format(value)
 export const formatPercent = (value: number) => percentFormatter.format(value)
 export const formatSignedPercent = (value: number) => `${value > 0 ? '+' : ''}${percentFormatter.format(value)}`
@@ -29,8 +31,8 @@ export const formatPeriodLong = ({ year, month }: Period) => monthLongFormatter.
 export const formatAbcMonth = (report: MonthlyReport) => (report.period ? formatPeriod(report.period) : report.name)
 
 export function describeReport(report: Report): string {
-  if (report.kind === 'abc') return `Curva ABC · ${formatAbcMonth(report)}`
-  if (report.kind === 'profit') return `Lucro por produto · ${formatAbcMonth(report)}`
+  if (report.kind === 'abc') return `Curva ABC de ${formatAbcMonth(report)}`
+  if (report.kind === 'profit') return `Lucro por produto de ${formatAbcMonth(report)}`
   return report.name
 }
 

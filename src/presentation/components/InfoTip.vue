@@ -12,7 +12,7 @@ withDefaults(defineProps<{ text: string; label?: string }>(), { label: 'Como est
       <Button
         variant="ghost"
         size="icon-xs"
-        class="rounded-full text-muted-foreground hover:text-primary"
+        class="rounded-full text-muted-foreground hover:text-foreground"
         :aria-label="label"
         @click.stop.prevent
       >

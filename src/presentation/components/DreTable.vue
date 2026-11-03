@@ -75,7 +75,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
     </div>
 
     <div ref="scroller" class="max-h-[70vh] overflow-auto">
-      <table class="min-w-full text-sm tabular-nums">
+      <table class="min-w-full text-sm">
         <thead class="sticky top-0 z-10 bg-muted text-left">
           <tr>
             <th class="sticky left-0 z-10 min-w-64 bg-muted px-3 py-2 font-medium">Conta</th>
@@ -83,8 +83,8 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
               v-for="(period, i) in report.periods"
               :key="i"
               :data-highlight="highlight.includes(i) ? '' : undefined"
-              class="px-3 py-2 text-right font-medium whitespace-nowrap"
-              :class="highlight.includes(i) && 'bg-accent text-primary'"
+              class="px-3 py-2 text-right figure font-medium whitespace-nowrap"
+              :class="highlight.includes(i) && 'bg-accent text-accent-foreground'"
             >
               {{ formatPeriod(period) }}
             </th>
@@ -94,7 +94,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
           <tr
             v-for="line in rows"
             :key="line.id"
-            class="transition-colors duration-(--duration-fast) hover:bg-accent/30"
+            class="transition-colors duration-(--duration-fast) hover:bg-muted/50"
             :class="{
               'bg-muted/60 font-semibold': line.kind === DreLineKind.Result,
               'font-medium': line.kind === DreLineKind.Section || line.kind === DreLineKind.Group,
@@ -103,14 +103,14 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
           >
             <th
               scope="row"
-              class="sticky left-0 bg-card px-3 py-1.5 text-left font-[inherit] whitespace-nowrap"
+              class="sticky left-0 bg-card px-3 py-1.5 text-left [font-weight:inherit] whitespace-nowrap"
               :class="line.kind === DreLineKind.Result && 'bg-muted'"
               :style="{ paddingLeft: `${0.75 + depth(line) * 1.25}rem` }"
             >
               <button
                 v-if="hasChildren(line)"
                 type="button"
-                class="-ml-1 inline-flex items-center gap-1.5 rounded px-1 hover:text-primary"
+                class="-ml-1 inline-flex items-center gap-1.5 rounded px-1 hover:underline"
                 :aria-expanded="expanded.has(line.id)"
                 @click="toggle(line)"
               >
@@ -128,7 +128,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
             <td
               v-for="(value, i) in line.values"
               :key="i"
-              class="px-3 py-1.5 text-right whitespace-nowrap"
+              class="px-3 py-1.5 text-right figure whitespace-nowrap"
               :class="[highlight.includes(i) && 'bg-accent/40', value < 0 && 'text-destructive']"
             >
               {{ cell(line, i) }}

@@ -9,19 +9,19 @@ const SERIES = {
 const CHROME = {
   light: {
     surface: '#ffffff',
-    text: '#0f172a',
-    textMuted: '#64748b',
-    axis: '#cbd5e1',
-    grid: '#e2e8f0',
-    tooltipBorder: '#e2e8f0',
+    text: '#16242e',
+    textMuted: '#5c7079',
+    axis: '#b7c5c0',
+    grid: '#e3eae7',
+    tooltipBorder: '#d6dfdb',
   },
   dark: {
-    surface: '#0f172a',
-    text: '#f1f5f9',
-    textMuted: '#94a3b8',
-    axis: '#334155',
-    grid: '#1e293b',
-    tooltipBorder: '#334155',
+    surface: '#20333f',
+    text: '#e8eeea',
+    textMuted: '#8ba0a8',
+    axis: '#3b5364',
+    grid: '#253a48',
+    tooltipBorder: '#3b5364',
   },
 }
 
@@ -38,7 +38,7 @@ export function useChartTheme() {
       borderWidth: 1,
       padding: [8, 12],
       textStyle: { color: chrome.text, fontSize: 13 },
-      extraCssText: 'border-radius: 10px; box-shadow: 0 8px 24px -6px rgb(0 0 0 / 0.18);',
+      extraCssText: 'border-radius: 8px; box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.35);',
     }
 
     return {
@@ -50,7 +50,7 @@ export function useChartTheme() {
         total: chrome.textMuted,
       },
       abcClass: { A: series[0]!, B: series[1]!, C: series[2]! },
-      fontFamily: "'Roboto Variable', ui-sans-serif, system-ui, sans-serif",
+      fontFamily: "'Roboto Condensed Variable', 'Roboto Variable', ui-sans-serif, system-ui, sans-serif",
       axisTooltip: {
         ...tooltip,
         trigger: 'axis' as const,

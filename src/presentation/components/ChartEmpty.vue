@@ -5,7 +5,7 @@ withDefaults(defineProps<{ message?: string }>(), { message: 'Sem dados para exi
 </script>
 
 <template>
-  <div class="flex h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-sm text-muted-foreground">
+  <div class="flex h-40 flex-col items-center justify-center gap-2 rounded-lg bg-muted/50 text-sm text-muted-foreground">
     <PhChartBar :size="24" weight="duotone" aria-hidden="true" />
     {{ message }}
   </div>

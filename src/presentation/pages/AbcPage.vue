@@ -16,6 +16,7 @@ import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
+import StatGrid from '@/presentation/components/StatGrid.vue'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
 import { Badge } from '@/presentation/components/ui/badge'
 import { Button } from '@/presentation/components/ui/button'
@@ -143,8 +144,8 @@ const rankingItems = computed(() => {
     color: theme.value.abcClass[item.abcClass],
     detail:
       rankingBy.value === 'quantity'
-        ? `Classe ${item.abcClass} · ${formatCurrency(item.value)} · acumulado ${formatPercent(item.cumulativeShare)}`
-        : `Classe ${item.abcClass} · ${formatNumber(item.quantity)} un.`,
+        ? `Classe ${item.abcClass}, ${formatCurrency(item.value)}, acumulado de ${formatPercent(item.cumulativeShare)}`
+        : `Classe ${item.abcClass}, ${formatNumber(item.quantity)} un.`,
   }))
 })
 
@@ -203,7 +204,7 @@ const profitRanking = computed(() =>
     label: item.description,
     value: item.profit,
     color: classColor(item.abcClass),
-    detail: `${classLabel(item.abcClass)} · margem ${formatPercent(item.margin ?? 0)}${item.profitPerUnit !== null ? ` · ${formatCurrency(item.profitPerUnit)}/un.` : ''}`,
+    detail: `${classLabel(item.abcClass)}, margem de ${formatPercent(item.margin ?? 0)}${item.profitPerUnit !== null ? `, ${formatCurrency(item.profitPerUnit)}/un.` : ''}`,
   })),
 )
 
@@ -229,7 +230,7 @@ const navSections = computed<NavSection[]>(() => {
 })
 
 const movementTone: Record<AbcMovement, string> = {
-  new: 'bg-accent text-primary',
+  new: 'bg-accent text-accent-foreground',
   up: 'bg-success-soft text-success',
   down: 'bg-destructive-soft text-destructive',
   gone: 'bg-muted text-muted-foreground',
@@ -238,8 +239,8 @@ const movementTone: Record<AbcMovement, string> = {
 </script>
 
 <template>
-  <div v-if="!analysis" class="animate-fade-up space-y-2">
-    <h1 class="text-2xl font-semibold">Curva ABC</h1>
+  <div v-if="!analysis" class="max-w-xl space-y-3 py-8">
+    <h1 class="text-4xl font-bold tracking-tight">Curva ABC</h1>
     <p class="text-body">Nenhum relatório de Curva ABC importado ainda.</p>
     <RouterLink :to="{ name: 'import' }" class="link">Importar relatórios</RouterLink>
   </div>
@@ -254,7 +255,7 @@ const movementTone: Record<AbcMovement, string> = {
       "
     />
 
-    <div role="group" aria-label="Mês" class="flex animate-fade-up flex-wrap gap-2">
+    <div role="group" aria-label="Mês" class="flex flex-wrap gap-2">
       <Button
         v-for="month in analysis.months"
         :key="month.report.id"
@@ -262,7 +263,6 @@ const movementTone: Record<AbcMovement, string> = {
         :variant="month.report.id === current.report.id ? 'default' : 'outline'"
         :aria-pressed="month.report.id === current.report.id"
         class="min-w-16"
-        :class="month.report.id === current.report.id && 'shadow-(--elevation-primary)'"
         @click="selectedId = month.report.id"
       >
         {{ formatAbcMonth(month.report) }}
@@ -272,19 +272,17 @@ const movementTone: Record<AbcMovement, string> = {
     <ReportLayout :sections="navSections">
       <PageSection id="indicadores" class="space-y-3">
         <SectionHeading title="Indicadores de vendas" :subtitle="`Resultado de ${currentLabel}`" />
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatGrid columns="grid-cols-2 lg:grid-cols-4">
           <StatCard
-            v-for="(kpi, i) in kpis"
+            v-for="kpi in kpis"
             :key="kpi.label"
-            class="animate-fade-up stagger"
-            :style="{ '--i': i }"
             :label="kpi.label"
             :value="kpi.value"
             :delta="kpi.delta"
             :delta-label="previousLabel"
             :info="kpi.info"
           />
-        </div>
+        </StatGrid>
       </PageSection>
 
       <PageSection id="analise" class="space-y-3">
@@ -297,7 +295,7 @@ const movementTone: Record<AbcMovement, string> = {
           title="Distribuição por classe"
           :subtitle="`Quanto cada classe representa em ${currentLabel}`"
           :info="INFO.distribution"
-          class="animate-fade-up lg:col-span-2"
+          class="lg:col-span-2"
         >
           <div class="space-y-5">
             <ShareBar title="Itens" :segments="classSegments((c) => current!.byClass[c].items)" :format-value="(v) => `${formatNumber(v)} itens`" />
@@ -316,8 +314,7 @@ const movementTone: Record<AbcMovement, string> = {
           title="Ranking de itens"
           subtitle="Cor indica a classe ABC"
           :info="INFO.ranking"
-          class="animate-fade-up stagger lg:col-span-3"
-          style="--i: 1"
+          class="lg:col-span-3"
         >
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <ul class="flex gap-4 text-xs text-muted-foreground" aria-label="Legenda">
@@ -341,7 +338,6 @@ const movementTone: Record<AbcMovement, string> = {
           title="Evolução mensal"
           subtitle="Faturamento por classe em cada mês importado"
           :info="INFO.evolution"
-          class="animate-fade-up"
         >
           <TrendChart :categories="evolution.categories" :series="evolution.series" :highlight-index="currentIndex" />
         </ChartCard>
@@ -353,12 +349,10 @@ const movementTone: Record<AbcMovement, string> = {
           :subtitle="`Cruzamento da Curva ABC com o relatório de lucro por produto de ${currentLabel}`"
         />
 
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatGrid columns="grid-cols-2 lg:grid-cols-4">
           <StatCard
-            v-for="(kpi, i) in profitKpis"
+            v-for="kpi in profitKpis"
             :key="kpi.label"
-            class="animate-fade-up stagger"
-            :style="{ '--i': i }"
             :label="kpi.label"
             :value="kpi.value"
             :hint="kpi.hint"
@@ -367,7 +361,7 @@ const movementTone: Record<AbcMovement, string> = {
             :lower-is-better="kpi.lowerIsBetter"
             :info="kpi.info"
           />
-        </div>
+        </StatGrid>
 
         <InsightList :insights="profitInsights" />
 
@@ -435,11 +429,7 @@ const movementTone: Record<AbcMovement, string> = {
                 </TableRow>
               </TableHeader>
               <TableBody class="tabular-nums">
-                <TableRow
-                  v-for="item in profitability.items"
-                  :key="item.code"
-                 
-                >
+                <TableRow v-for="item in profitability.items" :key="item.code">
                   <TableCell class="px-3 py-2">
                     <span class="inline-flex items-center gap-1.5">
                       {{ item.description }}
@@ -464,7 +454,7 @@ const movementTone: Record<AbcMovement, string> = {
         </PageSection>
       </PageSection>
 
-      <Card v-else class="animate-fade-up flex-row items-start gap-3 border border-dashed bg-muted/40 p-4 text-sm text-body shadow-none ring-0">
+      <Card v-else class="flex-row items-start gap-3 border border-dashed bg-muted/40 p-4 text-sm text-body shadow-none ring-0">
         <PhWarning :size="20" class="shrink-0 text-muted-foreground" aria-hidden="true" />
         <p>
           Importe o relatório de <strong class="font-medium text-foreground">lucro por produto</strong> de {{ currentLabel }} para ver a
@@ -532,11 +522,7 @@ const movementTone: Record<AbcMovement, string> = {
               </TableRow>
             </TableHeader>
             <TableBody class="tabular-nums">
-              <TableRow
-                v-for="(item, i) in analysis.ranking"
-                :key="item.code"
-               
-              >
+              <TableRow v-for="(item, i) in analysis.ranking" :key="item.code">
                 <TableCell class="px-3 py-2 text-muted-foreground">{{ i + 1 }}</TableCell>
                 <TableCell class="px-3 py-2">{{ item.description }}</TableCell>
                 <TableCell class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></TableCell>

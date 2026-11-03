@@ -14,6 +14,7 @@ import ReportLayout from '@/presentation/components/ReportLayout.vue'
 import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
+import StatGrid from '@/presentation/components/StatGrid.vue'
 import TrendChart from '@/presentation/components/TrendChart.vue'
 import {
   Select,
@@ -142,12 +143,10 @@ const expenseItems = computed(() =>
     <ReportLayout :sections="navSections">
       <PageSection id="indicadores" class="space-y-3">
         <SectionHeading title="Indicadores" :subtitle="`Resultado de ${periodLabels.currentLong}`" />
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <StatGrid columns="grid-cols-2 md:grid-cols-3">
           <StatCard
-            v-for="(kpi, i) in kpiCards"
+            v-for="kpi in kpiCards"
             :key="kpi.key"
-            class="animate-fade-up stagger"
-            :style="{ '--i': i }"
             :label="kpi.label"
             :value="kpi.value"
             :hint="kpi.hint"
@@ -155,7 +154,7 @@ const expenseItems = computed(() =>
             :delta-label="periodLabels.previous"
             :info="kpi.info"
           />
-        </div>
+        </StatGrid>
       </PageSection>
 
       <PageSection id="analise" class="space-y-3">
@@ -168,18 +167,17 @@ const expenseItems = computed(() =>
           title="Da receita ao resultado"
           :subtitle="`Cascata da DRE: ${periodLabels.currentLong}`"
           :info="INFO.waterfall"
-          class="animate-fade-up"
         >
           <WaterfallChart :steps="analysis.waterfall" />
         </ChartCard>
       </PageSection>
 
       <PageSection id="evolucao" class="grid gap-3 xl:grid-cols-2">
-        <ChartCard title="Receita e EBITDA" subtitle="Evolução mensal" :info="INFO.revenue" class="animate-fade-up">
+        <ChartCard title="Receita e EBITDA" subtitle="Evolução mensal" :info="INFO.revenue">
           <TrendChart :categories="months" :series="revenueSeries" :highlight-index="highlightIndex" />
         </ChartCard>
 
-        <ChartCard title="Margens" subtitle="Percentual da receita bruta, mês a mês" :info="INFO.margins" class="animate-fade-up">
+        <ChartCard title="Margens" subtitle="Percentual da receita bruta, mês a mês" :info="INFO.margins">
           <TrendChart :categories="months" :series="marginSeries" format="percent" :highlight-index="highlightIndex" />
         </ChartCard>
       </PageSection>
@@ -189,7 +187,6 @@ const expenseItems = computed(() =>
           title="Para onde vai a receita"
           :subtitle="`Custos e despesas operacionais: ${periodLabels.currentLong}`"
           :info="INFO.expenses"
-          class="animate-fade-up"
         >
           <RankingBarChart
             :items="expenseItems"
@@ -204,7 +201,6 @@ const expenseItems = computed(() =>
           title="Composição da receita"
           subtitle="Receita bruta por origem"
           :info="INFO.mix"
-          class="animate-fade-up"
         >
           <TrendChart :categories="months" :series="mixSeries" :highlight-index="highlightIndex" />
         </ChartCard>
@@ -215,7 +211,6 @@ const expenseItems = computed(() =>
           :title="DRE_METRIC_LABELS[DreMetric.EndingCash]"
           subtitle="Saldo final de cada mês"
           :info="INFO.cash"
-          class="animate-fade-up"
         >
           <TrendChart
             :categories="months"

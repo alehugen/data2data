@@ -56,7 +56,7 @@ describe('ImportPage', () => {
     await useFileImport().importFiles([latin1File('abc set.2026.csv', ABC_SEPTEMBER), new File([], 'vazio.csv')])
     await flushPromises()
 
-    expect(page.get('[role="status"]').text()).toContain('Curva ABC · set/26')
+    expect(page.get('[role="status"]').text()).toContain('Curva ABC de set/26')
     expect(page.get('[role="alert"]').text()).toBe('O arquivo está vazio: vazio.csv')
 
     const { abcReports, remove } = useReports()

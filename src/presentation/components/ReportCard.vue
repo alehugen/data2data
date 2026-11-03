@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PhArrowRight, PhFileText, PhTrash } from '@phosphor-icons/vue'
+import { PhFileText, PhTrash } from '@phosphor-icons/vue'
 import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { Button } from '@/presentation/components/ui/button'
@@ -14,23 +14,19 @@ defineEmits<{ remove: [] }>()
 </script>
 
 <template>
-  <Card class="group/report card-interactive gap-0 py-0 hover:ring-primary/40">
-    <div class="flex items-start gap-3 p-4">
-      <span
-        class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary transition-transform duration-(--duration-slow) ease-spring group-hover/report:scale-105"
-      >
-        <component :is="icon" :size="20" weight="duotone" aria-hidden="true" />
-      </span>
+  <Card class="card-interactive gap-0 py-0">
+    <div class="flex items-start gap-3 p-5">
+      <component :is="icon" :size="28" weight="duotone" class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div class="min-w-0 flex-1">
-        <h3 class="truncate font-semibold transition-colors group-hover/report:text-primary">{{ title }}</h3>
+        <h3 class="truncate text-lg font-semibold">{{ title }}</h3>
         <p class="text-sm text-muted-foreground">{{ subtitle }}</p>
-        <div v-if="$slots.default" class="relative z-10 mt-3">
+        <div v-if="$slots.default" class="relative z-10 mt-4">
           <slot />
         </div>
       </div>
     </div>
 
-    <CardFooter class="justify-between gap-2 bg-muted/40 px-4 py-2.5">
+    <CardFooter class="justify-between gap-2 border-t border-border px-5 py-3">
       <Tooltip v-if="removable">
         <TooltipTrigger as-child>
           <Button
@@ -47,17 +43,9 @@ defineEmits<{ remove: [] }>()
       </Tooltip>
       <span v-else />
 
-      <Button
-        as-child
-        class="gap-2 px-3.5 shadow-(--elevation-primary) transition-[box-shadow,background-color,transform] hover:bg-primary/90 group-hover/report:shadow-raised"
-      >
+      <Button as-child class="px-4">
         <RouterLink :to="to" :aria-label="`Visualizar ${title}`" class="after:absolute after:inset-0 after:content-['']">
           Visualizar
-          <PhArrowRight
-            weight="bold"
-            class="transition-transform duration-(--duration-base) ease-soft group-hover/report:translate-x-1"
-            aria-hidden="true"
-          />
         </RouterLink>
       </Button>
     </CardFooter>

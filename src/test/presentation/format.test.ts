@@ -33,7 +33,7 @@ describe('formatadores', () => {
     const withoutMonth = AbcReport.fromTable({ name: 'curva', rows: csvRows(ABC_SEPTEMBER) })!
     expect(formatAbcMonth(withMonth)).toBe('set/26')
     expect(formatAbcMonth(withoutMonth)).toBe('curva')
-    expect(describeReport(withMonth)).toBe('Curva ABC · set/26')
+    expect(describeReport(withMonth)).toBe('Curva ABC de set/26')
   })
 })
 

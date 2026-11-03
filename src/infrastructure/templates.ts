@@ -105,30 +105,52 @@ const INSTRUCTIONS = [
   ['6. Salve e arraste o arquivo para o data2data.'],
 ]
 
+const byLabel = new Map(DRE_LINES.filter((line): line is Exclude<DreLine, null> => line !== null).map((l) => [l.label, l]))
+
+const cache = new Map<string, number>()
+function valueOf(label: string, month: number): number {
+  const key = `${label}|${month}`
+  const cached = cache.get(key)
+  if (cached !== undefined) return cached
+  const line = byLabel.get(label)!
+  const value =
+    'monthly' in line
+      ? line.monthly(month)
+      : 'sumOf' in line
+        ? round2(line.sumOf.reduce((acc, ref) => acc + valueOf(ref, month), 0))
+        : month === 0
+          ? line.opening
+          : valueOf(line.carry, month - 1)
+  cache.set(key, value)
+  return value
+}
+
+export interface StatementLine {
+  label: string
+  value: number
+  kind: 'start' | 'step' | 'total'
+}
+
+export function sampleStatement(month: number): StatementLine[] {
+  const value = (...labels: string[]) => round2(labels.reduce((acc, label) => acc + valueOf(label, month), 0))
+  return [
+    { label: 'Receita bruta', value: value('RECEITA OPERACIONAL BRUTA'), kind: 'start' },
+    { label: 'Impostos sobre venda', value: value('IMPOSTOS SOBRE VENDA'), kind: 'step' },
+    { label: 'Custos dos produtos e serviços', value: value('CUSTOS DAS MERCADORIAS VENDIDAS', 'CUSTOS DOS SERVIÇOS VENDIDOS'), kind: 'step' },
+    { label: 'Despesas variáveis', value: value('OUTRAS DESPESAS VARIÁVEIS'), kind: 'step' },
+    { label: 'Margem de contribuição', value: value('MARGEM DE CONTRIBUIÇÃO'), kind: 'total' },
+    { label: 'Despesas operacionais', value: value('DESPESAS OPERACIONAIS', 'OUTRAS RECEITAS OPERACIONAIS'), kind: 'step' },
+    { label: 'EBITDA', value: value('RESULTADO LÍQUIDO (EBITDA)'), kind: 'total' },
+    { label: 'Depreciação', value: value('DESPESAS NÃO DESEMBOLSÁVEIS'), kind: 'step' },
+    { label: 'Resultado líquido', value: value('RESULTADO LÍQUIDO'), kind: 'total' },
+  ]
+}
+
 export async function buildDreTemplate(year: number): Promise<File> {
   const { utils, write } = await import('xlsx')
   const firstDataRow = 4
   const rowOf = new Map<string, number>()
   DRE_LINES.forEach((line, i) => line && rowOf.set(line.label, firstDataRow + i))
-  const byLabel = new Map(DRE_LINES.filter((line): line is Exclude<DreLine, null> => line !== null).map((l) => [l.label, l]))
-
-  const cache = new Map<string, number>()
-  const valueOf = (label: string, month: number): number => {
-    const key = `${label}|${month}`
-    const cached = cache.get(key)
-    if (cached !== undefined) return cached
-    const line = byLabel.get(label)!
-    const value =
-      'monthly' in line
-        ? line.monthly(month)
-        : 'sumOf' in line
-          ? round2(line.sumOf.reduce((acc, ref) => acc + valueOf(ref, month), 0))
-          : month === 0
-            ? line.opening
-            : valueOf(line.carry, month - 1)
-    cache.set(key, value)
-    return value
-  }
 
   const sheet: Record<string, unknown> = {}
   const put = (row: number, col: number, cell: object) => (sheet[utils.encode_cell({ r: row, c: col })] = cell)

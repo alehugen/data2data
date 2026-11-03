@@ -10,6 +10,7 @@ import ReportLayout from '@/presentation/components/ReportLayout.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
+import StatGrid from '@/presentation/components/StatGrid.vue'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
 import { Card } from '@/presentation/components/ui/card'
 import { useDatasetAnalysis } from '@/presentation/composables/useDatasetAnalysis'
@@ -32,7 +33,7 @@ const navSections = computed<NavSection[]>(() => [
   <NotFound v-if="!dataset" message="Tabela não encontrada." />
 
   <div v-else class="space-y-6">
-    <PageHeader :title="dataset.name" :subtitle="`${dataset.rowCount} linhas · ${dataset.columns.length} colunas`" />
+    <PageHeader :title="dataset.name" :subtitle="`${dataset.rowCount} linhas e ${dataset.columns.length} colunas`" />
 
     <ReportLayout :sections="navSections">
       <PageSection id="analise" class="space-y-3">
@@ -44,13 +45,11 @@ const navSections = computed<NavSection[]>(() => [
         <SectionHeading title="Gráficos" />
         <div class="grid gap-3 xl:grid-cols-2">
           <ChartCard
-            v-for="(breakdown, i) in analysis.breakdowns"
+            v-for="breakdown in analysis.breakdowns"
             :key="breakdown.valueKey"
             :title="`${breakdown.valueKey} por ${breakdown.categoryKey}`"
             subtitle="Soma por categoria, do maior para o menor"
             info="Soma da coluna numérica agrupada pela primeira coluna de texto da tabela. Acima de 10 categorias, as menores são somadas em Outros."
-            class="animate-fade-up stagger"
-            :style="{ '--i': i }"
           >
             <RankingBarChart
               :items="breakdown.items.map((item) => ({ label: item.category, value: item.total }))"
@@ -63,13 +62,12 @@ const navSections = computed<NavSection[]>(() => [
       <PageSection v-if="analysis?.numericColumns.length" id="estatisticas" class="space-y-6">
         <SectionHeading title="Estatísticas" subtitle="Colunas numéricas" />
         <div
-          v-for="({ column, statistics }, i) in analysis.numericColumns"
+          v-for="{ column, statistics } in analysis.numericColumns"
           :key="column.key"
-          class="animate-fade-up stagger space-y-3"
-          :style="{ '--i': i }"
+          class="space-y-3"
         >
-          <h3 class="font-semibold">{{ column.label }}</h3>
-          <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <h3 class="text-lg font-semibold">{{ column.label }}</h3>
+          <StatGrid columns="grid-cols-2 md:grid-cols-4">
             <StatCard
               label="Soma"
               :value="formatNumber(statistics.sum)"
@@ -82,7 +80,7 @@ const navSections = computed<NavSection[]>(() => [
             />
             <StatCard label="Mínimo" :value="formatNumber(statistics.min)" info="Menor valor numérico encontrado na coluna." />
             <StatCard label="Máximo" :value="formatNumber(statistics.max)" info="Maior valor numérico encontrado na coluna." />
-          </div>
+          </StatGrid>
         </div>
       </PageSection>
 
@@ -102,11 +100,7 @@ const navSections = computed<NavSection[]>(() => [
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow
-                v-for="(row, i) in dataset.rows.slice(0, PREVIEW_ROWS)"
-                :key="i"
-               
-              >
+              <TableRow v-for="(row, i) in dataset.rows.slice(0, PREVIEW_ROWS)" :key="i">
                 <TableCell v-for="column in dataset.columns" :key="column.key" class="px-3 py-2 whitespace-nowrap">
                   {{ row[column.key] }}
                 </TableCell>

@@ -15,6 +15,7 @@ import {
   buildSampleFiles,
   periodSuffix,
   previousMonth,
+  sampleStatement,
 } from './templates'
 import { XlsxFileParser } from './XlsxFileParser'
 
@@ -33,6 +34,7 @@ export const container = {
     abc: buildAbcTemplate,
     profit: buildProfitTemplate,
     samples: buildSampleFiles,
+    statement: sampleStatement,
     lastMonth: () => previousMonth(new Date()),
     fileSuffix: periodSuffix,
   },

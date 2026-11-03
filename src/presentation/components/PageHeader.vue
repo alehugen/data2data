@@ -6,20 +6,16 @@ defineProps<{ title: string; subtitle?: string }>()
 </script>
 
 <template>
-  <header class="flex animate-fade-up flex-wrap items-end justify-between gap-4">
+  <header class="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
     <div class="min-w-0">
-      <Button as-child variant="ghost" size="sm" class="group -ml-2.5 text-muted-foreground hover:text-primary">
+      <Button as-child variant="ghost" size="sm" class="-ml-2.5 text-muted-foreground hover:text-foreground">
         <RouterLink :to="{ name: 'import' }">
-          <PhArrowLeft
-            weight="bold"
-            class="transition-transform duration-(--duration-base) ease-soft group-hover:-translate-x-0.5"
-            aria-hidden="true"
-          />
+          <PhArrowLeft weight="bold" aria-hidden="true" />
           Meus relatórios
         </RouterLink>
       </Button>
-      <h1 class="mt-2 text-2xl font-semibold">{{ title }}</h1>
-      <p v-if="subtitle" class="truncate text-sm text-muted-foreground">{{ subtitle }}</p>
+      <h1 class="mt-3 text-4xl leading-tight font-bold tracking-tight">{{ title }}</h1>
+      <p v-if="subtitle" class="mt-1 truncate text-muted-foreground">{{ subtitle }}</p>
     </div>
     <slot />
   </header>

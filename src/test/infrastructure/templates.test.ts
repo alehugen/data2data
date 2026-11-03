@@ -11,6 +11,7 @@ import {
   buildProfitTemplate,
   buildSampleFiles,
   previousMonth,
+  sampleStatement,
 } from '@/infrastructure/templates'
 import { XlsxFileParser } from '@/infrastructure/XlsxFileParser'
 
@@ -60,6 +61,29 @@ describe('modelo de DRE', () => {
     const [report] = (await importFile.execute(await buildDreTemplate(2026))) as DreReport[]
     const line = (label: string) => report!.lines.find((l) => l.label === label)!.values
     expect(line('Saldo inicial')[1]).toBeCloseTo(line('Saldo final')[0]!, 2)
+  })
+})
+
+describe('resumo da DRE de exemplo', () => {
+  it('usa os mesmos números da planilha do modelo e fecha a cascata', async () => {
+    const [report] = (await importFile.execute(await buildDreTemplate(2026))) as DreReport[]
+    const month = 9
+    const lines = sampleStatement(month)
+    const valueOf = (metric: DreMetric) => report!.metric(metric)!.values[month]!
+
+    expect(lines[0]).toMatchObject({ label: 'Receita bruta', kind: 'start' })
+    expect(lines[0]!.value).toBeCloseTo(valueOf(DreMetric.GrossRevenue), 2)
+    expect(lines.find((l) => l.label === 'EBITDA')!.value).toBeCloseTo(valueOf(DreMetric.Ebitda), 2)
+    expect(lines.at(-1)!.value).toBeCloseTo(valueOf(DreMetric.NetIncome), 2)
+
+    let running = 0
+    for (const line of lines) {
+      if (line.kind === 'step') running += line.value
+      else {
+        if (line.kind === 'total') expect(line.value).toBeCloseTo(running, 2)
+        running = line.value
+      }
+    }
   })
 })
 

@@ -25,11 +25,9 @@ function onChange(event: Event) {
 
 <template>
   <label
-    class="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring/60"
+    class="flex cursor-pointer flex-col items-start gap-4 rounded-xl border-2 border-dashed p-8 transition-colors duration-(--duration-base) ease-soft has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring sm:flex-row sm:items-center"
     :class="[
-      isDragging
-        ? 'scale-[1.01] border-primary bg-accent'
-        : 'border-border bg-card hover:border-primary hover:bg-accent/50',
+      isDragging ? 'border-primary bg-accent' : 'border-strong bg-card hover:border-muted-foreground',
       disabled && 'pointer-events-none animate-pulse opacity-70',
     ]"
     @dragenter.prevent="dragDepth++"
@@ -38,15 +36,19 @@ function onChange(event: Event) {
     @drop.prevent="onDrop"
   >
     <span
-      class="flex size-12 items-center justify-center rounded-full bg-accent text-primary transition-transform duration-(--duration-slow) ease-spring group-hover:-translate-y-1"
-      :class="isDragging && '-translate-y-1 scale-110'"
+      class="flex size-12 shrink-0 items-center justify-center rounded-lg"
+      :class="isDragging ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'"
     >
       <PhUploadSimple :size="24" weight="bold" aria-hidden="true" />
     </span>
-    <span class="text-base font-medium text-foreground">
-      {{ disabled ? 'Importando arquivos…' : isDragging ? 'Solte para importar' : 'Arraste arquivos aqui ou clique para selecionar' }}
+    <span class="flex flex-col gap-1">
+      <span class="font-figure text-xl font-semibold text-foreground">
+        {{ disabled ? 'Importando arquivos…' : isDragging ? 'Solte para importar' : 'Arraste os arquivos aqui ou clique para escolher' }}
+      </span>
+      <span class="text-sm text-muted-foreground">
+        Aceita {{ SUPPORTED_EXTENSIONS.join(', ') }}. Pode enviar vários de uma vez.
+      </span>
     </span>
-    <span class="text-sm text-muted-foreground">Formatos: {{ SUPPORTED_EXTENSIONS.join(', ') }}</span>
     <input type="file" class="sr-only" multiple :accept="accept" :disabled="disabled" @change="onChange" />
   </label>
 </template>

@@ -8,6 +8,7 @@ import InfoTip from '@/presentation/components/InfoTip.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
 import ReportCard from '@/presentation/components/ReportCard.vue'
+import SampleStatement from '@/presentation/components/SampleStatement.vue'
 import SectionNav from '@/presentation/components/SectionNav.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
@@ -48,6 +49,31 @@ describe('StatCard', () => {
   it('omite a variação sem base de comparação', () => {
     const wrapper = mount(StatCard, { props: { label: 'Lucro', value: '1', delta: null } })
     expect(wrapper.text()).not.toContain('%')
+  })
+})
+
+describe('SampleStatement', () => {
+  const lines = [
+    { label: 'Receita bruta', value: 1000, kind: 'start' },
+    { label: 'Custos', value: -400, kind: 'step' },
+    { label: 'Resultado', value: 600, kind: 'total' },
+  ] as const
+
+  it('é uma tabela legível com a legenda e os valores em reais', () => {
+    const wrapper = mount(SampleStatement, { props: { lines, caption: 'DRE de exemplo' } })
+    expect(wrapper.get('caption').text()).toBe('DRE de exemplo')
+    expect(wrapper.findAll('tbody th').map((th) => th.text())).toEqual(['Receita bruta', 'Custos', 'Resultado'])
+    expect(wrapper.findAll('tbody tr')[1]!.text()).toMatch(/-R\$\s?400/)
+  })
+
+  it('desenha cada passo a partir do total acumulado', () => {
+    const bars = mount(SampleStatement, { props: { lines, caption: 'DRE' } }).findAll('td[aria-hidden] span')
+    expect(bars.map((bar) => bar.attributes('style'))).toEqual([
+      expect.stringContaining('left: 0%'),
+      expect.stringContaining('left: 60%'),
+      expect.stringContaining('left: 0%'),
+    ])
+    expect(bars[1]!.classes()).toContain('bg-destructive')
   })
 })
 

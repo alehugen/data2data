@@ -32,13 +32,11 @@ function select(value: unknown) {
         <ToggleGroupItem
           :value="option.value"
           :aria-label="option.label"
-          class="rounded-md! px-2 text-muted-foreground hover:bg-transparent hover:text-foreground aria-pressed:bg-primary/15 aria-pressed:text-primary aria-pressed:ring-1 aria-pressed:ring-primary/30"
+          class="rounded-md! px-2 text-muted-foreground hover:bg-transparent hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-card dark:aria-pressed:bg-strong"
         >
           <component
             :is="option.icon"
             :weight="preference === option.value ? 'fill' : 'regular'"
-            class="transition-transform duration-(--duration-slow) ease-spring"
-            :class="preference === option.value ? 'scale-110' : ''"
             aria-hidden="true"
           />
         </ToggleGroupItem>
