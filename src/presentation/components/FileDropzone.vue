@@ -25,7 +25,7 @@ function onChange(event: Event) {
 
 <template>
   <label
-    class="flex cursor-pointer flex-col items-start gap-4 rounded-xl border-2 border-dashed p-8 transition-colors duration-(--duration-base) ease-soft has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring sm:flex-row sm:items-center"
+    class="flex cursor-pointer flex-col items-start gap-4 rounded-xl border-2 border-dashed p-8 transition-colors duration-(--duration-base) ease-out has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring sm:flex-row sm:items-center"
     :class="[
       isDragging ? 'border-primary bg-accent' : 'border-strong bg-card hover:border-muted-foreground',
       disabled && 'pointer-events-none animate-pulse opacity-70',
@@ -36,13 +36,13 @@ function onChange(event: Event) {
     @drop.prevent="onDrop"
   >
     <span
-      class="flex size-12 shrink-0 items-center justify-center rounded-lg"
-      :class="isDragging ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'"
+      class="flex size-12 shrink-0 items-center justify-center rounded-lg transition-[color,background-color,transform] duration-(--duration-slow) ease-spring"
+      :class="isDragging ? 'scale-110 bg-primary text-primary-foreground' : 'bg-muted text-foreground'"
     >
       <PhUploadSimple :size="24" weight="bold" aria-hidden="true" />
     </span>
     <span class="flex flex-col gap-1">
-      <span class="font-figure text-xl font-semibold text-foreground">
+      <span class="text-xl font-semibold text-foreground">
         {{ disabled ? 'Importando arquivos…' : isDragging ? 'Solte para importar' : 'Arraste os arquivos aqui ou clique para escolher' }}
       </span>
       <span class="text-sm text-muted-foreground">

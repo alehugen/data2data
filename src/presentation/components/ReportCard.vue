@@ -14,9 +14,9 @@ defineEmits<{ remove: [] }>()
 </script>
 
 <template>
-  <Card class="card-interactive gap-0 py-0">
+  <Card class="group/report card-interactive gap-0 py-0">
     <div class="flex items-start gap-3 p-5">
-      <component :is="icon" :size="28" weight="duotone" class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <component :is="icon" :size="28" weight="duotone" class="mt-0.5 shrink-0 text-muted-foreground transition-colors duration-(--duration-base) ease-out group-hover/report:text-foreground" aria-hidden="true" />
       <div class="min-w-0 flex-1">
         <h3 class="truncate text-lg font-semibold">{{ title }}</h3>
         <p class="text-sm text-muted-foreground">{{ subtitle }}</p>
@@ -43,7 +43,7 @@ defineEmits<{ remove: [] }>()
       </Tooltip>
       <span v-else />
 
-      <Button as-child class="px-4">
+      <Button as-child class="px-4 group-hover/report:shadow-primary">
         <RouterLink :to="to" :aria-label="`Visualizar ${title}`" class="after:absolute after:inset-0 after:content-['']">
           Visualizar
         </RouterLink>

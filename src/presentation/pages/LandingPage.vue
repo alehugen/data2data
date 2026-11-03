@@ -91,15 +91,15 @@ const TIPS = [
   <div class="space-y-24">
     <section class="grid items-center gap-12 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:pt-10">
       <div class="max-w-2xl">
-        <h1 class="text-5xl leading-[1.02] font-bold tracking-tight sm:text-display">
+        <h1 class="animate-rise text-[2.75rem] leading-[1.05] font-bold tracking-[-0.035em] sm:text-display">
           Veja onde a empresa ganha e onde perde dinheiro.
         </h1>
-        <p class="mt-6 max-w-xl text-lg leading-relaxed text-body">
+        <p class="mt-6 max-w-xl animate-rise text-lg leading-relaxed text-body [animation-delay:80ms]">
           Importe a DRE, a Curva ABC e o lucro por produto. O data2data monta os indicadores, os gráficos e os pontos
           de análise, e explica como cada número foi calculado.
         </p>
-        <div class="mt-8 flex flex-wrap gap-3">
-          <Button as-child size="lg" class="h-11 px-5 text-base">
+        <div class="mt-8 flex animate-rise flex-wrap gap-3 [animation-delay:160ms]">
+          <Button as-child size="lg" class="h-11 px-5 text-base shadow-primary">
             <RouterLink :to="{ name: 'import' }">
               <PhUploadSimple weight="bold" aria-hidden="true" />
               Importar relatórios
@@ -110,7 +110,7 @@ const TIPS = [
             {{ loadingSample ? 'Carregando exemplo…' : 'Ver com dados de exemplo' }}
           </Button>
         </div>
-        <p class="mt-5 text-sm text-muted-foreground">
+        <p class="mt-5 animate-rise text-sm text-muted-foreground [animation-delay:240ms]">
           <template v-if="reports.length">
             Você já tem {{ reports.length }} {{ reports.length === 1 ? 'relatório importado' : 'relatórios importados' }}.
             <RouterLink :to="{ name: 'import' }" class="link">Abrir meus relatórios</RouterLink>
@@ -122,7 +122,7 @@ const TIPS = [
         </p>
       </div>
 
-      <figure class="rounded-xl border border-border bg-card p-6 shadow-raised sm:p-8">
+      <figure class="animate-rise rounded-2xl border border-border bg-card p-6 shadow-floating [animation-delay:200ms] sm:p-8">
         <SampleStatement
           :lines="sampleStatement"
           :caption="`DRE de exemplo, ${formatPeriodLong(samplePeriod)}`"
@@ -151,7 +151,7 @@ const TIPS = [
       </div>
       <dl class="divide-y divide-border border-y border-border">
         <div v-for="feature in FEATURES" :key="feature.title" class="grid gap-2 py-5 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-6">
-          <dt class="flex items-center gap-2.5 font-figure text-lg font-semibold">
+          <dt class="flex items-center gap-2.5 text-base font-semibold">
             <component :is="feature.icon" :size="22" weight="duotone" class="text-muted-foreground" aria-hidden="true" />
             {{ feature.title }}
           </dt>
@@ -180,7 +180,7 @@ const TIPS = [
                 aria-hidden="true"
               />
               <div class="min-w-0">
-                <CardTitle class="font-figure text-lg">{{ template.title }}</CardTitle>
+                <CardTitle class="text-base">{{ template.title }}</CardTitle>
                 <p class="text-xs text-muted-foreground">Arquivo {{ template.format }}</p>
               </div>
             </CardHeader>
@@ -192,7 +192,7 @@ const TIPS = [
                 </p>
                 <ul class="flex flex-wrap gap-1">
                   <li v-for="column in template.columns" :key="column">
-                    <Badge variant="outline" class="font-figure text-xs font-normal text-body">{{ column }}</Badge>
+                    <Badge variant="outline" class="text-xs font-normal text-body">{{ column }}</Badge>
                   </li>
                 </ul>
               </div>

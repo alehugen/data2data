@@ -8,7 +8,7 @@ defineProps<{ title: string; subtitle?: string; info?: string }>()
 <template>
   <Card>
     <CardHeader>
-      <CardTitle class="font-figure text-lg">{{ title }}</CardTitle>
+      <CardTitle class="text-base">{{ title }}</CardTitle>
       <CardDescription v-if="subtitle">{{ subtitle }}</CardDescription>
       <CardAction v-if="info" class="-mt-1 -mr-2">
         <InfoTip :text="info" />

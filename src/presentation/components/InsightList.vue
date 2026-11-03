@@ -30,7 +30,7 @@ const TONES: Record<InsightTone, { icon: Component; label: string; classes: stri
           <span class="sr-only">{{ TONES[insight.tone].label }}</span>
         </span>
         <div class="min-w-0 flex-1">
-          <p class="font-figure text-lg leading-snug font-semibold">{{ insight.title }}</p>
+          <p class="leading-snug font-semibold">{{ insight.title }}</p>
           <p class="mt-1 text-sm leading-relaxed text-body">{{ insight.description }}</p>
         </div>
         <InfoTip :text="insight.explanation" class="-mt-1 -mr-2 shrink-0" />

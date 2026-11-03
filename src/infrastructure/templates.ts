@@ -136,7 +136,7 @@ export function sampleStatement(month: number): StatementLine[] {
   return [
     { label: 'Receita bruta', value: value('RECEITA OPERACIONAL BRUTA'), kind: 'start' },
     { label: 'Impostos sobre venda', value: value('IMPOSTOS SOBRE VENDA'), kind: 'step' },
-    { label: 'Custos dos produtos e serviços', value: value('CUSTOS DAS MERCADORIAS VENDIDAS', 'CUSTOS DOS SERVIÇOS VENDIDOS'), kind: 'step' },
+    { label: 'Custos das vendas', value: value('CUSTOS DAS MERCADORIAS VENDIDAS', 'CUSTOS DOS SERVIÇOS VENDIDOS'), kind: 'step' },
     { label: 'Despesas variáveis', value: value('OUTRAS DESPESAS VARIÁVEIS'), kind: 'step' },
     { label: 'Margem de contribuição', value: value('MARGEM DE CONTRIBUIÇÃO'), kind: 'total' },
     { label: 'Despesas operacionais', value: value('DESPESAS OPERACIONAIS', 'OUTRAS RECEITAS OPERACIONAIS'), kind: 'step' },

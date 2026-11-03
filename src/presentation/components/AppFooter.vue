@@ -10,7 +10,7 @@ const LINKEDIN_URL = 'https://www.linkedin.com/in/alehugen'
       class="mx-auto flex max-w-7xl flex-col items-start gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"
     >
       <p>
-        <span class="font-figure font-bold text-foreground">data<span class="highlighter px-px">2</span>data</span>
+        <span class="font-bold text-foreground">data<span class="text-marker-ink">2</span>data</span>
         processa seus arquivos só no navegador.
       </p>
       <p class="flex items-center gap-1">

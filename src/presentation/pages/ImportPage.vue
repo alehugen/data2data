@@ -78,7 +78,7 @@ const importSummary = computed(() => {
     <Transition name="fade">
       <Card v-if="importSummary.length" role="status" class="gap-3 border-l-4 border-l-success p-5">
         <div class="flex items-start justify-between gap-3">
-          <p class="flex items-center gap-2 font-figure text-lg font-semibold">
+          <p class="flex items-center gap-2 text-lg font-semibold">
             <PhCheckCircle :size="22" weight="fill" class="text-success" aria-hidden="true" />
             Importação concluída
           </p>

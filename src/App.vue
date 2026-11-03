@@ -19,12 +19,15 @@ const NAV_LINKS = [
   <TooltipProvider :delay-duration="200">
     <div class="flex min-h-screen flex-col">
       <header
-        class="sticky top-0 z-(--layer-header) h-16 border-b bg-background/90 backdrop-blur-md transition-colors duration-(--duration-base) ease-soft"
+        class="sticky top-0 z-(--layer-header) h-16 border-b bg-background/90 backdrop-blur-md transition-colors duration-(--duration-base) ease-out"
         :class="scrolled ? 'border-strong' : 'border-border'"
       >
         <nav class="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-4">
-          <RouterLink to="/" class="rounded-md font-figure text-xl font-bold tracking-tight">
-            data<span class="highlighter px-px">2</span>data
+          <RouterLink to="/" class="group rounded-md text-lg font-bold tracking-tight">
+            data<span
+              class="inline-block text-marker-ink transition-transform duration-(--duration-slow) ease-spring group-hover:-rotate-12 group-hover:scale-125"
+              >2</span
+            >data
           </RouterLink>
           <div class="flex items-center gap-1 sm:gap-2">
             <ul class="flex items-center gap-1">

@@ -117,7 +117,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
                 <PhCaretRight
                   :size="12"
                   weight="bold"
-                  class="transition-transform duration-(--duration-base) ease-soft"
+                  class="transition-transform duration-(--duration-base) ease-out"
                   :class="expanded.has(line.id) && 'rotate-90'"
                   aria-hidden="true"
                 />

@@ -50,7 +50,7 @@ export function useChartTheme() {
         total: chrome.textMuted,
       },
       abcClass: { A: series[0]!, B: series[1]!, C: series[2]! },
-      fontFamily: "'Roboto Condensed Variable', 'Roboto Variable', ui-sans-serif, system-ui, sans-serif",
+      fontFamily: "'Inter Variable', ui-sans-serif, system-ui, sans-serif",
       axisTooltip: {
         ...tooltip,
         trigger: 'axis' as const,

@@ -24,7 +24,7 @@ const share = (value: number) => (total.value ? value / total.value : 0)
       <div
         v-for="segment in segments.filter((s) => s.value > 0)"
         :key="segment.label"
-        class="transition-[flex-grow] duration-(--duration-slow) ease-soft"
+        class="transition-[flex-grow] duration-(--duration-slow) ease-out"
         :style="{ flexGrow: segment.value, flexBasis: 0, background: segment.color }"
         :title="`${segment.label}: ${formatValue(segment.value)}`"
       />

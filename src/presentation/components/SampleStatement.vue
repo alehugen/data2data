@@ -22,13 +22,13 @@ const rows = computed(() => {
 const BAR_CLASSES = {
   gain: 'bg-success origin-left',
   loss: 'bg-destructive origin-right',
-  total: 'bg-muted-foreground/70 origin-left',
+  total: 'bg-primary origin-left',
 }
 </script>
 
 <template>
-  <table class="w-full text-[0.9375rem]">
-    <caption class="pb-5 text-left font-figure text-xl font-semibold text-foreground">
+  <table class="w-full text-sm">
+    <caption class="pb-5 text-left text-lg font-semibold tracking-tight text-foreground">
       {{ caption }}
     </caption>
     <thead class="sr-only">
@@ -46,14 +46,14 @@ const BAR_CLASSES = {
         :class="row.kind === 'total' ? 'border-t font-semibold text-foreground' : 'text-body'"
       >
         <th scope="row" class="py-2.5 pr-3 text-left [font-weight:inherit]">
-          <span :class="row.kind === 'total' && 'highlighter'">{{ row.label }}</span>
+          {{ row.label }}
         </th>
         <td class="w-[36%] py-2.5" aria-hidden="true">
           <div class="relative h-2.5">
             <span
-              class="absolute inset-y-0 animate-draw rounded-xs"
+              class="absolute inset-y-0 animate-draw rounded-xs transition-[left,width] duration-(--duration-slow) ease-out"
               :class="BAR_CLASSES[row.tone]"
-              :style="{ left: `${row.left * 100}%`, width: `max(2px, ${row.width * 100}%)`, animationDelay: `${150 + row.index * 90}ms` }"
+              :style="{ left: `${row.left * 100}%`, width: `max(2px, ${row.width * 100}%)`, animationDelay: `${450 + row.index * 70}ms` }"
             />
           </div>
         </td>

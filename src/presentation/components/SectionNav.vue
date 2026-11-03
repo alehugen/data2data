@@ -45,7 +45,7 @@ watch(
     >
       <span
         aria-hidden="true"
-        class="absolute -left-px hidden w-[3px] rounded-full bg-primary transition-[transform,height,opacity] duration-(--duration-slow) ease-soft lg:block"
+        class="absolute -left-px hidden w-[3px] rounded-full bg-primary transition-[transform,height,opacity] duration-(--duration-slow) ease-out lg:block"
         :style="{
           transform: `translateY(${indicator.top}px)`,
           height: `${indicator.height}px`,
@@ -56,7 +56,7 @@ watch(
         <a
           :href="`#${section.id}`"
           :aria-current="section.id === activeId ? 'location' : undefined"
-          class="block rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors lg:rounded-none lg:rounded-r-md lg:py-1.5"
+          class="block rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors duration-(--duration-base) ease-out lg:rounded-none lg:rounded-r-md lg:py-1.5"
           :class="[
             section.nested && 'lg:pl-6 lg:text-[0.8125rem]',
             section.id === activeId

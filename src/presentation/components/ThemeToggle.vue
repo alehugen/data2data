@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { PhDesktop, PhMoon, PhSun } from '@phosphor-icons/vue'
+import { nextTick } from 'vue'
 import { ToggleGroup, ToggleGroupItem } from '@/presentation/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/presentation/components/ui/tooltip'
 import { ThemePreference, useTheme } from '@/presentation/composables/useTheme'
@@ -14,7 +15,14 @@ const OPTIONS = [
 
 function select(value: unknown) {
   const option = OPTIONS.find((o) => o.value === value)
-  if (option) preference.value = option.value
+  if (!option || option.value === preference.value) return
+  const apply = () => {
+    preference.value = option.value
+    return nextTick()
+  }
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if ('startViewTransition' in document && !reducedMotion) document.startViewTransition(apply)
+  else apply()
 }
 </script>
 
@@ -32,11 +40,13 @@ function select(value: unknown) {
         <ToggleGroupItem
           :value="option.value"
           :aria-label="option.label"
-          class="rounded-md! px-2 text-muted-foreground hover:bg-transparent hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-card dark:aria-pressed:bg-strong"
+          class="rounded-md! px-2 text-muted-foreground transition-[color,background-color,box-shadow] duration-(--duration-base) ease-out hover:bg-transparent hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-card dark:aria-pressed:bg-strong"
         >
           <component
             :is="option.icon"
             :weight="preference === option.value ? 'fill' : 'regular'"
+            class="transition-transform duration-(--duration-slow) ease-spring"
+            :class="preference === option.value && 'scale-110'"
             aria-hidden="true"
           />
         </ToggleGroupItem>
