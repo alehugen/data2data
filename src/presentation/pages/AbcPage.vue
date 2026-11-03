@@ -237,7 +237,7 @@ const movementTone: Record<AbcMovement, string> = {
   <div v-if="!analysis" class="animate-fade-up space-y-2">
     <h1 class="text-2xl font-semibold">Curva ABC</h1>
     <p class="text-fg-muted">Nenhum relatório de Curva ABC importado ainda.</p>
-    <RouterLink to="/" class="link">Importar relatórios</RouterLink>
+    <RouterLink :to="{ name: 'import' }" class="link">Importar relatórios</RouterLink>
   </div>
 
   <div v-else-if="current" class="space-y-6">

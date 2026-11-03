@@ -9,12 +9,20 @@ export function routeForReport(report: Report): RouteLocationRaw {
 
 export const router = createRouter({
   history: createWebHistory(),
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to) =>
+    to.hash
+      ? new Promise((resolve) => setTimeout(() => resolve({ el: to.hash, top: 88, behavior: 'smooth' }), 350))
+      : { top: 0 },
   routes: [
     {
       path: '/',
       name: 'home',
-      component: () => import('@/presentation/pages/HomePage.vue'),
+      component: () => import('@/presentation/pages/LandingPage.vue'),
+    },
+    {
+      path: '/importar',
+      name: 'import',
+      component: () => import('@/presentation/pages/ImportPage.vue'),
     },
     {
       path: '/dre/:id',

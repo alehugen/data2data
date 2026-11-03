@@ -8,6 +8,14 @@ import {
 } from '@/application'
 import { CsvFileParser } from './CsvFileParser'
 import { InMemoryReportRepository } from './InMemoryReportRepository'
+import {
+  buildAbcTemplate,
+  buildDreTemplate,
+  buildProfitTemplate,
+  buildSampleFiles,
+  periodSuffix,
+  previousMonth,
+} from './templates'
 import { XlsxFileParser } from './XlsxFileParser'
 
 const reportRepository = new InMemoryReportRepository()
@@ -20,4 +28,12 @@ export const container = {
   analyzeDataset: new AnalyzeDatasetUseCase(),
   analyzeDre: new AnalyzeDreUseCase(),
   analyzeAbc: new AnalyzeAbcUseCase(),
+  templates: {
+    dre: buildDreTemplate,
+    abc: buildAbcTemplate,
+    profit: buildProfitTemplate,
+    samples: buildSampleFiles,
+    lastMonth: () => previousMonth(new Date()),
+    fileSuffix: periodSuffix,
+  },
 }

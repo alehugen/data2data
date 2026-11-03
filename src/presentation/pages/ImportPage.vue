@@ -7,13 +7,20 @@ import FileDropzone from '@/presentation/components/FileDropzone.vue'
 import ReportCard from '@/presentation/components/ReportCard.vue'
 import { useFileImport } from '@/presentation/composables/useFileImport'
 import { useReports } from '@/presentation/composables/useReports'
+import { useTemplates } from '@/presentation/composables/useTemplates'
 import { describeReport, formatAbcMonth, formatPeriod } from '@/presentation/format'
 import { routeForReport } from '@/presentation/router'
 
 const { reports, dreReports, abcReports, profitReports, datasets, remove } = useReports()
 const { isImporting, errors, importFiles } = useFileImport()
 
+const { loadingSample, loadSample } = useTemplates()
+
 const lastImported = shallowRef<Report[]>([])
+
+async function tryExample() {
+  lastImported.value = await loadSample()
+}
 
 const byPeriod = <T extends { period: Period | null }>(list: readonly T[]) =>
   [...list].sort((a, b) => {
@@ -54,6 +61,14 @@ async function onSelect(files: File[]) {
         Envie a planilha da <strong class="font-medium text-fg">DRE</strong> e, para cada mês, os CSVs de
         <strong class="font-medium text-fg">Curva ABC</strong> e de
         <strong class="font-medium text-fg">Lucro por produto</strong>. Outras tabelas também podem ser exploradas.
+      </p>
+      <p class="mt-2 text-sm text-fg-subtle">
+        Não tem os arquivos no formato certo?
+        <RouterLink :to="{ name: 'home', hash: '#modelos' }" class="link">Baixe os modelos</RouterLink>
+        ou
+        <button type="button" class="link" :disabled="loadingSample" @click="tryExample">
+          {{ loadingSample ? 'carregando exemplo…' : 'experimente com dados de exemplo' }}</button
+        >.
       </p>
     </div>
 

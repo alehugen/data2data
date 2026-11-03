@@ -14,7 +14,7 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: 'core', include: ['src/test/{domain,application}/**/*.test.ts'], environment: 'node' },
+        test: { name: 'core', include: ['src/test/{domain,application,infrastructure}/**/*.test.ts'], environment: 'node' },
       },
       {
         extends: true,

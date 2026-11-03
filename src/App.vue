@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PhFolderOpen, PhHouse } from '@phosphor-icons/vue'
 import AppFooter from '@/presentation/components/AppFooter.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import { useScrolled } from '@/presentation/composables/useScroll'
@@ -6,6 +7,11 @@ import { ThemePreference, useTheme } from '@/presentation/composables/useTheme'
 
 const { preference } = useTheme()
 const scrolled = useScrolled()
+
+const NAV_LINKS = [
+  { name: 'home', label: 'Início', icon: PhHouse },
+  { name: 'import', label: 'Meus relatórios', icon: PhFolderOpen },
+]
 
 const THEME_OPTIONS = [
   { value: ThemePreference.Light, label: 'Claro' },
@@ -27,7 +33,22 @@ const THEME_OPTIONS = [
             >2</span
           >data
         </RouterLink>
-        <SegmentedControl v-model="preference" :options="THEME_OPTIONS" label="Tema" />
+        <div class="flex items-center gap-1 sm:gap-4">
+          <ul class="flex items-center gap-1 text-sm">
+            <li v-for="link in NAV_LINKS" :key="link.name">
+              <RouterLink
+                :to="{ name: link.name }"
+                class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-fg-subtle hover:bg-surface-muted hover:text-fg"
+                exact-active-class="bg-surface-muted font-medium text-fg"
+              >
+                <component :is="link.icon" :size="16" aria-hidden="true" />
+                <span class="hidden sm:inline">{{ link.label }}</span>
+                <span class="sr-only sm:hidden">{{ link.label }}</span>
+              </RouterLink>
+            </li>
+          </ul>
+          <SegmentedControl v-model="preference" :options="THEME_OPTIONS" label="Tema" size="sm" />
+        </div>
       </nav>
     </header>
 

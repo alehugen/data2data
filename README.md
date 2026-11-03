@@ -6,6 +6,10 @@ Arraste os arquivos para a página: o app reconhece o tipo de relatório pelo co
 
 ## Funcionalidades
 
+### Página inicial e modelos
+
+A página inicial explica como usar o app e o que cada análise mostra. Para quem não tem os relatórios no formato certo, há **modelos para baixar** (DRE em XLSX com fórmulas, Curva ABC e Lucro por produto em CSV), já preenchidos com uma empresa fictícia: basta substituir os dados pelos seus e importar. O botão **"Ver com dados de exemplo"** importa os modelos direto para mostrar todas as análises.
+
 ### DRE: Demonstração do Resultado do Exercício (`.xlsx`)
 
 - Lê a DRE gerencial mensal e reconstrói a hierarquia de contas (seções, grupos, contas e linhas de resultado) a partir da própria estrutura da planilha.
@@ -124,12 +128,12 @@ src/
 │   ├── dataset/            # Dataset genérico
 │   └── analysis/           # Estatísticas de colunas
 ├── application/            # Casos de uso: importar, consultar e analisar relatórios; cruzamento ABC × lucro
-├── infrastructure/         # Adapters: parsers CSV/XLSX, repositório em memória
+├── infrastructure/         # Adapters: parsers CSV/XLSX, repositório em memória, gerador de modelos
 │   └── container.ts        # Composition root (injeção de dependências)
 ├── presentation/           # Vue
 │   ├── components/         # Gráficos, cards, tabelas
 │   ├── composables/        # useReports (store Pinia), useDreAnalysis, useAbcAnalysis, useTheme...
-│   ├── pages/              # Início, DRE, Curva ABC, tabela genérica
+│   ├── pages/              # Início, importação, DRE, Curva ABC, tabela genérica
 │   ├── router.ts
 │   ├── format.ts           # Formatadores pt-BR
 │   └── main.css            # Tailwind, tokens de tema e animações
