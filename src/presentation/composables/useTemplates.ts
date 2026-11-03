@@ -16,7 +16,7 @@ export interface TemplateInfo {
 
 const { lastMonth, fileSuffix } = container.templates
 
-export const TEMPLATES: TemplateInfo[] = [
+const TEMPLATES: TemplateInfo[] = [
   {
     kind: 'dre',
     title: 'DRE mensal',
@@ -57,29 +57,25 @@ function saveFile(file: File) {
 }
 
 export function useTemplates() {
-  const { importFiles } = useFileImport()
+  const { importFiles, isImporting } = useFileImport()
   const downloading = ref<TemplateKind | null>(null)
-  const loadingSample = ref(false)
+  const downloadError = ref<string | null>(null)
 
   async function download(kind: TemplateKind) {
     downloading.value = kind
+    downloadError.value = null
     try {
       const period = lastMonth()
       const { templates } = container
       saveFile(kind === 'dre' ? await templates.dre(period.year) : kind === 'abc' ? templates.abc(period) : templates.profit(period))
+    } catch {
+      downloadError.value = 'Não foi possível gerar o modelo. Tente novamente.'
     } finally {
       downloading.value = null
     }
   }
 
-  async function loadSample(): Promise<Report[]> {
-    loadingSample.value = true
-    try {
-      return await importFiles(await container.templates.samples())
-    } finally {
-      loadingSample.value = false
-    }
-  }
+  const loadSample = (): Promise<Report[]> => importFiles(container.templates.samples())
 
-  return { templates: TEMPLATES, downloading, loadingSample, download, loadSample }
+  return { templates: TEMPLATES, downloading, downloadError, loadingSample: isImporting, download, loadSample }
 }

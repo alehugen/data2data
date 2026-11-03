@@ -25,12 +25,12 @@ function onChange(event: Event) {
 
 <template>
   <label
-    class="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-(--focus-ring)"
+    class="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring/60"
     :class="[
       isDragging
-        ? 'scale-[1.01] border-accent bg-accent-soft'
-        : 'border-line bg-surface hover:border-accent hover:bg-accent-soft/50',
-      disabled && 'pointer-events-none opacity-60',
+        ? 'scale-[1.01] border-primary bg-accent'
+        : 'border-border bg-card hover:border-primary hover:bg-accent/50',
+      disabled && 'pointer-events-none animate-pulse opacity-70',
     ]"
     @dragenter.prevent="dragDepth++"
     @dragover.prevent
@@ -38,15 +38,15 @@ function onChange(event: Event) {
     @drop.prevent="onDrop"
   >
     <span
-      class="flex size-12 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform duration-(--duration-slow) ease-spring group-hover:-translate-y-1"
+      class="flex size-12 items-center justify-center rounded-full bg-accent text-primary transition-transform duration-(--duration-slow) ease-spring group-hover:-translate-y-1"
       :class="isDragging && '-translate-y-1 scale-110'"
     >
       <PhUploadSimple :size="24" weight="bold" aria-hidden="true" />
     </span>
-    <span class="text-base font-medium text-fg">
-      {{ isDragging ? 'Solte para importar' : 'Arraste arquivos aqui ou clique para selecionar' }}
+    <span class="text-base font-medium text-foreground">
+      {{ disabled ? 'Importando arquivos…' : isDragging ? 'Solte para importar' : 'Arraste arquivos aqui ou clique para selecionar' }}
     </span>
-    <span class="text-sm text-fg-subtle">Formatos: {{ SUPPORTED_EXTENSIONS.join(', ') }}</span>
+    <span class="text-sm text-muted-foreground">Formatos: {{ SUPPORTED_EXTENSIONS.join(', ') }}</span>
     <input type="file" class="sr-only" multiple :accept="accept" :disabled="disabled" @change="onChange" />
   </label>
 </template>

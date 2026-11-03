@@ -67,14 +67,16 @@ export class AbcReport {
 
     if (!rows.length) return null
 
-    const shareScale = sum(rows.map((row) => row.rawShare ?? 0)) > 1.5 ? 100 : 1
+    const declaredShareTotal = sum(rows.map((row) => row.rawShare ?? 0))
+    const shareScale = declaredShareTotal > 1.5 ? 100 : 1
     const totalQuantity = sum(rows.map((row) => row.quantity))
+    const quantityShare = (quantity: number) => (totalQuantity ? quantity / totalQuantity : 0)
 
     const items = rows.map(({ rawShare, ...row }) => ({
       ...row,
       code: row.code || row.description,
       abcClass: row.abcClass as AbcClass,
-      share: rawShare !== null ? rawShare / shareScale : totalQuantity ? row.quantity / totalQuantity : 0,
+      share: declaredShareTotal > 0 && rawShare !== null ? rawShare / shareScale : quantityShare(row.quantity),
     }))
 
     return new AbcReport(table.name, mergeByCode(items))

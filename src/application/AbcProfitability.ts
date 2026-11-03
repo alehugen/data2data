@@ -1,6 +1,6 @@
 import { ABC_CLASSES, type AbcClass, type AbcReport } from '@/domain/abc'
 import type { ProfitReport, ProfitTotals } from '@/domain/profit'
-import { sum } from '@/domain/shared'
+import { ratio, sum } from '@/domain/shared'
 
 export interface ProfitabilityItem {
   readonly code: string
@@ -51,8 +51,6 @@ export interface AbcProfitability {
 }
 
 const REVENUE_TOLERANCE = 0.01
-
-const ratio = (part: number, total: number) => (total ? part / total : null)
 
 const summarize = (totals: ProfitTotals): ProfitSummary => ({ ...totals, margin: ratio(totals.profit, totals.revenue) })
 

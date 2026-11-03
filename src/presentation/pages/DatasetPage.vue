@@ -10,6 +10,8 @@ import ReportLayout from '@/presentation/components/ReportLayout.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
+import { Card } from '@/presentation/components/ui/card'
 import { useDatasetAnalysis } from '@/presentation/composables/useDatasetAnalysis'
 import { formatNumber } from '@/presentation/format'
 
@@ -86,29 +88,32 @@ const navSections = computed<NavSection[]>(() => [
 
       <PageSection id="previa" class="space-y-3">
         <SectionHeading title="Prévia dos dados" :subtitle="`Primeiras ${Math.min(PREVIEW_ROWS, dataset.rowCount)} linhas`" />
-        <div class="card overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-surface-muted text-left">
-              <tr>
-                <th v-for="column in dataset.columns" :key="column.key" class="px-3 py-2 font-medium whitespace-nowrap">
+        <p v-if="!dataset.rowCount" class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          A tabela só tem cabeçalho, sem linhas de dados.
+        </p>
+        <Card v-else class="gap-0 py-0">
+          <Table>
+            <TableHeader class="bg-muted/60">
+              <TableRow>
+                <TableHead v-for="column in dataset.columns" :key="column.key" class="px-3 py-2 font-medium whitespace-nowrap">
                   {{ column.label }}
-                  <span class="ml-1 text-xs font-normal text-fg-subtle">{{ column.type }}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-line">
-              <tr
+                  <span class="ml-1 text-xs font-normal text-muted-foreground">{{ column.type }}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
                 v-for="(row, i) in dataset.rows.slice(0, PREVIEW_ROWS)"
                 :key="i"
-                class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/40"
+               
               >
-                <td v-for="column in dataset.columns" :key="column.key" class="px-3 py-2 whitespace-nowrap">
+                <TableCell v-for="column in dataset.columns" :key="column.key" class="px-3 py-2 whitespace-nowrap">
                   {{ row[column.key] }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Card>
       </PageSection>
     </ReportLayout>
   </div>

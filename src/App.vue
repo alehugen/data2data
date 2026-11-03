@@ -1,65 +1,61 @@
 <script setup lang="ts">
 import { PhFolderOpen, PhHouse } from '@phosphor-icons/vue'
 import AppFooter from '@/presentation/components/AppFooter.vue'
-import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
+import ThemeToggle from '@/presentation/components/ThemeToggle.vue'
+import { Button } from '@/presentation/components/ui/button'
+import { Separator } from '@/presentation/components/ui/separator'
+import { TooltipProvider } from '@/presentation/components/ui/tooltip'
 import { useScrolled } from '@/presentation/composables/useScroll'
-import { ThemePreference, useTheme } from '@/presentation/composables/useTheme'
 
-const { preference } = useTheme()
 const scrolled = useScrolled()
 
 const NAV_LINKS = [
   { name: 'home', label: 'Início', icon: PhHouse },
   { name: 'import', label: 'Meus relatórios', icon: PhFolderOpen },
 ]
-
-const THEME_OPTIONS = [
-  { value: ThemePreference.Light, label: 'Claro' },
-  { value: ThemePreference.Dark, label: 'Escuro' },
-  { value: ThemePreference.System, label: 'Sistema' },
-]
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col">
-    <header
-      class="sticky top-0 z-(--layer-header) h-16 border-b bg-surface/85 backdrop-blur-md transition-[box-shadow,border-color] duration-(--duration-base) ease-soft"
-      :class="scrolled ? 'border-transparent shadow-(--elevation-header)' : 'border-line'"
-    >
-      <nav class="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-4">
-        <RouterLink to="/" class="group rounded-md text-lg font-bold">
-          data<span
-            class="inline-block text-accent transition-transform duration-(--duration-slow) ease-spring group-hover:-rotate-12 group-hover:scale-125"
-            >2</span
-          >data
-        </RouterLink>
-        <div class="flex items-center gap-1 sm:gap-4">
-          <ul class="flex items-center gap-1 text-sm">
-            <li v-for="link in NAV_LINKS" :key="link.name">
-              <RouterLink
-                :to="{ name: link.name }"
-                class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-fg-subtle hover:bg-surface-muted hover:text-fg"
-                exact-active-class="bg-surface-muted font-medium text-fg"
-              >
-                <component :is="link.icon" :size="16" aria-hidden="true" />
-                <span class="hidden sm:inline">{{ link.label }}</span>
-                <span class="sr-only sm:hidden">{{ link.label }}</span>
-              </RouterLink>
-            </li>
-          </ul>
-          <SegmentedControl v-model="preference" :options="THEME_OPTIONS" label="Tema" size="sm" />
-        </div>
-      </nav>
-    </header>
+  <TooltipProvider :delay-duration="200">
+    <div class="flex min-h-screen flex-col">
+      <header
+        class="sticky top-0 z-(--layer-header) h-16 border-b bg-card/85 backdrop-blur-md transition-[box-shadow,border-color] duration-(--duration-base) ease-soft"
+        :class="scrolled ? 'border-transparent shadow-(--elevation-header)' : 'border-border'"
+      >
+        <nav class="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-4">
+          <RouterLink to="/" class="group rounded-md text-lg font-bold">
+            data<span
+              class="inline-block text-primary transition-transform duration-(--duration-slow) ease-spring group-hover:-rotate-12 group-hover:scale-125"
+              >2</span
+            >data
+          </RouterLink>
+          <div class="flex items-center gap-1 sm:gap-2">
+            <ul class="flex items-center gap-1">
+              <li v-for="link in NAV_LINKS" :key="link.name">
+                <Button as-child variant="ghost" class="text-muted-foreground">
+                  <RouterLink :to="{ name: link.name }" exact-active-class="bg-muted text-foreground">
+                    <component :is="link.icon" aria-hidden="true" />
+                    <span class="hidden sm:inline">{{ link.label }}</span>
+                    <span class="sr-only sm:hidden">{{ link.label }}</span>
+                  </RouterLink>
+                </Button>
+              </li>
+            </ul>
+            <Separator orientation="vertical" class="mx-1 h-5!" />
+            <ThemeToggle />
+          </div>
+        </nav>
+      </header>
 
-    <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
-      <RouterView v-slot="{ Component, route }">
-        <Transition name="page" mode="out-in">
-          <component :is="Component" :key="route.path" />
-        </Transition>
-      </RouterView>
-    </main>
+      <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
+        <RouterView v-slot="{ Component, route }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" :key="route.path" />
+          </Transition>
+        </RouterView>
+      </main>
 
-    <AppFooter />
-  </div>
+      <AppFooter />
+    </div>
+  </TooltipProvider>
 </template>

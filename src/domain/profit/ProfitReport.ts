@@ -34,7 +34,7 @@ const COLUMN_ALIASES = {
 
 const REQUIRED_COLUMNS = ['description', 'revenue', 'cost', 'profit'] as const
 
-export const totalsOf = (items: readonly ProfitItem[]): ProfitTotals => ({
+const totalsOf = (items: readonly ProfitItem[]): ProfitTotals => ({
   quantity: sum(items.map((item) => item.quantity)),
   revenue: sum(items.map((item) => item.revenue)),
   cost: sum(items.map((item) => item.cost)),

@@ -132,6 +132,7 @@ const isMonthCell = (value: string | undefined) => /^\d{1,2}$/.test(value?.trim(
 const isYearCell = (value: string | undefined) => /^(19|20)\d{2}$/.test(value?.trim() ?? '')
 
 function findPeriodHeader(rows: string[][]): PeriodHeader | null {
+  let best: PeriodHeader | null = null
   for (let rowIndex = 0; rowIndex < Math.min(rows.length - 1, 30); rowIndex++) {
     const monthRow = rows[rowIndex] ?? []
     const yearRow = rows[rowIndex + 1] ?? []
@@ -148,9 +149,9 @@ function findPeriodHeader(rows: string[][]): PeriodHeader | null {
       periods.push(period)
     })
 
-    if (periods.length >= 3) return { rowIndex, columns, periods }
+    if (periods.length > (best?.periods.length ?? 0)) best = { rowIndex, columns, periods }
   }
-  return null
+  return best
 }
 
 function findLabelColumn(rows: string[][], firstPeriodColumn: number): number {

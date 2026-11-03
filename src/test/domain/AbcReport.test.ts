@@ -53,3 +53,14 @@ describe('AbcReport.fromTable', () => {
     expect(parse([['Descrição', 'Qtde', 'Classe'], ['X', '1', 'Z']])).toBeNull()
   })
 })
+
+describe('AbcReport: coluna de percentual', () => {
+  it('calcula a participação pela quantidade quando o percentual está vazio', () => {
+    const report = AbcReport.fromTable({
+      name: 'abc set.2026',
+      rows: [['Descrição', 'Qtde', 'Classe', 'Percentual'], ['X', '3', 'A', ''], ['Y', '1', 'B', '']],
+    })!
+    expect(report.items.map((item) => item.share)).toEqual([0.75, 0.25])
+    expect(report.basis).toBe('quantity')
+  })
+})

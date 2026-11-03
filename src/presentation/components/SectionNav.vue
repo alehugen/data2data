@@ -36,16 +36,16 @@ watch(
 <template>
   <nav
     aria-label="Seções da página"
-    class="sticky top-16 z-(--layer-nav) -mx-4 min-w-0 border-b border-line bg-canvas/90 px-4 py-2 backdrop-blur-md lg:top-24 lg:mx-0 lg:self-start lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
+    class="sticky top-16 z-(--layer-nav) -mx-4 min-w-0 border-b border-border bg-background/90 px-4 py-2 backdrop-blur-md lg:top-24 lg:mx-0 lg:self-start lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
   >
-    <p class="mb-2 hidden text-xs font-semibold tracking-wide text-fg-subtle uppercase lg:block">Nesta página</p>
+    <p class="mb-2 hidden text-xs font-semibold tracking-wide text-muted-foreground uppercase lg:block">Nesta página</p>
     <ul
       ref="list"
-      class="relative flex gap-1 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:gap-0 lg:overflow-visible lg:border-l lg:border-line"
+      class="relative flex gap-1 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:gap-0 lg:overflow-visible lg:border-l lg:border-border"
     >
       <span
         aria-hidden="true"
-        class="absolute -left-px hidden w-0.5 rounded-full bg-accent transition-[transform,height,opacity] duration-(--duration-slow) ease-soft lg:block"
+        class="absolute -left-px hidden w-0.5 rounded-full bg-primary transition-[transform,height,opacity] duration-(--duration-slow) ease-soft lg:block"
         :style="{
           transform: `translateY(${indicator.top}px)`,
           height: `${indicator.height}px`,
@@ -60,8 +60,8 @@ watch(
           :class="[
             section.nested && 'lg:pl-6 lg:text-[0.8125rem]',
             section.id === activeId
-              ? 'bg-accent-soft font-medium text-accent lg:bg-transparent'
-              : 'text-fg-subtle hover:bg-surface-muted hover:text-fg lg:hover:bg-transparent lg:hover:translate-x-0.5',
+              ? 'bg-accent font-medium text-primary lg:bg-transparent'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground lg:hover:bg-transparent lg:hover:translate-x-0.5',
           ]"
           @click.prevent="scrollTo(section.id)"
         >

@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { AbcMovement, type AbcAnalysis, type AbcProfitability, type ProfitabilityItem } from '@/application'
 import type { Insight } from '@/domain/analysis'
+import { ratio, relativeChange } from '@/domain/shared'
 import { container } from '@/infrastructure/container'
 import {
   formatAbcMonth,
@@ -56,7 +57,7 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
   const averageMargin = formatPercent(totals.margin ?? 0)
 
   if (previousTotals) {
-    const change = previousTotals.profit ? (totals.profit - previousTotals.profit) / Math.abs(previousTotals.profit) : 0
+    const change = relativeChange(totals.profit, previousTotals.profit) ?? 0
     insights.push({
       title: change >= 0 ? 'Lucro em alta' : 'Lucro em queda',
       description: `Lucro de ${formatCurrencyCompact(totals.profit)} (margem de ${averageMargin}), ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
@@ -141,7 +142,7 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
   return insights
 }
 
-const shareOf = (part: number, total: number) => (total ? part / total : 0)
+const shareOf = (part: number, total: number) => ratio(part, total) ?? 0
 
 export function buildAbcInsights({ current, previous, ranking, movements }: AbcAnalysis): Insight[] {
   const items: Insight[] = []
@@ -179,7 +180,7 @@ export function buildAbcInsights({ current, previous, ranking, movements }: AbcA
   }
 
   if (previous) {
-    const change = shareOf(current.value - previous.value, previous.value)
+    const change = relativeChange(current.value, previous.value) ?? 0
     items.push({
       title: change >= 0 ? 'Faturamento em alta' : 'Faturamento em queda',
       description: `${formatCurrencyCompact(current.value)} no mês, ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,

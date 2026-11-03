@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn-vue/tailwind.css';
 
 @font-face {
   font-family: 'Roboto Variable';
@@ -37,49 +39,73 @@
 }
 
 @theme inline {
-  --color-canvas: var(--canvas);
-  --color-surface: var(--surface);
-  --color-surface-muted: var(--surface-muted);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-fg: var(--fg);
-  --color-fg-muted: var(--fg-muted);
-  --color-fg-subtle: var(--fg-subtle);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-body: var(--body);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-strong: var(--accent-strong);
-  --color-accent-soft: var(--accent-soft);
-  --color-on-accent: var(--on-accent);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
+  --color-border: var(--border);
+  --color-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-4xl: calc(var(--radius) * 2.6);
 
   --shadow-card: var(--elevation-1);
+  --shadow-raised: var(--elevation-2);
 }
 
 :root {
   color-scheme: light;
-  --canvas: var(--color-slate-50);
-  --surface: var(--color-white);
-  --surface-muted: var(--color-slate-100);
-  --line: var(--color-slate-200);
-  --line-strong: var(--color-slate-300);
-  --fg: var(--color-slate-900);
-  --fg-muted: var(--color-slate-600);
-  --fg-subtle: var(--color-slate-500);
-  --accent: var(--color-brand-600);
-  --accent-strong: var(--color-brand-700);
-  --accent-soft: var(--color-brand-50);
-  --on-accent: var(--color-white);
-  --danger: var(--color-red-700);
-  --danger-soft: var(--color-red-50);
+  --radius: 0.625rem;
+
+  --background: var(--color-slate-50);
+  --foreground: var(--color-slate-900);
+  --body: var(--color-slate-600);
+  --card: var(--color-white);
+  --card-foreground: var(--color-slate-900);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-slate-900);
+  --primary: var(--color-brand-600);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-slate-100);
+  --secondary-foreground: var(--color-slate-900);
+  --muted: var(--color-slate-100);
+  --muted-foreground: var(--color-slate-500);
+  --accent: var(--color-brand-50);
+  --accent-foreground: var(--color-brand-700);
+  --destructive: var(--color-red-600);
+  --destructive-soft: var(--color-red-50);
   --success: var(--color-green-700);
   --success-soft: var(--color-green-50);
-  --focus-ring: color-mix(in oklch, var(--accent) 55%, transparent);
+  --border: var(--color-slate-200);
+  --border-strong: var(--color-slate-300);
+  --input: var(--color-slate-200);
+  --ring: var(--color-brand-500);
 
   --elevation-1: 0 1px 2px oklch(0.2 0.02 265 / 0.06), 0 3px 8px -2px oklch(0.2 0.02 265 / 0.1);
   --elevation-2: 0 4px 8px -2px oklch(0.2 0.02 265 / 0.08), 0 14px 32px -8px oklch(0.2 0.02 265 / 0.22);
   --elevation-header: 0 1px 2px oklch(0.2 0.02 265 / 0.05), 0 8px 24px -10px oklch(0.2 0.02 265 / 0.28);
+  --elevation-primary: 0 1px 2px oklch(0.52 0.22 265 / 0.3), 0 4px 12px -2px oklch(0.52 0.22 265 / 0.35);
 
   --layer-raised: 10;
   --layer-nav: 30;
@@ -89,82 +115,70 @@
 
 :root.dark {
   color-scheme: dark;
-  --canvas: var(--color-slate-950);
-  --surface: var(--color-slate-900);
-  --surface-muted: var(--color-slate-800);
-  --line: var(--color-slate-800);
-  --line-strong: var(--color-slate-700);
-  --fg: var(--color-slate-100);
-  --fg-muted: var(--color-slate-300);
-  --fg-subtle: var(--color-slate-400);
-  --accent: var(--color-brand-400);
-  --accent-strong: var(--color-brand-100);
-  --accent-soft: oklch(0.3 0.08 265);
-  --on-accent: var(--color-slate-950);
-  --danger: var(--color-red-300);
-  --danger-soft: oklch(0.3 0.08 25);
+
+  --background: var(--color-slate-950);
+  --foreground: var(--color-slate-100);
+  --body: var(--color-slate-300);
+  --card: var(--color-slate-900);
+  --card-foreground: var(--color-slate-100);
+  --popover: var(--color-slate-900);
+  --popover-foreground: var(--color-slate-100);
+  --primary: var(--color-brand-400);
+  --primary-foreground: var(--color-slate-950);
+  --secondary: var(--color-slate-800);
+  --secondary-foreground: var(--color-slate-100);
+  --muted: var(--color-slate-800);
+  --muted-foreground: var(--color-slate-400);
+  --accent: oklch(0.3 0.08 265);
+  --accent-foreground: var(--color-brand-100);
+  --destructive: var(--color-red-400);
+  --destructive-soft: oklch(0.3 0.08 25);
   --success: var(--color-green-400);
   --success-soft: oklch(0.3 0.07 150);
+  --border: var(--color-slate-800);
+  --border-strong: var(--color-slate-700);
+  --input: var(--color-slate-700);
+  --ring: var(--color-brand-400);
 
   --elevation-1: inset 0 1px 0 oklch(1 0 0 / 0.04), 0 1px 2px oklch(0 0 0 / 0.5), 0 6px 14px -4px oklch(0 0 0 / 0.5);
   --elevation-2: inset 0 1px 0 oklch(1 0 0 / 0.07), 0 6px 12px -4px oklch(0 0 0 / 0.55), 0 18px 40px -10px oklch(0 0 0 / 0.75);
   --elevation-header: 0 1px 0 oklch(1 0 0 / 0.04), 0 10px 30px -8px oklch(0 0 0 / 0.8);
+  --elevation-primary: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 16px -4px oklch(0.68 0.16 265 / 0.35);
 }
 
 @layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   body {
-    @apply bg-canvas font-sans text-fg antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
   }
 
   ::selection {
-    background-color: color-mix(in oklch, var(--accent) 25%, transparent);
+    background-color: color-mix(in oklch, var(--primary) 25%, transparent);
   }
 
-  :where(a, button, input, select, textarea, summary, label, [role='button'], [tabindex]) {
-    transition-property: color, background-color, border-color, box-shadow, opacity, transform, outline-color;
-    transition-duration: var(--duration-base);
-    transition-timing-function: var(--ease-soft);
-  }
-
-  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-    outline: 2px solid var(--focus-ring);
+  a:not([data-slot]):focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--ring) 60%, transparent);
     outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
 
   :where(button, [role='button']):not(:disabled) {
     cursor: pointer;
   }
-
-  :where(button, [role='button']):disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-  }
-}
-
-
-@utility card {
-  position: relative;
-  min-width: 0;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--line);
-  background-color: var(--surface);
-  box-shadow: var(--elevation-1);
-
-  &:hover,
-  &:focus-within {
-    z-index: var(--layer-raised);
-  }
 }
 
 @utility card-interactive {
-  transition-property: transform, box-shadow, border-color, background-color;
+  transition-property: transform, box-shadow;
   transition-duration: var(--duration-base);
   transition-timing-function: var(--ease-soft);
 
   &:hover {
     transform: translateY(-2px);
-    border-color: var(--line-strong);
-    box-shadow: var(--elevation-2);
+    --tw-shadow: var(--elevation-2);
+    --tw-ring-color: var(--border-strong);
   }
 
   &:active {
@@ -173,68 +187,15 @@
   }
 }
 
-
-@utility btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: --spacing(2);
-  border-radius: var(--radius-lg);
-  padding: --spacing(2) --spacing(4);
-  font-size: var(--text-sm);
-  line-height: var(--text-sm--line-height);
-  font-weight: var(--font-weight-medium);
-  user-select: none;
-
-  &:not(:disabled):active {
-    transform: scale(0.97);
-    transition-duration: var(--duration-fast);
-  }
-}
-
-@utility btn-sm {
-  padding: --spacing(1) --spacing(2.5);
-}
-
-@utility btn-primary {
-  background-color: var(--accent);
-  color: var(--on-accent);
-  box-shadow: var(--elevation-1);
-
-  &:not(:disabled):hover {
-    background-color: var(--accent-strong);
-    box-shadow: var(--elevation-2);
-  }
-}
-
-@utility btn-secondary {
-  border: 1px solid var(--line);
-  background-color: var(--surface);
-  color: var(--fg);
-
-  &:not(:disabled):hover {
-    border-color: var(--line-strong);
-    background-color: var(--surface-muted);
-  }
-}
-
-@utility btn-danger {
-  color: var(--fg-subtle);
-
-  &:not(:disabled):hover {
-    background-color: var(--danger-soft);
-    color: var(--danger);
-  }
-}
-
-
 @utility link {
-  color: var(--accent);
+  color: var(--primary);
   background-image: linear-gradient(currentColor, currentColor);
   background-size: 0% 1px;
   background-position: 0 100%;
   background-repeat: no-repeat;
-  transition: background-size var(--duration-base) var(--ease-soft), color var(--duration-base) var(--ease-soft);
+  transition:
+    background-size var(--duration-base) var(--ease-soft),
+    color var(--duration-base) var(--ease-soft);
 
   &:hover {
     background-size: 100% 1px;
@@ -244,7 +205,6 @@
 @utility stagger {
   animation-delay: calc(var(--i, 0) * 45ms);
 }
-
 
 .page-enter-active,
 .page-leave-active {
@@ -292,7 +252,6 @@
   opacity: 0;
 }
 
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -305,8 +264,7 @@
   }
 
   .card-interactive:hover,
-  .card-interactive:active,
-  .btn:active {
+  .card-interactive:active {
     transform: none;
   }
 }

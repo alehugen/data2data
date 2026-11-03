@@ -6,6 +6,7 @@ import { use } from 'echarts/core'
 import { SVGRenderer } from 'echarts/renderers'
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
+import ChartEmpty from './ChartEmpty.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
 import {
   formatCurrency,
@@ -36,6 +37,8 @@ const props = withDefaults(
 )
 
 const theme = useChartTheme()
+
+const hasData = computed(() => props.series.some((s) => s.data.some((value) => value !== null && value !== 0)))
 
 const formatters = {
   currency: { full: formatCurrency, axis: formatCurrencyCompact },
@@ -113,5 +116,6 @@ const option = computed<EChartsOption>(() => {
 </script>
 
 <template>
-  <VChart :option="option" :style="{ height: `${height}px` }" autoresize />
+  <ChartEmpty v-if="!hasData" />
+  <VChart v-else :option="option" :style="{ height: `${height}px` }" autoresize />
 </template>

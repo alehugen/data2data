@@ -43,6 +43,12 @@ export function parseNumber(value: string): number {
 export const sum = (values: readonly number[]): number =>
   values.reduce((acc, value) => (Number.isFinite(value) ? acc + value : acc), 0)
 
+export const ratio = (part: number, total: number): number | null =>
+  total && Number.isFinite(part) && Number.isFinite(total) ? part / total : null
+
+export const relativeChange = (current: number, previous: number | null | undefined): number | null =>
+  previous ? ratio(current - previous, Math.abs(previous)) : null
+
 export interface Period {
   readonly year: number
   readonly month: number
@@ -51,6 +57,13 @@ export interface Period {
 export const periodKey = ({ year, month }: Period): string => `${year}-${String(month).padStart(2, '0')}`
 
 export const comparePeriods = (a: Period, b: Period): number => a.year - b.year || a.month - b.month
+
+export function compareByPeriod(a: { period: Period | null }, b: { period: Period | null }): number {
+  if (a.period && b.period) return comparePeriods(a.period, b.period)
+  if (a.period) return -1
+  if (b.period) return 1
+  return 0
+}
 
 const MONTH_PATTERNS = [
   'JAN(?:EIRO)?',

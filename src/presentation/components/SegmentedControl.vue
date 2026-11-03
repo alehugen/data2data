@@ -1,49 +1,38 @@
 <script setup lang="ts" generic="T extends string">
-import { computed } from 'vue'
+import { ToggleGroup, ToggleGroupItem } from '@/presentation/components/ui/toggle-group'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     options: readonly { value: T; label: string }[]
     label: string
-    size?: 'sm' | 'md'
+    size?: 'sm' | 'default'
   }>(),
-  { size: 'md' },
+  { size: 'default' },
 )
 
 const model = defineModel<T>({ required: true })
 
-const activeIndex = computed(() => props.options.findIndex((option) => option.value === model.value))
+function select(value: unknown) {
+  if (typeof value === 'string' && value) model.value = value as T
+}
 </script>
 
 <template>
-  <div
-    role="group"
+  <ToggleGroup
+    type="single"
+    :model-value="model"
+    :size="size"
     :aria-label="label"
-    class="relative grid w-fit auto-cols-fr grid-flow-col rounded-lg border border-line bg-surface-muted p-0.5"
-    :class="size === 'sm' ? 'text-xs' : 'text-sm'"
+    class="rounded-lg bg-muted p-0.5"
+    @update:model-value="select"
   >
-    <span
-      v-if="activeIndex >= 0"
-      aria-hidden="true"
-      class="absolute inset-y-0.5 left-0.5 rounded-md bg-surface shadow-card transition-transform duration-(--duration-base) ease-soft"
-      :style="{
-        width: `calc((100% - 0.25rem) / ${options.length})`,
-        transform: `translateX(${activeIndex * 100}%)`,
-      }"
-    />
-    <button
+    <ToggleGroupItem
       v-for="option in options"
       :key="option.value"
-      type="button"
-      :aria-pressed="model === option.value"
-      class="relative rounded-md whitespace-nowrap"
-      :class="[
-        size === 'sm' ? 'px-2 py-1' : 'px-2.5 py-1',
-        model === option.value ? 'text-fg' : 'text-fg-subtle hover:text-fg',
-      ]"
-      @click="model = option.value"
+      :value="option.value"
+      class="rounded-md! text-muted-foreground hover:bg-transparent hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-card dark:data-[state=on]:bg-strong"
     >
       {{ option.label }}
-    </button>
-  </div>
+    </ToggleGroupItem>
+  </ToggleGroup>
 </template>

@@ -1,6 +1,6 @@
 import { ABC_CLASSES, type AbcClass, type AbcItem, type AbcReport } from '@/domain/abc'
 import type { ProfitReport } from '@/domain/profit'
-import { comparePeriods, periodKey, sum, type Identifier, type Period } from '@/domain/shared'
+import { compareByPeriod, periodKey, sum, type Identifier } from '@/domain/shared'
 import { analyzeProfitability, type AbcProfitability } from './AbcProfitability'
 
 export interface AbcTotals {
@@ -62,12 +62,8 @@ const totalsOf = (items: readonly AbcItem[]): AbcTotals => ({
   value: sum(items.map((item) => item.value)),
 })
 
-function chronological(a: { period: Period | null; importedAt: Date }, b: { period: Period | null; importedAt: Date }) {
-  if (a.period && b.period) return comparePeriods(a.period, b.period)
-  if (a.period) return -1
-  if (b.period) return 1
-  return a.importedAt.getTime() - b.importedAt.getTime()
-}
+const chronological = (a: AbcReport, b: AbcReport) =>
+  compareByPeriod(a, b) || a.importedAt.getTime() - b.importedAt.getTime()
 
 export class AnalyzeAbcUseCase {
   execute(

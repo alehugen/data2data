@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { PhCalendarBlank } from '@phosphor-icons/vue'
 import { computed } from 'vue'
 import { DreMetric } from '@/domain/dre'
+import { relativeChange } from '@/domain/shared'
 import ChartCard from '@/presentation/components/ChartCard.vue'
 import DreTable from '@/presentation/components/DreTable.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
@@ -13,6 +15,15 @@ import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import TrendChart from '@/presentation/components/TrendChart.vue'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/presentation/components/ui/select'
 import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
 import { DRE_MARGIN_LABELS, DRE_METRIC_INFO, DRE_METRIC_LABELS, useDreAnalysis } from '@/presentation/composables/useDreAnalysis'
@@ -40,7 +51,7 @@ const kpiCards = computed(() =>
     label: DRE_METRIC_LABELS[kpi.metric],
     value: formatCurrencyCompact(kpi.value),
     hint: kpi.margin !== null ? `${DRE_MARGIN_LABELS[kpi.metric] ?? 'Margem'} ${formatPercent(kpi.margin)}` : undefined,
-    delta: kpi.previous ? (kpi.value - kpi.previous) / Math.abs(kpi.previous) : null,
+    delta: relativeChange(kpi.value, kpi.previous),
     info: DRE_METRIC_INFO[kpi.metric],
   })),
 )
@@ -107,20 +118,25 @@ const expenseItems = computed(() =>
 
   <div v-else-if="analysis" class="space-y-6">
     <PageHeader title="Demonstração do resultado" :subtitle="report.name">
-      <label class="flex flex-col gap-1 text-sm">
-        <span class="text-fg-subtle">Período</span>
-        <select
-          v-model="selectedKey"
-          class="rounded-lg border border-line bg-surface px-3 py-2 text-fg shadow-card hover:border-line-strong"
-        >
-          <optgroup label="Mês">
-            <option v-for="s in monthOptions" :key="s.key" :value="s.key">{{ s.label }}</option>
-          </optgroup>
-          <optgroup label="Acumulado no ano">
-            <option v-for="s in yearOptions" :key="s.key" :value="s.key">{{ s.label }}</option>
-          </optgroup>
-        </select>
-      </label>
+      <div class="flex flex-col gap-1.5 text-sm">
+        <span id="periodo" class="text-muted-foreground">Período</span>
+        <Select v-model="selectedKey">
+          <SelectTrigger aria-labelledby="periodo" class="w-48 bg-card shadow-card">
+            <PhCalendarBlank class="text-muted-foreground" aria-hidden="true" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Mês</SelectLabel>
+              <SelectItem v-for="s in monthOptions" :key="s.key" :value="s.key">{{ s.label }}</SelectItem>
+            </SelectGroup>
+            <SelectGroup>
+              <SelectLabel>Acumulado no ano</SelectLabel>
+              <SelectItem v-for="s in yearOptions" :key="s.key" :value="s.key">{{ s.label }}</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
     </PageHeader>
 
     <ReportLayout :sections="navSections">

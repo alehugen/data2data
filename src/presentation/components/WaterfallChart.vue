@@ -6,16 +6,12 @@ import { use } from 'echarts/core'
 import { SVGRenderer } from 'echarts/renderers'
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
+import type { WaterfallStep } from '@/application'
+import ChartEmpty from './ChartEmpty.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
 import { escapeHtml, formatCurrency, formatCurrencyCompact, prettifyLabel } from '@/presentation/format'
 
 use([BarChart, GridComponent, TooltipComponent, SVGRenderer])
-
-export interface WaterfallStep {
-  label: string
-  value: number
-  isTotal: boolean
-}
 
 const props = defineProps<{ steps: WaterfallStep[] }>()
 const theme = useChartTheme()
@@ -113,7 +109,7 @@ const option = computed<EChartsOption>(() => {
 
 <template>
   <div>
-    <ul class="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-subtle" aria-label="Legenda">
+    <ul class="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="Legenda">
       <li class="flex items-center gap-1.5">
         <span class="size-2.5 rounded-sm" :style="{ background: theme.polarity.total }" />Resultado
       </li>
@@ -124,6 +120,7 @@ const option = computed<EChartsOption>(() => {
         <span class="size-2.5 rounded-sm" :style="{ background: theme.polarity.negative }" />Reduz
       </li>
     </ul>
-    <VChart :option="option" :style="{ height }" autoresize />
+    <ChartEmpty v-if="!steps.length" />
+    <VChart v-else :option="option" :style="{ height }" autoresize />
   </div>
 </template>

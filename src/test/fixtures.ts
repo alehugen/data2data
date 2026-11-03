@@ -2,7 +2,7 @@ import { utils, write } from 'xlsx'
 
 type DreLine = readonly [label: string, ...values: number[]] | null
 
-export const DRE_MONTHS = [
+const DRE_MONTHS = [
   [12, 2025],
   [1, 2026],
   [2, 2026],
@@ -95,7 +95,7 @@ export function latin1File(name: string, content: string): File {
   return new File([bytes], name)
 }
 
-export const ABC_HEADER = 'ProCodigo;ProDescricao;Qtde;ValorTotal;Classificacao;Percentual'
+const ABC_HEADER = 'ProCodigo;ProDescricao;Qtde;ValorTotal;Classificacao;Percentual'
 
 export const ABC_SEPTEMBER = [
   ABC_HEADER,
@@ -113,7 +113,7 @@ export const ABC_OCTOBER = [
   '5;Produto Novo;2;100;C;10',
 ].join('\r\n')
 
-export const PROFIT_HEADER = 'ProCodigo;ProDescricao;Qtde;PedValorTotal;PedICustoGerencial;Imposto;TaxaFinanceira;Lucro'
+const PROFIT_HEADER = 'ProCodigo;ProDescricao;Qtde;PedValorTotal;PedICustoGerencial;Imposto;TaxaFinanceira;Lucro'
 
 export const PROFIT_SEPTEMBER = [
   PROFIT_HEADER,

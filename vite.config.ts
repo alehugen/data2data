@@ -30,6 +30,8 @@ export default defineConfig({
         'src/domain/**': { lines: 95, functions: 95, branches: 75 },
         'src/application/**': { lines: 90, functions: 85, branches: 70 },
         'src/infrastructure/**': { lines: 90, functions: 80, branches: 45 },
+        'src/presentation/composables/**': { lines: 85, functions: 75, branches: 50 },
+        'src/presentation/components/**': { lines: 60, functions: 50, branches: 45 },
       },
     },
   },

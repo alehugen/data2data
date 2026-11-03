@@ -1,11 +1,3 @@
-import {
-  formatCep,
-  formatCnpj,
-  formatCpf,
-  formatPhone,
-  isValidCnpj,
-  isValidCpf,
-} from '@brazilian-utils/brazilian-utils'
 import type { MonthlyReport, Report } from '@/domain/report'
 import type { Period } from '@/domain/shared'
 
@@ -42,7 +34,7 @@ export function describeReport(report: Report): string {
   return report.name
 }
 
-const KEEP_UPPER = new Set(['EBITDA', 'ISS', 'IPI', 'ICMS', 'PIS', 'COFINS', 'IRPJ', 'CSLL', 'INSS', 'FGTS', 'DRE', 'ABC', 'HPV'])
+const KEEP_UPPER = new Set(['EBITDA', 'ISS', 'IPI', 'ICMS', 'PIS', 'COFINS', 'IRPJ', 'CSLL', 'INSS', 'FGTS', 'DRE', 'ABC'])
 
 export function prettifyLabel(label: string): string {
   const text = label.trim()
@@ -56,19 +48,3 @@ export function prettifyLabel(label: string): string {
 const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 
 export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]!)
-
-export { formatCep, formatCnpj, formatCpf, formatPhone, isValidCnpj, isValidCpf }
-
-const onlyDigits = (value: string) => value.replace(/\D/g, '')
-
-export function formatDocument(value: string): string {
-  const digits = onlyDigits(value)
-  if (digits.length === 11) return formatCpf(digits)
-  if (digits.length === 14) return formatCnpj(digits)
-  return value
-}
-
-export function isValidDocument(value: string): boolean {
-  const digits = onlyDigits(value)
-  return digits.length === 11 ? isValidCpf(digits) : isValidCnpj(digits)
-}

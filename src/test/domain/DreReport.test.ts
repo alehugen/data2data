@@ -88,3 +88,25 @@ describe('DreReport.fromTables', () => {
     expect(report?.name).toContain('DRE Geral')
   })
 })
+
+describe('DreReport: cabeçalho de meses', () => {
+  it('reconhece uma DRE com um único mês', () => {
+    const rows = [
+      ['', '3'],
+      ['DESCRIÇÃO', '2026'],
+      ['RECEITA OPERACIONAL BRUTA', '500'],
+      ['Vendas', '500'],
+    ]
+    const report = DreReport.fromTable({ name: 'DRE', rows })!
+    expect(report.periods).toEqual([{ year: 2026, month: 3 }])
+    expect(report.metric(DreMetric.GrossRevenue)?.values).toEqual([500])
+  })
+
+  it('escolhe a linha com mais meses, ignorando números soltos acima de um ano', () => {
+    const rows = dreRows()
+    rows.unshift(['', '7'], ['Relatório gerado em', '2026'])
+    const report = DreReport.fromTable({ name: 'DRE', sheet: 'DRE Geral', rows })!
+    expect(report.periods).toHaveLength(3)
+    expect(report.periods[0]).toEqual({ year: 2026, month: 1 })
+  })
+})

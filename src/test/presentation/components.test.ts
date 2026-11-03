@@ -1,5 +1,6 @@
-import { mount, RouterLinkStub } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DreReport } from '@/domain/dre'
 import AppFooter from '@/presentation/components/AppFooter.vue'
 import DreTable from '@/presentation/components/DreTable.vue'
@@ -10,32 +11,38 @@ import ReportCard from '@/presentation/components/ReportCard.vue'
 import SectionNav from '@/presentation/components/SectionNav.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
+import ThemeToggle from '@/presentation/components/ThemeToggle.vue'
+import { useTheme } from '@/presentation/composables/useTheme'
 import { dreRows } from '@/test/fixtures'
+import { mountWithProviders } from './mountWithProviders'
 
 describe('InfoTip', () => {
-  it('liga o botão ao texto da explicação para leitores de tela', () => {
-    const wrapper = mount(InfoTip, { props: { text: 'Receita ÷ custo' } })
-    const tooltip = wrapper.get('[role="tooltip"]')
-    expect(tooltip.text()).toBe('Receita ÷ custo')
-    expect(wrapper.get('button').attributes('aria-describedby')).toBe(tooltip.attributes('id'))
+  it('mostra a explicação ao receber foco', async () => {
+    const wrapper = mountWithProviders(InfoTip, { props: { text: 'Receita ÷ custo' }, attachTo: document.body })
+    const button = wrapper.get('button')
+    expect(button.attributes('aria-label')).toBe('Como esta informação é calculada')
+
+    await button.trigger('focus')
+    await flushPromises()
+    expect(document.body.querySelector('[role="tooltip"]')?.textContent).toContain('Receita ÷ custo')
   })
 })
 
 describe('StatCard', () => {
   it('mostra valor, dica, variação e explicação', () => {
-    const wrapper = mount(StatCard, {
+    const wrapper = mountWithProviders(StatCard, {
       props: { label: 'Lucro', value: 'R$ 10', hint: 'Margem 20%', delta: 0.1, deltaLabel: 'set/26', info: 'Como calcula' },
     })
     expect(wrapper.text()).toContain('R$ 10')
     expect(wrapper.text()).toContain('+10%')
     expect(wrapper.text()).toContain('vs set/26')
     expect(wrapper.find('.text-success').exists()).toBe(true)
-    expect(wrapper.find('[role="tooltip"]').text()).toBe('Como calcula')
+    expect(wrapper.getComponent(InfoTip).props('text')).toBe('Como calcula')
   })
 
   it('pinta como ruim a alta de um indicador em que cair é bom', () => {
     const wrapper = mount(StatCard, { props: { label: 'Custo', value: '1', delta: 0.2, lowerIsBetter: true } })
-    expect(wrapper.find('.text-danger').exists()).toBe(true)
+    expect(wrapper.find('.text-destructive').exists()).toBe(true)
   })
 
   it('omite a variação sem base de comparação', () => {
@@ -61,20 +68,20 @@ describe('SegmentedControl', () => {
 
 describe('InsightList', () => {
   it('mostra cada ponto com o tom em texto e a explicação', () => {
-    const wrapper = mount(InsightList, {
+    const wrapper = mountWithProviders(InsightList, {
       props: {
         insights: [{ title: 'Lucro em alta', description: 'Subiu 10%', tone: 'positive', explanation: 'Lucro ÷ lucro anterior' }],
       },
     })
     expect(wrapper.text()).toContain('Lucro em alta')
     expect(wrapper.text()).toContain('Ponto positivo')
-    expect(wrapper.get('[role="tooltip"]').text()).toBe('Lucro ÷ lucro anterior')
+    expect(wrapper.getComponent(InfoTip).props('text')).toBe('Lucro ÷ lucro anterior')
   })
 })
 
 describe('ReportCard', () => {
   const mountCard = (removable = false) =>
-    mount(ReportCard, {
+    mountWithProviders(ReportCard, {
       props: { title: 'DRE 2026', subtitle: '12 meses', to: '/dre/1', removable },
       global: { stubs: { RouterLink: RouterLinkStub } },
     })
@@ -114,7 +121,7 @@ describe('ShareBar', () => {
 
 describe('DreTable', () => {
   const report = DreReport.fromTable({ name: 'DRE', sheet: 'DRE Geral', rows: dreRows() })!
-  const mountTable = () => mount(DreTable, { props: { report, highlight: [2] } })
+  const mountTable = () => mountWithProviders(DreTable, { props: { report, highlight: [2] } })
   const rowLabels = (wrapper: ReturnType<typeof mountTable>) => wrapper.findAll('tbody th').map((th) => th.text())
 
   it('começa com seções abertas, grupos fechados e sem contas zeradas', () => {
@@ -134,7 +141,7 @@ describe('DreTable', () => {
 
   it('mostra contas zeradas sob demanda', async () => {
     const wrapper = mountTable()
-    await wrapper.get('input[type="checkbox"]').setValue(true)
+    await wrapper.get('[role="checkbox"]').trigger('click')
     expect(rowLabels(wrapper)).toContain('Outras despesas variáveis')
   })
 
@@ -190,5 +197,19 @@ describe('AppFooter', () => {
     expect(link.attributes('href')).toBe('https://www.linkedin.com/in/alehugen')
     expect(link.attributes('target')).toBe('_blank')
     expect(link.attributes('rel')).toContain('noopener')
+  })
+})
+
+describe('ThemeToggle', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('troca o tema pelos ícones, com rótulo acessível em cada um', async () => {
+    const wrapper = mountWithProviders(ThemeToggle)
+    const items = wrapper.findAll('button')
+    expect(items.map((item) => item.attributes('aria-label'))).toEqual(['Tema claro', 'Tema escuro', 'Seguir o sistema'])
+
+    await items[0]!.trigger('click')
+    expect(useTheme().preference.value).toBe('light')
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
   })
 })

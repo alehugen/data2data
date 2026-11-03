@@ -3,6 +3,7 @@ import { PhWarning } from '@phosphor-icons/vue'
 import { computed, ref } from 'vue'
 import { AbcMovement } from '@/application'
 import { ABC_CLASSES, type AbcClass } from '@/domain/abc'
+import { ratio, relativeChange } from '@/domain/shared'
 import AbcBadge from '@/presentation/components/AbcBadge.vue'
 import ChartCard from '@/presentation/components/ChartCard.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
@@ -15,6 +16,10 @@ import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
+import { Badge } from '@/presentation/components/ui/badge'
+import { Button } from '@/presentation/components/ui/button'
+import { Card } from '@/presentation/components/ui/card'
 import TrendChart from '@/presentation/components/TrendChart.vue'
 import VolumeMarginChart from '@/presentation/components/VolumeMarginChart.vue'
 import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
@@ -73,8 +78,7 @@ const profitability = computed(() => analysis.value?.profitability ?? null)
 const previousLabel = computed(() => (previous.value ? formatAbcMonth(previous.value.report) : undefined))
 const currentLabel = computed(() => (current.value ? formatAbcMonth(current.value.report) : ''))
 const currentIndex = computed(() => analysis.value?.months.findIndex((m) => m.report.id === current.value?.report.id))
-const change = (now: number, before: number | undefined | null) => (before ? (now - before) / Math.abs(before) : null)
-const shareOfRevenue = (value: number) => (profitability.value?.totals.revenue ? value / profitability.value.totals.revenue : 0)
+const shareOfRevenue = (value: number) => ratio(value, profitability.value?.totals.revenue ?? 0) ?? 0
 const classLabel = (abcClass: AbcClass | null) => (abcClass ? `Classe ${abcClass}` : 'Sem classe na Curva ABC')
 const classColor = (abcClass: AbcClass | null) => (abcClass ? theme.value.abcClass[abcClass] : theme.value.chrome.textMuted)
 
@@ -84,13 +88,13 @@ const kpis = computed(() => {
   const p = previous.value
   const average = (s: { value: number; quantity: number }) => (s.quantity ? s.value / s.quantity : 0)
   return [
-    { label: 'Faturamento', value: formatCurrencyCompact(c.value), delta: change(c.value, p?.value), info: INFO.revenue },
-    { label: 'Quantidade vendida', value: formatNumber(c.quantity), delta: change(c.quantity, p?.quantity), info: INFO.quantity },
-    { label: 'Itens vendidos', value: formatNumber(c.items), delta: change(c.items, p?.items), info: INFO.items },
+    { label: 'Faturamento', value: formatCurrencyCompact(c.value), delta: relativeChange(c.value, p?.value), info: INFO.revenue },
+    { label: 'Quantidade vendida', value: formatNumber(c.quantity), delta: relativeChange(c.quantity, p?.quantity), info: INFO.quantity },
+    { label: 'Itens vendidos', value: formatNumber(c.items), delta: relativeChange(c.items, p?.items), info: INFO.items },
     {
       label: 'Valor médio por unidade',
       value: formatCurrency(average(c)),
-      delta: p ? change(average(c), average(p)) : null,
+      delta: p ? relativeChange(average(c), average(p)) : null,
       info: INFO.averagePrice,
     },
   ]
@@ -101,18 +105,18 @@ const profitKpis = computed(() => {
   if (!data) return []
   const { totals, previousTotals } = data
   return [
-    { label: 'Lucro', value: formatCurrencyCompact(totals.profit), delta: change(totals.profit, previousTotals?.profit), info: INFO.profit },
+    { label: 'Lucro', value: formatCurrencyCompact(totals.profit), delta: relativeChange(totals.profit, previousTotals?.profit), info: INFO.profit },
     {
       label: 'Margem de lucro',
       value: formatPercent(totals.margin ?? 0),
-      delta: change(totals.margin ?? 0, previousTotals?.margin),
+      delta: relativeChange(totals.margin ?? 0, previousTotals?.margin),
       info: INFO.margin,
     },
     {
       label: 'Custo gerencial',
       value: formatCurrencyCompact(totals.cost),
       hint: `${formatPercent(shareOfRevenue(totals.cost))} do valor vendido`,
-      delta: change(totals.cost, previousTotals?.cost),
+      delta: relativeChange(totals.cost, previousTotals?.cost),
       lowerIsBetter: true,
       info: INFO.cost,
     },
@@ -120,7 +124,7 @@ const profitKpis = computed(() => {
       label: 'Impostos e taxas',
       value: formatCurrencyCompact(totals.tax + totals.financialFee),
       hint: `${formatPercent(shareOfRevenue(totals.tax + totals.financialFee))} do valor vendido`,
-      delta: previousTotals ? change(totals.tax + totals.financialFee, previousTotals.tax + previousTotals.financialFee) : null,
+      delta: previousTotals ? relativeChange(totals.tax + totals.financialFee, previousTotals.tax + previousTotals.financialFee) : null,
       lowerIsBetter: true,
       info: INFO.taxes,
     },
@@ -225,18 +229,18 @@ const navSections = computed<NavSection[]>(() => {
 })
 
 const movementTone: Record<AbcMovement, string> = {
-  new: 'bg-accent-soft text-accent',
+  new: 'bg-accent text-primary',
   up: 'bg-success-soft text-success',
-  down: 'bg-danger-soft text-danger',
-  gone: 'bg-surface-muted text-fg-subtle',
-  same: 'text-fg-subtle',
+  down: 'bg-destructive-soft text-destructive',
+  gone: 'bg-muted text-muted-foreground',
+  same: 'bg-transparent text-muted-foreground',
 }
 </script>
 
 <template>
   <div v-if="!analysis" class="animate-fade-up space-y-2">
     <h1 class="text-2xl font-semibold">Curva ABC</h1>
-    <p class="text-fg-muted">Nenhum relatório de Curva ABC importado ainda.</p>
+    <p class="text-body">Nenhum relatório de Curva ABC importado ainda.</p>
     <RouterLink :to="{ name: 'import' }" class="link">Importar relatórios</RouterLink>
   </div>
 
@@ -251,17 +255,18 @@ const movementTone: Record<AbcMovement, string> = {
     />
 
     <div role="group" aria-label="Mês" class="flex animate-fade-up flex-wrap gap-2">
-      <button
+      <Button
         v-for="month in analysis.months"
         :key="month.report.id"
-        type="button"
+        size="sm"
+        :variant="month.report.id === current.report.id ? 'default' : 'outline'"
         :aria-pressed="month.report.id === current.report.id"
-        class="btn btn-sm"
-        :class="month.report.id === current.report.id ? 'btn-primary' : 'btn-secondary'"
+        class="min-w-16"
+        :class="month.report.id === current.report.id && 'shadow-(--elevation-primary)'"
         @click="selectedId = month.report.id"
       >
         {{ formatAbcMonth(month.report) }}
-      </button>
+      </Button>
     </div>
 
     <ReportLayout :sections="navSections">
@@ -315,7 +320,7 @@ const movementTone: Record<AbcMovement, string> = {
           style="--i: 1"
         >
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <ul class="flex gap-4 text-xs text-fg-subtle" aria-label="Legenda">
+            <ul class="flex gap-4 text-xs text-muted-foreground" aria-label="Legenda">
               <li v-for="abcClass in ABC_CLASSES" :key="abcClass" class="flex items-center gap-1.5">
                 <span class="size-2.5 rounded-sm" :style="{ background: theme.abcClass[abcClass] }" />Classe {{ abcClass }}
               </li>
@@ -342,7 +347,7 @@ const movementTone: Record<AbcMovement, string> = {
         </ChartCard>
       </PageSection>
 
-      <PageSection v-if="profitability" id="lucratividade" class="space-y-6 border-t border-line pt-8">
+      <PageSection v-if="profitability" id="lucratividade" class="space-y-6 border-t border-border pt-8">
         <SectionHeading
           title="Lucratividade"
           :subtitle="`Cruzamento da Curva ABC com o relatório de lucro por produto de ${currentLabel}`"
@@ -377,9 +382,9 @@ const movementTone: Record<AbcMovement, string> = {
               <ShareBar title="Faturamento" :segments="classSegments((c) => current!.byClass[c].value)" :format-value="formatCurrency" />
               <ShareBar title="Lucro" :segments="classSegments((c) => Math.max(0, profitability!.byClass[c].profit))" :format-value="formatCurrency" />
               <dl class="grid grid-cols-3 gap-2 text-center text-xs">
-                <div v-for="abcClass in ABC_CLASSES" :key="abcClass" class="rounded-lg bg-surface-muted p-2">
-                  <dt class="text-fg-subtle">Margem classe {{ abcClass }}</dt>
-                  <dd class="text-base font-semibold text-fg">{{ formatPercent(profitability.byClass[abcClass].margin ?? 0) }}</dd>
+                <div v-for="abcClass in ABC_CLASSES" :key="abcClass" class="rounded-lg bg-muted p-2">
+                  <dt class="text-muted-foreground">Margem classe {{ abcClass }}</dt>
+                  <dd class="text-base font-semibold text-foreground">{{ formatPercent(profitability.byClass[abcClass].margin ?? 0) }}</dd>
                 </div>
               </dl>
             </div>
@@ -388,7 +393,7 @@ const movementTone: Record<AbcMovement, string> = {
 
         <PageSection id="volume-margem">
           <ChartCard title="Volume × margem" subtitle="Onde está o lucro de verdade" :info="INFO.matrix">
-            <ul class="mb-2 flex flex-wrap gap-4 text-xs text-fg-subtle" aria-label="Legenda">
+            <ul class="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground" aria-label="Legenda">
               <li v-for="abcClass in ABC_CLASSES" :key="abcClass" class="flex items-center gap-1.5">
                 <span class="size-2.5 rounded-full" :style="{ background: theme.abcClass[abcClass] }" />Classe {{ abcClass }}
               </li>
@@ -414,137 +419,135 @@ const movementTone: Record<AbcMovement, string> = {
 
         <PageSection id="tabela-lucro" class="space-y-3">
           <SectionHeading :title="`Lucratividade por item: ${currentLabel}`" :info="INFO.profitTable" />
-          <div class="card overflow-x-auto">
-            <table class="min-w-full text-sm">
-              <thead class="bg-surface-muted text-left">
-                <tr>
-                  <th class="px-3 py-2 font-medium">Item</th>
-                  <th class="px-3 py-2 font-medium">Classe</th>
-                  <th class="px-3 py-2 text-right font-medium">Qtde</th>
-                  <th class="px-3 py-2 text-right font-medium">Valor vendido</th>
-                  <th class="px-3 py-2 text-right font-medium">Custo</th>
-                  <th class="px-3 py-2 text-right font-medium">Impostos e taxas</th>
-                  <th class="px-3 py-2 text-right font-medium">Lucro</th>
-                  <th class="px-3 py-2 text-right font-medium">Margem</th>
-                  <th class="px-3 py-2 text-right font-medium">Lucro/un.</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-line tabular-nums">
-                <tr
+          <Card class="gap-0 py-0">
+            <Table>
+              <TableHeader class="bg-muted/60">
+                <TableRow>
+                  <TableHead class="px-3 py-2 font-medium">Item</TableHead>
+                  <TableHead class="px-3 py-2 font-medium">Classe</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Qtde</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Valor vendido</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Custo</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Impostos e taxas</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Lucro</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Margem</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Lucro/un.</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody class="tabular-nums">
+                <TableRow
                   v-for="item in profitability.items"
                   :key="item.code"
-                  class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30"
+                 
                 >
-                  <td class="px-3 py-2">
+                  <TableCell class="px-3 py-2">
                     <span class="inline-flex items-center gap-1.5">
                       {{ item.description }}
-                      <span v-if="item.costMissing" class="inline-flex text-danger" title="Custo não cadastrado">
+                      <span v-if="item.costMissing" class="inline-flex text-destructive" title="Custo não cadastrado">
                         <PhWarning :size="16" weight="fill" aria-hidden="true" />
                         <span class="sr-only">Custo não cadastrado</span>
                       </span>
                     </span>
-                  </td>
-                  <td class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></td>
-                  <td class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</td>
-                  <td class="px-3 py-2 text-right">{{ formatCurrency(item.revenue) }}</td>
-                  <td class="px-3 py-2 text-right">{{ formatCurrency(item.cost) }}</td>
-                  <td class="px-3 py-2 text-right">{{ formatCurrency(item.tax + item.financialFee) }}</td>
-                  <td class="px-3 py-2 text-right font-medium" :class="item.profit < 0 && 'text-danger'">{{ formatCurrency(item.profit) }}</td>
-                  <td class="px-3 py-2 text-right">{{ item.margin !== null ? formatPercent(item.margin) : '–' }}</td>
-                  <td class="px-3 py-2 text-right text-fg-subtle">{{ item.profitPerUnit !== null ? formatCurrency(item.profitPerUnit) : '–' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  </TableCell>
+                  <TableCell class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></TableCell>
+                  <TableCell class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.revenue) }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.cost) }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.tax + item.financialFee) }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right font-medium" :class="item.profit < 0 && 'text-destructive'">{{ formatCurrency(item.profit) }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right">{{ item.margin !== null ? formatPercent(item.margin) : '–' }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right text-muted-foreground">{{ item.profitPerUnit !== null ? formatCurrency(item.profitPerUnit) : '–' }}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Card>
         </PageSection>
       </PageSection>
 
-      <div v-else class="card flex animate-fade-up items-start gap-3 border-dashed p-4 text-sm text-fg-muted">
-        <PhWarning :size="20" class="shrink-0 text-fg-subtle" aria-hidden="true" />
+      <Card v-else class="animate-fade-up flex-row items-start gap-3 border border-dashed bg-muted/40 p-4 text-sm text-body shadow-none ring-0">
+        <PhWarning :size="20" class="shrink-0 text-muted-foreground" aria-hidden="true" />
         <p>
-          Importe o relatório de <strong class="font-medium text-fg">lucro por produto</strong> de {{ currentLabel }} para ver a
+          Importe o relatório de <strong class="font-medium text-foreground">lucro por produto</strong> de {{ currentLabel }} para ver a
           lucratividade cruzada com a Curva ABC.
         </p>
-      </div>
+      </Card>
 
       <PageSection v-if="previous && analysis.movements.length" id="movimentacao" class="space-y-3">
         <SectionHeading :title="`Movimentação: ${previousLabel} → ${currentLabel}`" :info="INFO.movement" />
-        <div class="card overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-surface-muted text-left">
-              <tr>
-                <th class="px-3 py-2 font-medium">Item</th>
-                <th class="px-3 py-2 font-medium">Classe</th>
-                <th class="px-3 py-2 font-medium">Situação</th>
-                <th class="px-3 py-2 text-right font-medium">Quantidade</th>
-                <th class="px-3 py-2 text-right font-medium">Faturamento</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-line tabular-nums">
-              <tr v-for="m in analysis.movements" :key="m.code" class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30">
-                <td class="px-3 py-2">{{ m.description }}</td>
-                <td class="px-3 py-2 whitespace-nowrap">
+        <Card class="gap-0 py-0">
+          <Table>
+            <TableHeader class="bg-muted/60">
+              <TableRow>
+                <TableHead class="px-3 py-2 font-medium">Item</TableHead>
+                <TableHead class="px-3 py-2 font-medium">Classe</TableHead>
+                <TableHead class="px-3 py-2 font-medium">Situação</TableHead>
+                <TableHead class="px-3 py-2 text-right font-medium">Quantidade</TableHead>
+                <TableHead class="px-3 py-2 text-right font-medium">Faturamento</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody class="tabular-nums">
+              <TableRow v-for="m in analysis.movements" :key="m.code">
+                <TableCell class="px-3 py-2">{{ m.description }}</TableCell>
+                <TableCell class="px-3 py-2 whitespace-nowrap">
                   <span class="inline-flex items-center gap-1.5">
                     <AbcBadge :abc-class="m.from" />
-                    <span aria-hidden="true" class="text-fg-subtle">→</span>
+                    <span aria-hidden="true" class="text-muted-foreground">→</span>
                     <AbcBadge :abc-class="m.to" />
                   </span>
-                </td>
-                <td class="px-3 py-2">
-                  <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="movementTone[m.movement]">
-                    {{ MOVEMENT_LABELS[m.movement] }}
-                  </span>
-                </td>
-                <td class="px-3 py-2 text-right whitespace-nowrap">
+                </TableCell>
+                <TableCell class="px-3 py-2">
+                  <Badge :class="movementTone[m.movement]">{{ MOVEMENT_LABELS[m.movement] }}</Badge>
+                </TableCell>
+                <TableCell class="px-3 py-2 text-right whitespace-nowrap">
                   {{ formatNumber(m.quantity) }}
-                  <span class="ml-1 text-xs" :class="m.quantity - m.previousQuantity >= 0 ? 'text-success' : 'text-danger'">
+                  <span class="ml-1 text-xs" :class="m.quantity - m.previousQuantity >= 0 ? 'text-success' : 'text-destructive'">
                     ({{ m.quantity - m.previousQuantity >= 0 ? '+' : '' }}{{ formatNumber(m.quantity - m.previousQuantity) }})
                   </span>
-                </td>
-                <td class="px-3 py-2 text-right whitespace-nowrap">
+                </TableCell>
+                <TableCell class="px-3 py-2 text-right whitespace-nowrap">
                   {{ formatCurrency(m.value) }}
-                  <span class="ml-1 text-xs" :class="m.value - m.previousValue >= 0 ? 'text-success' : 'text-danger'">
+                  <span class="ml-1 text-xs" :class="m.value - m.previousValue >= 0 ? 'text-success' : 'text-destructive'">
                     ({{ m.value - m.previousValue >= 0 ? '+' : '' }}{{ formatCurrencyCompact(m.value - m.previousValue) }})
                   </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Card>
       </PageSection>
 
       <PageSection id="itens" class="space-y-3">
         <SectionHeading :title="`Itens de ${currentLabel}`" :info="INFO.items_table" />
-        <div class="card overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-surface-muted text-left">
-              <tr>
-                <th class="px-3 py-2 font-medium">#</th>
-                <th class="px-3 py-2 font-medium">Item</th>
-                <th class="px-3 py-2 font-medium">Classe</th>
-                <th class="px-3 py-2 text-right font-medium">Quantidade</th>
-                <th class="px-3 py-2 text-right font-medium">Participação</th>
-                <th class="px-3 py-2 text-right font-medium">Acumulado</th>
-                <th class="px-3 py-2 text-right font-medium">Faturamento</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-line tabular-nums">
-              <tr
+        <Card class="gap-0 py-0">
+          <Table>
+            <TableHeader class="bg-muted/60">
+              <TableRow>
+                <TableHead class="px-3 py-2 font-medium">#</TableHead>
+                <TableHead class="px-3 py-2 font-medium">Item</TableHead>
+                <TableHead class="px-3 py-2 font-medium">Classe</TableHead>
+                <TableHead class="px-3 py-2 text-right font-medium">Quantidade</TableHead>
+                <TableHead class="px-3 py-2 text-right font-medium">Participação</TableHead>
+                <TableHead class="px-3 py-2 text-right font-medium">Acumulado</TableHead>
+                <TableHead class="px-3 py-2 text-right font-medium">Faturamento</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody class="tabular-nums">
+              <TableRow
                 v-for="(item, i) in analysis.ranking"
                 :key="item.code"
-                class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30"
+               
               >
-                <td class="px-3 py-2 text-fg-subtle">{{ i + 1 }}</td>
-                <td class="px-3 py-2">{{ item.description }}</td>
-                <td class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></td>
-                <td class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</td>
-                <td class="px-3 py-2 text-right">{{ formatPercent(item.share) }}</td>
-                <td class="px-3 py-2 text-right text-fg-subtle">{{ formatPercent(item.cumulativeShare) }}</td>
-                <td class="px-3 py-2 text-right">{{ formatCurrency(item.value) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                <TableCell class="px-3 py-2 text-muted-foreground">{{ i + 1 }}</TableCell>
+                <TableCell class="px-3 py-2">{{ item.description }}</TableCell>
+                <TableCell class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></TableCell>
+                <TableCell class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</TableCell>
+                <TableCell class="px-3 py-2 text-right">{{ formatPercent(item.share) }}</TableCell>
+                <TableCell class="px-3 py-2 text-right text-muted-foreground">{{ formatPercent(item.cumulativeShare) }}</TableCell>
+                <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.value) }}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Card>
       </PageSection>
     </ReportLayout>
   </div>

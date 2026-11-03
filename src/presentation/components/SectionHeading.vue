@@ -10,6 +10,6 @@ defineProps<{ title: string; subtitle?: string; info?: string }>()
       {{ title }}
       <InfoTip v-if="info" :text="info" />
     </h2>
-    <p v-if="subtitle" class="text-sm text-fg-subtle">{{ subtitle }}</p>
+    <p v-if="subtitle" class="text-sm text-muted-foreground">{{ subtitle }}</p>
   </div>
 </template>

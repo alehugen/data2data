@@ -18,7 +18,7 @@ const share = (value: number) => (total.value ? value / total.value : 0)
   <div>
     <div class="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
       <span class="font-medium">{{ title }}</span>
-      <span class="text-fg-subtle">{{ formatValue(total) }}</span>
+      <span class="text-muted-foreground">{{ formatValue(total) }}</span>
     </div>
     <div class="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" :aria-label="`${title} por classe`">
       <div
@@ -29,10 +29,10 @@ const share = (value: number) => (total.value ? value / total.value : 0)
         :title="`${segment.label}: ${formatValue(segment.value)}`"
       />
     </div>
-    <ul class="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-fg-muted">
+    <ul class="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-body">
       <li v-for="segment in segments" :key="segment.label" class="flex items-center gap-1.5">
         <span class="size-2 rounded-full" :style="{ background: segment.color }" aria-hidden="true" />
-        {{ segment.label }} <span class="font-semibold text-fg tabular-nums">{{ formatPercent(share(segment.value)) }}</span>
+        {{ segment.label }} <span class="font-semibold text-foreground tabular-nums">{{ formatPercent(share(segment.value)) }}</span>
       </li>
     </ul>
   </div>

@@ -6,6 +6,7 @@ import { use } from 'echarts/core'
 import { SVGRenderer } from 'echarts/renderers'
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
+import ChartEmpty from './ChartEmpty.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
 import { escapeHtml, formatCompact, formatNumber } from '@/presentation/format'
 
@@ -81,5 +82,6 @@ const option = computed<EChartsOption>(() => {
 </script>
 
 <template>
-  <VChart :option="option" :style="{ height }" autoresize />
+  <ChartEmpty v-if="!items.length" />
+  <VChart v-else :option="option" :style="{ height }" autoresize />
 </template>

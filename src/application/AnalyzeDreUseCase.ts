@@ -1,5 +1,5 @@
 import { DreLineKind, DreMetric, type DreReport } from '@/domain/dre'
-import { sum } from '@/domain/shared'
+import { ratio, relativeChange, sum } from '@/domain/shared'
 
 export type DreSelection = { type: 'month'; index: number } | { type: 'year'; year: number }
 
@@ -64,8 +64,6 @@ const MARGIN_METRICS: DreMetric[] = [DreMetric.ContributionMargin, DreMetric.Ebi
 
 const RECENT_WINDOW = 12
 
-const ratio = (value: number, base: number) => (base ? value / base : null)
-
 export class AnalyzeDreUseCase {
   selections(report: DreReport): DreSelection[] {
     const months = report.periods.map((_, index): DreSelection => ({ type: 'month', index }))
@@ -113,7 +111,7 @@ export class AnalyzeDreUseCase {
       expenses,
       monthly,
       facts: {
-        revenueChange: previousRevenue ? (revenue - previousRevenue) / Math.abs(previousRevenue) : null,
+        revenueChange: relativeChange(revenue, previousRevenue),
         topExpense: expenses[0] ?? null,
         ...this.trendFacts(monthly),
       },

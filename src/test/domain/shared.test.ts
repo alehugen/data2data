@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { comparePeriods, normalizeText, parseNumber, parsePeriodFromText, periodKey, sum } from '@/domain/shared'
+import {
+  compareByPeriod,
+  comparePeriods,
+  normalizeText,
+  parseNumber,
+  parsePeriodFromText,
+  periodKey,
+  ratio,
+  relativeChange,
+  sum,
+} from '@/domain/shared'
 
 describe('normalizeText', () => {
   it('ignora acentos, caixa e espaços repetidos', () => {
@@ -63,5 +73,43 @@ describe('parsePeriodFromText', () => {
 
   it.each(['MARGEM 2026', 'abc 00-2026', 'abc 13-2026', 'relatorio'])('não inventa mês em "%s"', (input) => {
     expect(parsePeriodFromText(input)).toBeNull()
+  })
+})
+
+describe('ratio', () => {
+  it('divide com proteção contra zero e valores inválidos', () => {
+    expect(ratio(1, 4)).toBe(0.25)
+    expect(ratio(1, 0)).toBeNull()
+    expect(ratio(Number.NaN, 2)).toBeNull()
+    expect(ratio(1, Number.POSITIVE_INFINITY)).toBeNull()
+  })
+})
+
+describe('relativeChange', () => {
+  it.each([
+    [120, 100, 0.2],
+    [80, 100, -0.2],
+    [-50, -100, 0.5],
+    [-150, -100, -0.5],
+    [50, -100, 1.5],
+  ])('de %d para %d varia %d', (current, previous, expected) => {
+    expect(relativeChange(current, previous)).toBeCloseTo(expected)
+  })
+
+  it('não calcula sem base de comparação', () => {
+    expect(relativeChange(10, 0)).toBeNull()
+    expect(relativeChange(10, null)).toBeNull()
+    expect(relativeChange(10, undefined)).toBeNull()
+  })
+})
+
+describe('compareByPeriod', () => {
+  it('ordena por mês e deixa relatórios sem mês no fim', () => {
+    const items = [
+      { name: 'sem mês', period: null },
+      { name: 'out', period: { year: 2026, month: 10 } },
+      { name: 'set', period: { year: 2026, month: 9 } },
+    ]
+    expect([...items].sort(compareByPeriod).map((item) => item.name)).toEqual(['set', 'out', 'sem mês'])
   })
 })

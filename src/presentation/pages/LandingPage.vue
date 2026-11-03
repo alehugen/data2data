@@ -16,11 +16,22 @@ import {
   PhUploadSimple,
 } from '@phosphor-icons/vue'
 import { useRouter } from 'vue-router'
+import { Badge } from '@/presentation/components/ui/badge'
+import { Button } from '@/presentation/components/ui/button'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/presentation/components/ui/card'
 import { useReports } from '@/presentation/composables/useReports'
 import { useTemplates } from '@/presentation/composables/useTemplates'
 
 const { reports } = useReports()
-const { templates, downloading, loadingSample, download, loadSample } = useTemplates()
+const { templates, downloading, downloadError, loadingSample, download, loadSample } = useTemplates()
 const router = useRouter()
 
 async function tryExample() {
@@ -94,65 +105,64 @@ function scrollToTemplates() {
 <template>
   <div class="space-y-20">
     <section class="animate-fade-up pt-6 text-center sm:pt-12">
-      <p class="mx-auto mb-4 w-fit rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-fg-subtle shadow-card">
+      <Badge variant="outline" class="mx-auto mb-4 h-6 bg-card px-3 text-muted-foreground shadow-card">
+        <PhShieldCheck weight="fill" class="text-primary" aria-hidden="true" />
         Análise de relatórios direto no navegador
-      </p>
+      </Badge>
       <h1 class="mx-auto max-w-3xl text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
-        Transforme planilhas em <span class="text-accent">decisões</span>
+        Transforme planilhas em <span class="text-primary">decisões</span>
       </h1>
-      <p class="mx-auto mt-4 max-w-2xl text-lg text-fg-muted">
+      <p class="mx-auto mt-4 max-w-2xl text-lg text-body">
         Importe a DRE, a Curva ABC e o lucro por produto da sua empresa e receba indicadores, gráficos e pontos de
         análise prontos, explicados em linguagem de negócio.
       </p>
       <div class="mt-8 flex flex-wrap justify-center gap-3">
-        <RouterLink :to="{ name: 'import' }" class="btn btn-primary px-5 py-2.5 text-base">
-          <PhUploadSimple :size="18" weight="bold" aria-hidden="true" />
-          Importar relatórios
-        </RouterLink>
-        <button type="button" class="btn btn-secondary px-5 py-2.5 text-base" :disabled="loadingSample" @click="tryExample">
-          <PhPlayCircle :size="18" weight="bold" aria-hidden="true" />
+        <Button as-child size="lg" class="group h-11 px-5 text-base shadow-(--elevation-primary) hover:bg-primary/90">
+          <RouterLink :to="{ name: 'import' }">
+            <PhUploadSimple weight="bold" aria-hidden="true" />
+            Importar relatórios
+          </RouterLink>
+        </Button>
+        <Button variant="outline" size="lg" class="h-11 px-5 text-base" :disabled="loadingSample" @click="tryExample">
+          <PhPlayCircle weight="bold" aria-hidden="true" />
           {{ loadingSample ? 'Carregando exemplo…' : 'Ver com dados de exemplo' }}
-        </button>
-        <button type="button" class="btn btn-secondary px-5 py-2.5 text-base" @click="scrollToTemplates">
-          <PhDownloadSimple :size="18" weight="bold" aria-hidden="true" />
+        </Button>
+        <Button variant="ghost" size="lg" class="h-11 px-5 text-base" @click="scrollToTemplates">
+          <PhDownloadSimple weight="bold" aria-hidden="true" />
           Baixar modelos
-        </button>
+        </Button>
       </div>
 
-      <RouterLink
-        v-if="reports.length"
-        :to="{ name: 'import' }"
-        class="group card card-interactive mx-auto mt-8 flex w-fit items-center gap-3 px-4 py-3 text-sm hover:border-accent"
-      >
-        <PhFolderOpen :size="20" class="text-accent" aria-hidden="true" />
+      <Card v-if="reports.length" class="group/open card-interactive mx-auto mt-8 w-fit flex-row items-center gap-3 px-4 py-3 text-sm">
+        <PhFolderOpen :size="20" weight="duotone" class="text-primary" aria-hidden="true" />
         Você tem {{ reports.length }} {{ reports.length === 1 ? 'relatório importado' : 'relatórios importados' }}
-        <span class="inline-flex items-center gap-1 font-medium text-accent">
+        <RouterLink
+          :to="{ name: 'import' }"
+          class="inline-flex items-center gap-1 font-medium text-primary after:absolute after:inset-0 after:content-['']"
+        >
           Abrir
-          <PhArrowRight :size="14" weight="bold" class="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-        </span>
-      </RouterLink>
+          <PhArrowRight weight="bold" class="transition-transform group-hover/open:translate-x-0.5" aria-hidden="true" />
+        </RouterLink>
+      </Card>
     </section>
 
     <section aria-labelledby="como-funciona" class="space-y-6">
       <div class="text-center">
         <h2 id="como-funciona" class="text-2xl font-semibold">Como funciona</h2>
-        <p class="mt-1 text-fg-muted">Três passos, sem cadastro e sem instalar nada.</p>
+        <p class="mt-1 text-body">Três passos, sem cadastro e sem instalar nada.</p>
       </div>
       <ol class="grid gap-4 md:grid-cols-3">
-        <li
-          v-for="(step, i) in STEPS"
-          :key="step.title"
-          class="card card-interactive animate-fade-up stagger p-5"
-          :style="{ '--i': i }"
-        >
-          <div class="flex items-center gap-3">
-            <span class="flex size-10 items-center justify-center rounded-full bg-accent-soft text-accent">
-              <component :is="step.icon" :size="20" weight="bold" aria-hidden="true" />
-            </span>
-            <span class="text-sm font-semibold text-fg-subtle">Passo {{ i + 1 }}</span>
-          </div>
-          <h3 class="mt-4 font-semibold">{{ step.title }}</h3>
-          <p class="mt-1 text-sm text-fg-muted">{{ step.text }}</p>
+        <li v-for="(step, i) in STEPS" :key="step.title" class="animate-fade-up stagger" :style="{ '--i': i }">
+          <Card class="card-interactive h-full gap-3 px-5 py-5">
+            <div class="flex items-center gap-3">
+              <span class="flex size-10 items-center justify-center rounded-full bg-accent text-primary">
+                <component :is="step.icon" :size="20" weight="bold" aria-hidden="true" />
+              </span>
+              <Badge variant="secondary">Passo {{ i + 1 }}</Badge>
+            </div>
+            <CardTitle>{{ step.title }}</CardTitle>
+            <CardDescription class="text-body">{{ step.text }}</CardDescription>
+          </Card>
         </li>
       </ol>
     </section>
@@ -160,18 +170,15 @@ function scrollToTemplates() {
     <section aria-labelledby="recursos" class="space-y-6">
       <div class="text-center">
         <h2 id="recursos" class="text-2xl font-semibold">O que você consegue ver</h2>
-        <p class="mt-1 text-fg-muted">Cada tipo de relatório ganha um painel próprio.</p>
+        <p class="mt-1 text-body">Cada tipo de relatório ganha um painel próprio.</p>
       </div>
       <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <li
-          v-for="(feature, i) in FEATURES"
-          :key="feature.title"
-          class="card card-interactive animate-fade-up stagger p-5"
-          :style="{ '--i': i }"
-        >
-          <component :is="feature.icon" :size="28" weight="duotone" class="text-accent" aria-hidden="true" />
-          <h3 class="mt-3 font-semibold">{{ feature.title }}</h3>
-          <p class="mt-1 text-sm text-fg-muted">{{ feature.text }}</p>
+        <li v-for="(feature, i) in FEATURES" :key="feature.title" class="animate-fade-up stagger" :style="{ '--i': i }">
+          <Card class="card-interactive h-full gap-2 px-5 py-5">
+            <component :is="feature.icon" :size="28" weight="duotone" class="text-primary" aria-hidden="true" />
+            <CardTitle class="mt-1">{{ feature.title }}</CardTitle>
+            <CardDescription class="text-body">{{ feature.text }}</CardDescription>
+          </Card>
         </li>
       </ul>
     </section>
@@ -179,74 +186,79 @@ function scrollToTemplates() {
     <section id="modelos" aria-labelledby="modelos-titulo" class="scroll-mt-24 space-y-6">
       <div class="text-center">
         <h2 id="modelos-titulo" class="text-2xl font-semibold">Modelos para preencher</h2>
-        <p class="mx-auto mt-1 max-w-2xl text-fg-muted">
+        <p class="mx-auto mt-1 max-w-2xl text-body">
           Não tem os relatórios no formato certo? Baixe um modelo, substitua os dados de exemplo pelos seus e importe.
           Os modelos já vêm preenchidos com uma empresa fictícia, então você também pode importá-los direto para ver o
           resultado.
         </p>
       </div>
       <ul class="grid gap-4 lg:grid-cols-3">
-        <li
-          v-for="(template, i) in templates"
-          :key="template.kind"
-          class="card animate-fade-up stagger flex flex-col p-5"
-          :style="{ '--i': i }"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h3 class="font-semibold">{{ template.title }}</h3>
-              <span class="mt-1 inline-block rounded-md bg-surface-muted px-1.5 text-xs font-semibold text-fg-subtle">
-                {{ template.format }}
-              </span>
-            </div>
-            <component
-              :is="template.format === 'XLSX' ? PhFileXls : PhFileCsv"
-              :size="32"
-              weight="duotone"
-              class="text-accent"
-              aria-hidden="true"
-            />
-          </div>
-          <p class="mt-3 text-sm text-fg-muted">{{ template.description }}</p>
-          <p class="mt-3 text-xs font-medium text-fg-subtle">{{ template.kind === 'dre' ? 'Conteúdo' : 'Colunas' }}</p>
-          <ul class="mt-1 flex flex-wrap gap-1">
-            <li
-              v-for="column in template.columns"
-              :key="column"
-              class="rounded-md border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-[0.6875rem] text-fg-muted"
-            >
-              {{ column }}
-            </li>
-          </ul>
-          <p class="mt-3 mb-5 text-xs text-fg-subtle">{{ template.naming }}</p>
-          <button
-            type="button"
-            class="btn btn-primary mt-auto w-full"
-            :disabled="downloading === template.kind"
-            @click="download(template.kind)"
-          >
-            <PhDownloadSimple :size="16" weight="bold" aria-hidden="true" />
-            {{ downloading === template.kind ? 'Gerando…' : `Baixar modelo ${template.format}` }}
-          </button>
+        <li v-for="(template, i) in templates" :key="template.kind" class="animate-fade-up stagger" :style="{ '--i': i }">
+          <Card class="h-full">
+            <CardHeader>
+              <CardTitle>{{ template.title }}</CardTitle>
+              <CardDescription>
+                <Badge variant="secondary" class="font-mono">{{ template.format }}</Badge>
+              </CardDescription>
+              <CardAction>
+                <component
+                  :is="template.format === 'XLSX' ? PhFileXls : PhFileCsv"
+                  :size="32"
+                  weight="duotone"
+                  class="text-primary"
+                  aria-hidden="true"
+                />
+              </CardAction>
+            </CardHeader>
+            <CardContent class="flex-1 space-y-3">
+              <p class="text-sm text-body">{{ template.description }}</p>
+              <div>
+                <p class="mb-1 text-xs font-medium text-muted-foreground">
+                  {{ template.kind === 'dre' ? 'Conteúdo' : 'Colunas' }}
+                </p>
+                <ul class="flex flex-wrap gap-1">
+                  <li v-for="column in template.columns" :key="column">
+                    <Badge variant="outline" class="font-mono text-[0.6875rem] font-normal text-body">{{ column }}</Badge>
+                  </li>
+                </ul>
+              </div>
+              <p class="text-xs text-muted-foreground">{{ template.naming }}</p>
+            </CardContent>
+            <CardFooter>
+              <Button
+                class="w-full shadow-(--elevation-primary) hover:bg-primary/90"
+                :disabled="downloading === template.kind"
+                @click="download(template.kind)"
+              >
+                <PhDownloadSimple weight="bold" aria-hidden="true" />
+                {{ downloading === template.kind ? 'Gerando…' : `Baixar modelo ${template.format}` }}
+              </Button>
+            </CardFooter>
+          </Card>
         </li>
       </ul>
+      <p v-if="downloadError" role="alert" class="rounded-lg bg-destructive-soft px-4 py-3 text-center text-sm text-destructive">
+        {{ downloadError }}
+      </p>
     </section>
 
-    <section aria-labelledby="dicas" class="card mx-auto max-w-3xl p-6">
+    <Card role="region" aria-labelledby="dicas" class="mx-auto max-w-3xl gap-3 px-6 py-6">
       <h2 id="dicas" class="flex items-center gap-2 text-lg font-semibold">
-        <PhLightbulb :size="20" weight="duotone" class="text-accent" aria-hidden="true" />
+        <PhLightbulb :size="20" weight="duotone" class="text-primary" aria-hidden="true" />
         Dicas para importar
       </h2>
-      <ul class="mt-3 space-y-2 text-sm text-fg-muted">
+      <ul class="space-y-2 text-sm text-body">
         <li v-for="tip in TIPS" :key="tip" class="flex gap-2">
-          <span class="mt-2 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+          <span class="mt-2 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
           {{ tip }}
         </li>
       </ul>
-      <RouterLink :to="{ name: 'import' }" class="btn btn-primary mt-5">
-        Começar agora
-        <PhArrowRight :size="16" weight="bold" aria-hidden="true" />
-      </RouterLink>
-    </section>
+      <Button as-child class="group mt-2 w-fit shadow-(--elevation-primary) hover:bg-primary/90">
+        <RouterLink :to="{ name: 'import' }">
+          Começar agora
+          <PhArrowRight weight="bold" class="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </RouterLink>
+      </Button>
+    </Card>
   </div>
 </template>

@@ -3,6 +3,8 @@ import { PhCaretRight } from '@phosphor-icons/vue'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DreLineKind, DreMetric, type DreLine, type DreReport } from '@/domain/dre'
 import { formatPercent, formatPeriod, prettifyLabel } from '@/presentation/format'
+import { Card } from '@/presentation/components/ui/card'
+import { Checkbox } from '@/presentation/components/ui/checkbox'
 import InfoTip from './InfoTip.vue'
 import SegmentedControl from './SegmentedControl.vue'
 
@@ -60,12 +62,12 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
 </script>
 
 <template>
-  <div class="card overflow-hidden">
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+  <Card class="gap-0 py-0">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
       <SegmentedControl v-model="mode" :options="MODES" label="Exibir" />
       <div class="flex items-center gap-3">
-        <label class="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
-          <input v-model="showZero" type="checkbox" class="size-4 accent-accent" />
+        <label class="flex cursor-pointer items-center gap-2 text-sm text-body">
+          <Checkbox :model-value="showZero" @update:model-value="showZero = $event === true" />
           Mostrar contas zeradas
         </label>
         <InfoTip :text="TABLE_INFO" label="Como ler a tabela" />
@@ -74,41 +76,41 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
 
     <div ref="scroller" class="max-h-[70vh] overflow-auto">
       <table class="min-w-full text-sm tabular-nums">
-        <thead class="sticky top-0 z-10 bg-surface-muted text-left">
+        <thead class="sticky top-0 z-10 bg-muted text-left">
           <tr>
-            <th class="sticky left-0 z-10 min-w-64 bg-surface-muted px-3 py-2 font-medium">Conta</th>
+            <th class="sticky left-0 z-10 min-w-64 bg-muted px-3 py-2 font-medium">Conta</th>
             <th
               v-for="(period, i) in report.periods"
               :key="i"
               :data-highlight="highlight.includes(i) ? '' : undefined"
               class="px-3 py-2 text-right font-medium whitespace-nowrap"
-              :class="highlight.includes(i) && 'bg-accent-soft text-accent'"
+              :class="highlight.includes(i) && 'bg-accent text-primary'"
             >
               {{ formatPeriod(period) }}
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-line">
+        <tbody class="divide-y divide-border">
           <tr
             v-for="line in rows"
             :key="line.id"
-            class="transition-colors duration-(--duration-fast) hover:bg-accent-soft/30"
+            class="transition-colors duration-(--duration-fast) hover:bg-accent/30"
             :class="{
-              'bg-surface-muted/60 font-semibold': line.kind === DreLineKind.Result,
+              'bg-muted/60 font-semibold': line.kind === DreLineKind.Result,
               'font-medium': line.kind === DreLineKind.Section || line.kind === DreLineKind.Group,
-              'text-fg-muted': line.kind === DreLineKind.Account || line.kind === DreLineKind.Balance,
+              'text-body': line.kind === DreLineKind.Account || line.kind === DreLineKind.Balance,
             }"
           >
             <th
               scope="row"
-              class="sticky left-0 bg-surface px-3 py-1.5 text-left font-[inherit] whitespace-nowrap"
-              :class="line.kind === DreLineKind.Result && 'bg-surface-muted'"
+              class="sticky left-0 bg-card px-3 py-1.5 text-left font-[inherit] whitespace-nowrap"
+              :class="line.kind === DreLineKind.Result && 'bg-muted'"
               :style="{ paddingLeft: `${0.75 + depth(line) * 1.25}rem` }"
             >
               <button
                 v-if="hasChildren(line)"
                 type="button"
-                class="-ml-1 inline-flex items-center gap-1.5 rounded px-1 hover:text-accent"
+                class="-ml-1 inline-flex items-center gap-1.5 rounded px-1 hover:text-primary"
                 :aria-expanded="expanded.has(line.id)"
                 @click="toggle(line)"
               >
@@ -127,7 +129,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
               v-for="(value, i) in line.values"
               :key="i"
               class="px-3 py-1.5 text-right whitespace-nowrap"
-              :class="[highlight.includes(i) && 'bg-accent-soft/40', value < 0 && 'text-danger']"
+              :class="[highlight.includes(i) && 'bg-accent/40', value < 0 && 'text-destructive']"
             >
               {{ cell(line, i) }}
             </td>
@@ -135,5 +137,5 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
         </tbody>
       </table>
     </div>
-  </div>
+  </Card>
 </template>
