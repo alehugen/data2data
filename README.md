@@ -36,13 +36,14 @@ Para conhecer o app sem arquivos próprios, use **"Ver com dados de exemplo"** n
 - Distribuição das classes A, B e C em itens, quantidade e faturamento.
 - Ranking de itens colorido por classe, ordenável por quantidade ou faturamento.
 - **Entre meses:** evolução do faturamento por classe e movimentação de cada item (novo, subiu, caiu, manteve, saiu).
+- **Meses combinados:** "Todos os meses" ou o acumulado de um ano somam cada produto no período e recalculam a classificação (classe A até 80% do total, B até 95%) pelo mesmo critério do relatório de origem. O lucro por produto é combinado quando todos os meses têm relatório de lucro.
 
 ### Lucro por produto mensal (`.csv`)
 
 Cruzado com a Curva ABC do mesmo mês, pelo código do produto, para verificar se o volume vendido se converte em lucro:
 
-- **Indicadores:** lucro, margem de lucro, custo gerencial e impostos, materiais e taxas, com variação frente ao mês anterior.
-- **Conferência do lucro:** cada item é conferido contra valor vendido − custo − impostos − materiais − taxas; diferenças aparecem nos pontos de análise.
+- **Lucro bruto calculado pelo app:** valor vendido − custo gerencial − impostos − materiais. A taxa financeira e a coluna de lucro do arquivo não entram na conta.
+- **Indicadores:** lucro bruto, margem de lucro, custo gerencial e impostos e materiais, com variação frente ao mês anterior.
 - **Lucro por classe** na distribuição das classes, e ranking e tabela de lucro por item.
 - **Pontos de análise cruzados:** itens da classe A com margem abaixo da média ("vende muito, lucra pouco"), itens B/C com margem acima da média, prejuízos, custo não cadastrado e divergências entre os dois relatórios.
 
@@ -84,7 +85,7 @@ O tipo de relatório é identificado pelo **conteúdo**, não pelo nome do arqui
 |---|---|
 | **DRE** | Planilha com uma linha de meses (1 a 12) e, logo abaixo, a linha dos anos; basta um mês. Se houver várias abas, é usada a que contém **"DRE Geral"** no nome. É preciso existir a linha "Receita operacional bruta". |
 | **Curva ABC** | CSV com as colunas de descrição, quantidade e classificação. São aceitos `ProCodigo`, `ProDescricao`, `Qtde`, `ValorTotal`, `Classificacao`, `Percentual` e variações como `Código`, `Quantidade`, `Classe` e `Curva`. |
-| **Lucro por produto** | CSV com descrição, valor vendido, custo e lucro. São aceitos `ProDescricao`, `PedValorTotal`, `PedICustoGerencial`, `Imposto`, `Materiais`, `TaxaFinanceira`, `Lucro` e variações como `Valor total`, `Custo` e `Taxas`. |
+| **Lucro por produto** | CSV com descrição, valor vendido, custo e lucro. São aceitos `ProDescricao`, `PedValorTotal`, `PedICustoGerencial`, `Imposto`, `Materiais`, `Lucro` e variações como `Valor total` e `Custo`. A coluna `Lucro` identifica o relatório, mas o lucro é recalculado; `TaxaFinanceira` é ignorada. |
 | **Tabela genérica** | Qualquer outro CSV, XLSX ou XLS. |
 
 Regras de leitura:

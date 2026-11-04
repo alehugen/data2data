@@ -17,7 +17,6 @@ export interface ProfitItem {
   readonly cost: number
   readonly tax: number
   readonly materials: number
-  readonly financialFee: number
   readonly profit: number
 }
 
@@ -27,7 +26,6 @@ export interface ProfitTotals {
   readonly cost: number
   readonly tax: number
   readonly materials: number
-  readonly financialFee: number
   readonly profit: number
 }
 
@@ -39,13 +37,13 @@ const COLUMN_ALIASES = {
   cost: ['PEDICUSTOGERENCIAL', 'CUSTOGERENCIAL', 'CUSTOTOTAL', 'CUSTO', 'CMV'],
   tax: ['IMPOSTO', 'IMPOSTOS'],
   materials: ['MATERIAIS', 'MATERIAL', 'CUSTOMATERIAIS'],
-  financialFee: ['TAXAFINANCEIRA', 'TAXASFINANCEIRAS', 'TAXA', 'TAXAS'],
   profit: ['LUCRO', 'LUCROBRUTO', 'LUCROTOTAL', 'RESULTADO'],
 } as const
 
 const REQUIRED_COLUMNS = ['description', 'revenue', 'cost', 'profit'] as const
 
-export type OptionalCost = 'tax' | 'materials' | 'financialFee'
+const grossProfit = (item: Pick<ProfitItem, 'revenue' | 'cost' | 'tax' | 'materials'>) =>
+  item.revenue - item.cost - item.tax - item.materials
 
 const totalsOf = (items: readonly ProfitItem[]): ProfitTotals => ({
   quantity: sum(items.map((item) => item.quantity)),
@@ -53,7 +51,6 @@ const totalsOf = (items: readonly ProfitItem[]): ProfitTotals => ({
   cost: sum(items.map((item) => item.cost)),
   tax: sum(items.map((item) => item.tax)),
   materials: sum(items.map((item) => item.materials)),
-  financialFee: sum(items.map((item) => item.financialFee)),
   profit: sum(items.map((item) => item.profit)),
 })
 
@@ -65,14 +62,16 @@ export class ProfitReport {
   readonly period: Period | null
   readonly items: readonly ProfitItem[]
   readonly totals: ProfitTotals
-  readonly hasColumn: Readonly<Record<OptionalCost, boolean>>
 
-  private constructor(name: string, items: ProfitItem[], hasColumn: Record<OptionalCost, boolean>) {
+  private constructor(name: string, items: ProfitItem[], period: Period | null = parsePeriodFromText(name)) {
     this.name = name
-    this.period = parsePeriodFromText(name)
+    this.period = period
     this.items = items
     this.totals = totalsOf(items)
-    this.hasColumn = hasColumn
+  }
+
+  static combine(reports: readonly ProfitReport[], name: string): ProfitReport {
+    return new ProfitReport(name, mergeByCode(reports.flatMap((report) => [...report.items])), null)
   }
 
   static fromTable(table: RawTable): ProfitReport | null {
@@ -85,25 +84,22 @@ export class ProfitReport {
       .filter((row) => !isTotalLabel(header.text(row, 'description')) && !isTotalLabel(header.text(row, 'code')))
       .map((row) => {
         const description = header.text(row, 'description')
-        return {
-          code: normalizeCode(header.text(row, 'code')) || description,
-          description,
-          quantity: header.number(row, 'quantity'),
+        const costs = {
           revenue: header.number(row, 'revenue'),
           cost: Math.abs(header.number(row, 'cost')),
           tax: Math.abs(header.number(row, 'tax')),
           materials: Math.abs(header.number(row, 'materials')),
-          financialFee: Math.abs(header.number(row, 'financialFee')),
-          profit: header.number(row, 'profit'),
+        }
+        return {
+          code: normalizeCode(header.text(row, 'code')) || description,
+          description,
+          quantity: header.number(row, 'quantity'),
+          ...costs,
+          profit: grossProfit(costs),
         }
       })
 
-    const hasColumn = {
-      tax: header.columns.tax !== undefined,
-      materials: header.columns.materials !== undefined,
-      financialFee: header.columns.financialFee !== undefined,
-    }
-    return items.length ? new ProfitReport(table.name, mergeByCode(items), hasColumn) : null
+    return items.length ? new ProfitReport(table.name, mergeByCode(items)) : null
   }
 }
 

@@ -1,6 +1,6 @@
-import { ABC_CLASSES, type AbcClass, type AbcItem, type AbcReport } from '@/domain/abc'
-import type { ProfitReport } from '@/domain/profit'
-import { compareByPeriod, periodKey, sum, type Identifier } from '@/domain/shared'
+import { ABC_CLASSES, AbcReport, type AbcClass, type AbcItem } from '@/domain/abc'
+import { ProfitReport } from '@/domain/profit'
+import { compareByPeriod, periodKey, sum, type Period } from '@/domain/shared'
 import { analyzeProfitability, type AbcProfitability } from './AbcProfitability'
 
 export interface AbcTotals {
@@ -37,8 +37,13 @@ export interface AbcItemMovement {
   readonly previousValue: number
 }
 
+export const ABC_ALL_MONTHS = 'all'
+export const abcYearKey = (year: number) => `year:${year}`
+export const isCombinedKey = (key: string) => key === ABC_ALL_MONTHS || key.startsWith('year:')
+
 export interface AbcAnalysis {
   readonly months: AbcMonthSummary[]
+  readonly periods: Period[]
   readonly current: AbcMonthSummary
   readonly previous: AbcMonthSummary | null
   readonly ranking: AbcItem[]
@@ -69,12 +74,16 @@ export class AnalyzeAbcUseCase {
   execute(
     reports: readonly AbcReport[],
     profitReports: readonly ProfitReport[] = [],
-    reportId?: Identifier,
+    selection?: string,
   ): AbcAnalysis | null {
     const profitByMonth = new Map(
       profitReports.flatMap((report) => (report.period ? [[periodKey(report.period), report] as const] : [])),
     )
     const months = [...reports].sort(chronological).map((report) => this.summarize(report, profitByMonth))
+
+    const combined = this.combinedMonths(months, selection)
+    if (combined) return this.combine(months, combined)
+    const reportId = selection && !isCombinedKey(selection) ? selection : undefined
 
     const latestDated = months.map((m) => m.report.period !== null).lastIndexOf(true)
     const currentIndex = reportId
@@ -90,6 +99,7 @@ export class AnalyzeAbcUseCase {
 
     return {
       months,
+      periods: current.report.period ? [current.report.period] : [],
       current,
       previous,
       ranking,
@@ -97,6 +107,40 @@ export class AnalyzeAbcUseCase {
       profitability: current.profitReport
         ? analyzeProfitability(current.report, current.profitReport, previous?.profitReport ?? null)
         : null,
+    }
+  }
+
+  private combinedMonths(months: AbcMonthSummary[], selection?: string): AbcMonthSummary[] | null {
+    const dated = months.filter((month) => month.report.period)
+    const chosen =
+      selection === ABC_ALL_MONTHS
+        ? dated
+        : selection?.startsWith('year:')
+          ? dated.filter((month) => abcYearKey(month.report.period!.year) === selection)
+          : []
+    return chosen.length > 1 ? chosen : null
+  }
+
+  private combine(months: AbcMonthSummary[], chosen: AbcMonthSummary[]): AbcAnalysis {
+    const name = 'Meses combinados'
+    const report = AbcReport.combine(
+      chosen.map((month) => month.report),
+      name,
+    )
+    const profits = chosen.map((month) => month.profitReport)
+    const profitReport = profits.every((profit) => profit !== null)
+      ? ProfitReport.combine(profits as ProfitReport[], name)
+      : null
+    const current = { ...this.summarize(report, new Map()), profitReport }
+
+    return {
+      months,
+      periods: chosen.map((month) => month.report.period!),
+      current,
+      previous: null,
+      ranking: [...report.items],
+      movements: [],
+      profitability: profitReport ? analyzeProfitability(report, profitReport, null) : null,
     }
   }
 

@@ -137,12 +137,11 @@ describe('modelos de Curva ABC e lucro', () => {
     expect(profit!.items.find((item) => item.description === 'Café especial 500g')?.description).toBe('Café especial 500g')
   })
 
-  it('o lucro de cada item fecha com venda − custo − impostos − materiais − taxas', async () => {
+  it('o lucro bruto de cada item é venda − custo − impostos − materiais', async () => {
     const [profit] = (await importFile.execute(buildProfitTemplate(period))) as ProfitReport[]
-    expect(profit!.hasColumn.materials).toBe(true)
     for (const item of profit!.items) {
       expect(item.materials).toBeGreaterThan(0)
-      expect(item.profit).toBeCloseTo(item.revenue - item.cost - item.tax - item.materials - item.financialFee, 1)
+      expect(item.profit).toBeCloseTo(item.revenue - item.cost - item.tax - item.materials, 1)
     }
   })
 })

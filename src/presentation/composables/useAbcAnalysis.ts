@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { AbcMovement, type AbcAnalysis, type AbcProfitability, type ProfitabilityItem } from '@/application'
+import { AbcMovement, isCombinedKey, type AbcAnalysis, type AbcProfitability, type ProfitabilityItem } from '@/application'
 import type { Insight } from '@/domain/analysis'
 import { ratio, relativeChange } from '@/domain/shared'
 import { container } from '@/infrastructure/container'
@@ -29,7 +29,9 @@ export function useAbcAnalysis() {
   )
 
   watch(abcReports, (reports) => {
-    if (selectedId.value && !reports.some((r) => r.id === selectedId.value)) selectedId.value = null
+    if (selectedId.value && !isCombinedKey(selectedId.value) && !reports.some((r) => r.id === selectedId.value)) {
+      selectedId.value = null
+    }
   })
 
   const insights = computed(() => (analysis.value ? buildAbcInsights(analysis.value) : []))
@@ -40,8 +42,6 @@ export function useAbcAnalysis() {
   return { analysis, selectedId, insights, profitInsights }
 }
 
-const COST_NAMES = { tax: 'impostos', materials: 'materiais', financialFee: 'taxas financeiras' } as const
-
 const listNames = (items: readonly { description: string }[], limit = 3) =>
   `${items.slice(0, limit).map((item) => item.description).join(', ')}${items.length > limit ? '…' : ''}`
 
@@ -51,7 +51,10 @@ const describeMargins = (items: readonly ProfitabilityItem[]) =>
     .map((item) => `${item.description} (${formatPercent(item.margin ?? 0)})`)
     .join(', ')
 
-export function buildProfitInsights(profitability: AbcProfitability, { previous }: AbcAnalysis): Insight[] {
+const scopeOf = (periods: readonly unknown[]) => (periods.length > 1 ? 'período' : 'mês')
+
+export function buildProfitInsights(profitability: AbcProfitability, { previous, periods }: AbcAnalysis): Insight[] {
+  const scope = scopeOf(periods)
   const {
     totals,
     previousTotals,
@@ -67,37 +70,14 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
   const insights: Insight[] = []
   const previousMonth = previous ? formatAbcMonth(previous.report) : ''
   const averageMargin = formatPercent(referenceMargin ?? 0)
-  const reference = missingCost.length ? 'média dos itens com custo cadastrado' : 'média do mês'
-  const { profitCheck } = profitability
-  const checkFormula =
-    'Para cada item, compara o lucro informado com valor vendido − custo gerencial − impostos − materiais − taxas financeiras. Diferenças de até R$ 0,05 ou 0,1% do valor vendido contam como arredondamento.'
-
-  if (profitCheck.divergent.length) {
-    const count = profitCheck.divergent.length
-    const missing = profitCheck.missingColumns.map((column) => COST_NAMES[column])
-    const examples = profitCheck.divergent
-      .slice(0, 3)
-      .map((item) => `${item.description} (${item.unexplained > 0 ? '+' : ''}${formatCurrency(item.unexplained)})`)
-      .join(', ')
-    insights.push({
-      title: 'Lucro não confere',
-      description: `Em ${count} ${count === 1 ? 'item' : 'itens'}, o lucro informado não bate com valor − custo − impostos − materiais − taxas: ${examples}${count > 3 ? '…' : ''}. No total, o relatório informa ${formatCurrency(totals.profit)} e a conta dá ${formatCurrency(profitCheck.calculated)}.`,
-      tone: 'negative',
-      explanation: `${checkFormula} ${
-        missing.length
-          ? `O arquivo não tem coluna de ${missing.join(' nem de ')}; se o sistema desconta esses valores do lucro, a diferença vem daí.`
-          : 'A diferença costuma vir de descontos, fretes ou outros custos que o sistema desconta do lucro e não estão no arquivo.'
-      } Os indicadores usam o lucro informado.`,
-    })
-  }
-
+  const reference = missingCost.length ? 'média dos itens com custo cadastrado' : `média do ${scope}`
   const change = previousTotals ? relativeChange(totals.profit, previousTotals.profit) : null
   if (change !== null) {
     insights.push({
       title: change >= 0 ? 'Lucro em alta' : 'Lucro em queda',
-      description: `Lucro de ${formatCurrencyCompact(totals.profit)}${totals.margin !== null ? ` (margem de ${formatPercent(totals.margin)})` : ''}, ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
+      description: `Lucro bruto de ${formatCurrencyCompact(totals.profit)}${totals.margin !== null ? ` (margem de ${formatPercent(totals.margin)})` : ''}, ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
       tone: change >= 0 ? 'positive' : 'negative',
-      explanation: `Lucro informado no relatório de lucro, somado em todos os itens. Variação = (lucro do mês − lucro de ${previousMonth}) ÷ |lucro de ${previousMonth}|.`,
+      explanation: `Lucro bruto = valor vendido − custo gerencial − impostos − materiais, somado em todos os itens. A taxa financeira do relatório não entra. Variação = (lucro do mês − lucro de ${previousMonth}) ÷ |lucro de ${previousMonth}|.`,
     })
   }
 
@@ -105,13 +85,13 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
   if (classA.revenue && classA.margin !== null && referenceMargin !== null) {
     const share =
       classA.profitShare !== null
-        ? `A classe A gera ${formatPercent(classA.profitShare)} do lucro do mês`
+        ? `A classe A gera ${formatPercent(classA.profitShare)} do lucro do ${scope}`
         : `A classe A teve lucro de ${formatCurrencyCompact(classA.profit)}${totals.profit <= 0 ? ' em um mês com prejuízo no total' : ''}`
     insights.push({
       title: 'Lucro da classe A',
       description: `${share}, com margem de ${formatPercent(classA.margin)} (${reference}: ${averageMargin}).`,
       tone: classA.margin >= referenceMargin ? 'positive' : 'negative',
-      explanation: `Participação = lucro dos itens classe A ÷ lucro total do mês, mostrada só quando o lucro total é positivo e nenhuma classe dá prejuízo. Margem da classe = lucro ÷ valor vendido dos itens A com custo cadastrado.`,
+      explanation: `Participação = lucro dos itens classe A ÷ lucro total do ${scope}, mostrada só quando o lucro total é positivo e nenhuma classe dá prejuízo. Margem da classe = lucro ÷ valor vendido dos itens A com custo cadastrado.`,
     })
   }
 
@@ -141,7 +121,7 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
       title: 'Maior lucro por unidade',
       description: `${bestPerUnit.description}: ${formatCurrency(bestPerUnit.profitPerUnit!)} de lucro a cada unidade vendida.`,
       tone: 'neutral',
-      explanation: 'Lucro do item ÷ quantidade vendida no mês. Itens sem custo cadastrado ficam de fora.',
+      explanation: `Lucro do item ÷ quantidade vendida no ${scope}. Itens sem custo cadastrado ficam de fora.`,
     })
   }
 
@@ -150,7 +130,7 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
       title: 'Itens com prejuízo',
       description: `${losses.length} ${losses.length === 1 ? 'item teve' : 'itens tiveram'} lucro negativo: ${listNames(losses)}.`,
       tone: 'negative',
-      explanation: 'Itens em que custo gerencial + impostos + materiais + taxas superaram o valor vendido no mês.',
+      explanation: `Itens em que custo gerencial + impostos + materiais superaram o valor vendido no ${scope}.`,
     })
   }
 
@@ -160,15 +140,6 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
       description: `${missingCost.length} ${missingCost.length === 1 ? 'item está' : 'itens estão'} com custo zero, o que infla a margem: ${listNames(missingCost)}.`,
       tone: 'negative',
       explanation: 'Itens vendidos com custo gerencial igual a zero no relatório de lucro. Provavelmente falta o custo no cadastro do sistema; o lucro desses itens aparece igual ao valor vendido.',
-    })
-  }
-
-  if (!profitCheck.divergent.length && items.length) {
-    insights.push({
-      title: 'Lucro conferido',
-      description: `O lucro informado dos ${items.length} itens bate com valor vendido − custo − impostos − materiais − taxas.`,
-      tone: 'positive',
-      explanation: checkFormula,
     })
   }
 
@@ -192,7 +163,8 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
 
 const shareOf = (part: number, total: number) => ratio(part, total) ?? 0
 
-export function buildAbcInsights({ current, previous, ranking, movements }: AbcAnalysis): Insight[] {
+export function buildAbcInsights({ current, previous, ranking, movements, periods }: AbcAnalysis): Insight[] {
+  const scope = scopeOf(periods)
   const items: Insight[] = []
   const classA = current.byClass.A
   const basis = current.report.basis
@@ -204,7 +176,7 @@ export function buildAbcInsights({ current, previous, ranking, movements }: AbcA
       title: 'Concentração na classe A',
       description: `${classA.items} de ${current.items} itens (${formatPercent(shareOf(classA.items, current.items))}) respondem por ${formatPercent(shareOf(classA.quantity, current.quantity))} da quantidade e ${formatPercent(shareOf(classA.value, current.value))} do faturamento.`,
       tone: 'neutral',
-      explanation: 'Itens, quantidade e faturamento da classe A divididos pelos totais do mês. Na curva ABC, poucos itens (classe A) costumam concentrar a maior parte do resultado.',
+      explanation: `Itens, quantidade e faturamento da classe A divididos pelos totais do ${scope}. Na curva ABC, poucos itens (classe A) costumam concentrar a maior parte do resultado.`,
     })
   }
 
@@ -225,9 +197,9 @@ export function buildAbcInsights({ current, previous, ranking, movements }: AbcA
   if (topValue && topValue.value > 0 && topValue.code !== leader?.code) {
     items.push({
       title: 'Maior faturamento',
-      description: `${topValue.description} gerou ${formatCurrency(topValue.value)}, ${formatPercent(shareOf(topValue.value, current.value))} do total do mês.`,
+      description: `${topValue.description} gerou ${formatCurrency(topValue.value)}, ${formatPercent(shareOf(topValue.value, current.value))} do total do ${scope}.`,
       tone: 'neutral',
-      explanation: 'Item com o maior valor total no mês, exibido quando é diferente do item líder. Percentual = valor do item ÷ faturamento total do mês.',
+      explanation: `Item com o maior valor total no ${scope}, exibido quando é diferente do item líder. Percentual = valor do item ÷ faturamento total do ${scope}.`,
     })
   }
 

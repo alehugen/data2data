@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PhWarning } from '@phosphor-icons/vue'
 import { computed, ref } from 'vue'
-import { AbcMovement } from '@/application'
+import { ABC_ALL_MONTHS, AbcMovement, abcYearKey } from '@/application'
 import { ABC_CLASSES, type AbcClass } from '@/domain/abc'
 import { ratio, relativeChange } from '@/domain/shared'
 import AbcBadge from '@/presentation/components/AbcBadge.vue'
@@ -30,6 +30,7 @@ import {
   formatCurrencyCompact,
   formatNumber,
   formatPercent,
+  formatPeriod,
 } from '@/presentation/format'
 
 const { analysis, selectedId, insights, profitInsights } = useAbcAnalysis()
@@ -56,10 +57,10 @@ const INFO = {
     'Faturamento de cada mês importado, dividido por classe. Quando há relatório de lucro do mês, a linha mostra o lucro total para comparar com as vendas.',
   movement:
     'Compara cada item com o mês anterior importado, pelo código. Novo: não vendeu antes. Subiu/Caiu: mudou de classe (A é a melhor). Saiu: não vendeu neste mês.',
-  profit: 'Lucro informado no relatório de lucro do mês, somado em todos os itens. O app confere se ele bate com valor vendido − custo gerencial − impostos − materiais − taxas financeiras e avisa nos pontos de análise quando não bate.',
+  profit: 'Lucro bruto = valor vendido − custo gerencial − impostos − materiais, somado em todos os itens. A taxa financeira e o lucro informados no relatório não entram na conta.',
   margin: 'Lucro ÷ valor vendido. Mostra quanto de cada real vendido vira lucro. A variação é em pontos percentuais (p.p.): de 20% para 22% são +2 p.p.',
   cost: 'Soma do custo gerencial dos itens vendidos (custo de aquisição do produto). O percentual é custo ÷ valor vendido.',
-  taxes: 'Soma de impostos, materiais usados na aplicação e taxas financeiras (cartão, boleto) dos itens vendidos. O percentual é sobre o valor vendido.',
+  taxes: 'Soma de impostos e materiais usados na aplicação dos itens vendidos. O percentual é sobre o valor vendido.',
   profitRanking: 'Itens ordenados pelo lucro em reais no mês. A cor indica a classe ABC; o tooltip mostra a margem e o lucro por unidade.',
   profitTable:
     'Valores do relatório de lucro por produto, com a classe da Curva ABC do mesmo mês. O alerta indica custo zerado, o que costuma ser falta de cadastro e infla a margem.',
@@ -69,18 +70,39 @@ const current = computed(() => analysis.value?.current)
 const previous = computed(() => analysis.value?.previous)
 const profitability = computed(() => analysis.value?.profitability ?? null)
 const previousLabel = computed(() => (previous.value ? formatAbcMonth(previous.value.report) : undefined))
-const currentLabel = computed(() => (current.value ? formatAbcMonth(current.value.report) : ''))
-const monthKey = computed({
-  get: () => current.value?.report.id ?? '',
-  set: (id: string) => (selectedId.value = id),
+const combined = computed(() => (analysis.value?.periods.length ?? 0) > 1)
+const currentLabel = computed(() => {
+  const periods = analysis.value?.periods ?? []
+  if (combined.value) return `${formatPeriod(periods[0]!)} a ${formatPeriod(periods.at(-1)!)}`
+  return current.value ? formatAbcMonth(current.value.report) : ''
 })
-const monthGroups = computed(() => [
-  {
-    label: 'Mês',
-    options: [...(analysis.value?.months ?? [])].reverse().map((m) => ({ key: m.report.id, label: formatAbcMonth(m.report) })),
-  },
-])
-const currentIndex = computed(() => analysis.value?.months.findIndex((m) => m.report.id === current.value?.report.id))
+const monthKey = computed({
+  get: () => (combined.value && selectedId.value ? selectedId.value : (current.value?.report.id ?? '')),
+  set: (key: string) => (selectedId.value = key),
+})
+const monthGroups = computed(() => {
+  const months = analysis.value?.months ?? []
+  const dated = months.filter((m) => m.report.period)
+  const years = [...new Set(dated.map((m) => m.report.period!.year))]
+  const yearOptions = years
+    .filter((year) => dated.filter((m) => m.report.period!.year === year).length > 1)
+    .reverse()
+    .map((year) => ({ key: abcYearKey(year), label: `Acumulado ${year}` }))
+  return [
+    { label: 'Mês', options: [...months].reverse().map((m) => ({ key: m.report.id, label: formatAbcMonth(m.report) })) },
+    {
+      label: 'Combinado',
+      options: dated.length > 1
+        ? [{ key: ABC_ALL_MONTHS, label: `Todos os meses (${dated.length})` }, ...(years.length > 1 ? yearOptions : [])]
+        : [],
+    },
+  ]
+})
+const currentIndex = computed(() => {
+  if (combined.value) return undefined
+  const index = analysis.value?.months.findIndex((m) => m.report.id === current.value?.report.id) ?? -1
+  return index === -1 ? undefined : index
+})
 const shareOfRevenue = (value: number) => ratio(value, profitability.value?.totals.revenue ?? 0) ?? 0
 const classLabel = (abcClass: AbcClass | null) => (abcClass ? `Classe ${abcClass}` : 'Sem classe na Curva ABC')
 const classColor = (abcClass: AbcClass | null) => (abcClass ? theme.value.abcClass[abcClass] : theme.value.chrome.textMuted)
@@ -103,15 +125,14 @@ const kpis = computed(() => {
   ]
 })
 
-const otherCosts = (totals: { tax: number; materials: number; financialFee: number }) =>
-  totals.tax + totals.materials + totals.financialFee
+const otherCosts = (totals: { tax: number; materials: number }) => totals.tax + totals.materials
 
 const profitKpis = computed(() => {
   const data = profitability.value
   if (!data) return []
   const { totals, previousTotals } = data
   return [
-    { label: 'Lucro', value: formatCurrencyCompact(totals.profit), delta: relativeChange(totals.profit, previousTotals?.profit), info: INFO.profit },
+    { label: 'Lucro bruto', value: formatCurrencyCompact(totals.profit), delta: relativeChange(totals.profit, previousTotals?.profit), info: INFO.profit },
     {
       label: 'Margem de lucro',
       value: totals.margin !== null ? formatPercent(totals.margin) : '–',
@@ -128,7 +149,7 @@ const profitKpis = computed(() => {
       info: INFO.cost,
     },
     {
-      label: 'Impostos, materiais e taxas',
+      label: 'Impostos e materiais',
       value: formatCurrencyCompact(otherCosts(totals)),
       hint: `${formatPercent(shareOfRevenue(otherCosts(totals)))} do valor vendido`,
       delta: previousTotals ? relativeChange(otherCosts(totals), otherCosts(previousTotals)) : null,
@@ -179,7 +200,7 @@ const evolution = computed(() => {
         data: months.map((m) => m.byClass[abcClass].value),
       })),
       ...(hasProfit
-        ? [{ name: 'Lucro', type: 'line' as const, color: theme.value.chrome.text, data: months.map((m) => m.profitReport?.totals.profit ?? null) }]
+        ? [{ name: 'Lucro bruto', type: 'line' as const, color: theme.value.chrome.text, data: months.map((m) => m.profitReport?.totals.profit ?? null) }]
         : []),
     ],
   }
@@ -233,9 +254,11 @@ const movementTone: Record<AbcMovement, string> = {
     <PageHeader
       title="Curva ABC"
       :subtitle="
-        current.report.basis
-          ? `Classificação por ${BASIS_LABELS[current.report.basis]}, como no relatório de origem`
-          : 'Classificação conforme o relatório de origem'
+        combined && current.report.basis
+          ? `Classificação recalculada por ${BASIS_LABELS[current.report.basis]} sobre ${currentLabel}: classe A até 80% do total, B até 95%`
+          : current.report.basis
+            ? `Classificação por ${BASIS_LABELS[current.report.basis]}, como no relatório de origem`
+            : 'Classificação conforme o relatório de origem'
       "
     />
 
@@ -344,7 +367,7 @@ const movementTone: Record<AbcMovement, string> = {
           <ChartCard title="Lucro por item" subtitle="Do mais ao menos lucrativo" :info="INFO.profitRanking">
             <RankingBarChart
               :items="profitRanking"
-              value-label="Lucro"
+              value-label="Lucro bruto"
               :format-value="formatCurrency"
               :format-axis="formatCurrencyCompact"
             />
@@ -363,8 +386,8 @@ const movementTone: Record<AbcMovement, string> = {
                   <TableHead class="px-3 py-2 text-right font-medium">Valor vendido</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Custo</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Materiais</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Impostos e taxas</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Lucro</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Impostos</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Lucro bruto</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Margem</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Lucro/un.</TableHead>
                 </TableRow>
@@ -385,7 +408,7 @@ const movementTone: Record<AbcMovement, string> = {
                   <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.revenue) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.cost) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.materials) }}</TableCell>
-                  <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.tax + item.financialFee) }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.tax) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right font-medium" :class="item.profit < 0 && 'text-destructive'">{{ formatCurrency(item.profit) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right">{{ item.margin !== null ? formatPercent(item.margin) : '–' }}</TableCell>
                   <TableCell class="px-3 py-2 text-right text-muted-foreground">{{ item.profitPerUnit !== null ? formatCurrency(item.profitPerUnit) : '–' }}</TableCell>

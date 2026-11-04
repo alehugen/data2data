@@ -76,7 +76,6 @@ describe('buildAbcInsights e buildProfitInsights', () => {
       'Maior lucro por unidade',
       'Itens com prejuízo',
       'Custo não cadastrado',
-      'Lucro conferido',
       'Divergência entre relatórios',
     ])
     expect(insights.find((i) => i.title === 'Vende muito, lucra pouco')?.description).toContain('Vacina Alfa')
@@ -87,20 +86,8 @@ describe('buildAbcInsights e buildProfitInsights', () => {
   it('não fala em fatia do lucro quando há prejuízo e compara com a média dos itens com custo', () => {
     const description = buildProfitInsights(analysis.profitability!, analysis).find((i) => i.title === 'Lucro da classe A')!
       .description
-    expect(description).toMatch(/^A classe A teve lucro de R\$\s?1,2\smil/)
-    expect(description).toContain('média dos itens com custo cadastrado: 29%')
-  })
-
-  it('avisa primeiro quando o lucro informado não confere', () => {
-    const rows = csvRows(PROFIT_OCTOBER).map((row) => (row[1] === 'Vacina Alfa' ? [...row.slice(0, 7), '800'] : row))
-    const inflated = new AnalyzeAbcUseCase().execute(abc, [
-      profit[0]!,
-      ProfitReport.fromTable({ name: 'lucro out.2026', rows })!,
-    ])!
-    const [first] = buildProfitInsights(inflated.profitability!, inflated)
-    expect(first!.title).toBe('Lucro não confere')
-    expect(first!.description).toMatch(/Vacina Alfa \(\+R\$\s?80,00\)/)
-    expect(first!.description).toMatch(/informa R\$\s?1\.759,00 e a conta dá R\$\s?1\.679,00/)
+    expect(description).toMatch(/^A classe A teve lucro de R\$\s?1,3\smil/)
+    expect(description).toContain('média dos itens com custo cadastrado: 31%')
   })
 
   it('nomeia o mês comparado nas maiores altas e quedas', () => {

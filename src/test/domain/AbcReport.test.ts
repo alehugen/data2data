@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ABC_SEPTEMBER, csvRows } from '@/test/fixtures'
+import { ABC_OCTOBER, ABC_SEPTEMBER, csvRows } from '@/test/fixtures'
 import { AbcReport } from '@/domain/abc'
 
 const parse = (rows: string[][], name = 'Relatório_Curva_ABC- set.2026') => AbcReport.fromTable({ name, rows })
@@ -79,5 +79,38 @@ describe('AbcReport: coluna de percentual', () => {
       rows: [['Descrição', 'Qtde', 'Valor total', 'Classe'], ['X', '1', '100', 'A'], ['Y', '5', '500', 'B']],
     })!
     expect(report.basis).toBeNull()
+  })
+})
+
+describe('AbcReport.combine', () => {
+  const september = parse(csvRows(ABC_SEPTEMBER))!
+  const october = parse(csvRows(ABC_OCTOBER), 'Relatório_Curva_ABC- out.2026')!
+  const combined = AbcReport.combine([september, october], 'Meses combinados')
+
+  it('soma cada produto nos meses e não tem mês próprio', () => {
+    expect(combined.period).toBeNull()
+    expect(combined.totalQuantity).toBe(40)
+    expect(combined.totalValue).toBe(12200)
+    expect(combined.items.find((item) => item.description === 'Vacina Alfa')).toMatchObject({ quantity: 18, value: 9000 })
+  })
+
+  it('recalcula participação e classe sobre o total, pelo critério dos relatórios', () => {
+    expect(combined.basis).toBe('quantity')
+    expect(combined.items.map((item) => [item.description, item.share, item.abcClass])).toEqual([
+      ['Vacina Alfa', 0.45, 'A'],
+      ['Vacina Beta', 0.225, 'A'],
+      ['Aplicação de brinco', 0.225, 'A'],
+      ['Produto Gama', 0.05, 'B'],
+      ['Produto Novo', 0.05, 'C'],
+    ])
+  })
+
+  it('usa o faturamento quando os relatórios têm critérios diferentes', () => {
+    const byValue = parse([
+      ['Descrição', 'Qtde', 'Valor total', 'Classe'],
+      ['Caro', '1', '1000', 'A'],
+      ['Barato', '100', '100', 'C'],
+    ])!
+    expect(AbcReport.combine([september, byValue], 'Meses').basis).toBe('value')
   })
 })

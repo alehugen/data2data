@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AbcMovement, analyzeProfitability, AnalyzeAbcUseCase } from '@/application'
+import { ABC_ALL_MONTHS, AbcMovement, abcYearKey, analyzeProfitability, AnalyzeAbcUseCase } from '@/application'
 import { AbcReport } from '@/domain/abc'
 import { ProfitReport } from '@/domain/profit'
 import { ABC_OCTOBER, ABC_SEPTEMBER, PROFIT_OCTOBER, PROFIT_SEPTEMBER, csvRows } from '@/test/fixtures'
@@ -64,7 +64,7 @@ describe('AnalyzeAbcUseCase', () => {
     const analysis = useCase.execute([abcSeptember, abcOctober], [profitOctober, profitSeptember])!
     expect(analysis.current.profitReport).toBe(profitOctober)
     expect(analysis.months[0]!.profitReport).toBe(profitSeptember)
-    expect(analysis.profitability?.previousTotals?.profit).toBe(1717)
+    expect(analysis.profitability?.previousTotals?.profit).toBe(1850)
   })
 
   it('não cruza lucro sem relatório do mês', () => {
@@ -76,28 +76,63 @@ describe('AnalyzeAbcUseCase', () => {
   })
 })
 
+describe('meses combinados', () => {
+  it('soma todos os meses, recalcula as classes e não compara com mês anterior', () => {
+    const analysis = useCase.execute([abcSeptember, abcOctober], [], ABC_ALL_MONTHS)!
+    expect(analysis.periods).toEqual([
+      { year: 2026, month: 9 },
+      { year: 2026, month: 10 },
+    ])
+    expect(analysis.current).toMatchObject({ items: 5, quantity: 40, value: 12200 })
+    expect(analysis.current.byClass.A).toMatchObject({ items: 3, quantity: 36 })
+    expect(analysis.ranking.map((item) => item.description)[0]).toBe('Vacina Alfa')
+    expect(analysis).toMatchObject({ previous: null, movements: [], profitability: null })
+    expect(analysis.months).toHaveLength(2)
+  })
+
+  it('combina também o lucro quando todos os meses têm relatório de lucro', () => {
+    const analysis = useCase.execute([abcSeptember, abcOctober], [profitSeptember, profitOctober], ABC_ALL_MONTHS)!
+    expect(analysis.profitability!.totals.profit).toBe(1850 + 1790)
+    expect(analysis.profitability!.previousTotals).toBeNull()
+    expect(useCase.execute([abcSeptember, abcOctober], [profitOctober], ABC_ALL_MONTHS)!.profitability).toBeNull()
+  })
+
+  it('filtra pelo ano no acumulado', () => {
+    const lastYear = AbcReport.fromTable({ name: 'Curva ABC dez.2025', rows: csvRows(ABC_SEPTEMBER) })!
+    const analysis = useCase.execute([lastYear, abcSeptember, abcOctober], [], abcYearKey(2026))!
+    expect(analysis.periods.map((period) => period.year)).toEqual([2026, 2026])
+    expect(analysis.current.quantity).toBe(40)
+  })
+
+  it('com um mês só, volta para a análise do mês', () => {
+    const analysis = useCase.execute([abcSeptember], [], ABC_ALL_MONTHS)!
+    expect(analysis.current.report).toBe(abcSeptember)
+    expect(analysis.periods).toEqual([{ year: 2026, month: 9 }])
+  })
+})
+
 describe('analyzeProfitability', () => {
   const result = analyzeProfitability(abcOctober, profitOctober, profitSeptember)
   const descriptions = (items: readonly { description: string }[]) => items.map((item) => item.description)
 
   it('totaliza o lucro e a margem do mês', () => {
-    expect(result.totals.profit).toBe(1679)
-    expect(result.totals.margin).toBeCloseTo(1679 / 5550)
-    expect(result.previousTotals?.profit).toBe(1717)
+    expect(result.totals.profit).toBe(1790)
+    expect(result.totals.margin).toBeCloseTo(1790 / 5550)
+    expect(result.previousTotals?.profit).toBe(1850)
   })
 
   it('cruza cada item com a classe da Curva ABC', () => {
     const item = result.items.find((i) => i.description === 'Aplicação de brinco')!
-    expect(item).toMatchObject({ abcClass: 'A', profit: 490, costMissing: false })
-    expect(item.margin).toBeCloseTo(490 / 600)
-    expect(item.profitPerUnit).toBeCloseTo(490 / 6)
+    expect(item).toMatchObject({ abcClass: 'A', profit: 500, costMissing: false })
+    expect(item.margin).toBeCloseTo(500 / 600)
+    expect(item.profitPerUnit).toBeCloseTo(500 / 6)
     expect(result.items[0]!.profit).toBeGreaterThanOrEqual(result.items[1]!.profit)
   })
 
   it('separa o lucro por classe e o que ficou fora da curva', () => {
-    expect(result.byClass.A.profit).toBe(1210)
-    expect(result.byClass.A.margin).toBeCloseTo(1210 / 4600)
-    expect(result.outsideAbc).toEqual({ revenue: 50, profit: -11 })
+    expect(result.byClass.A.profit).toBe(1300)
+    expect(result.byClass.A.margin).toBeCloseTo(1300 / 4600)
+    expect(result.outsideAbc).toEqual({ revenue: 50, profit: -10 })
   })
 
   it('não calcula fatia do lucro quando alguma parte dá prejuízo', () => {
@@ -107,44 +142,21 @@ describe('analyzeProfitability', () => {
       rows: csvRows(PROFIT_OCTOBER).filter((row) => row[1] !== 'Item Fora da Curva'),
     })!
     const shares = analyzeProfitability(abcOctober, withoutLoss).byClass
-    expect(shares.A.profitShare).toBeCloseTo(1210 / 1690)
+    expect(shares.A.profitShare).toBeCloseTo(1300 / 1800)
   })
 
-  it('confere o lucro informado com venda − custo − impostos − taxas', () => {
-    expect(result.profitCheck).toMatchObject({ divergent: [], missingColumns: ['materials'] })
-    expect(result.profitCheck.difference).toBeCloseTo(0)
-
-    const rows = csvRows(PROFIT_OCTOBER).map((row) => (row[1] === 'Vacina Alfa' ? [...row.slice(0, 7), '800'] : row))
-    const inflated = analyzeProfitability(abcOctober, ProfitReport.fromTable({ name: 'Lucro out.2026', rows })!)
-    expect(inflated.profitCheck.divergent.map((item) => [item.description, item.unexplained])).toEqual([['Vacina Alfa', 80]])
-    expect(inflated.profitCheck.calculated).toBeCloseTo(1679)
-    expect(inflated.profitCheck.difference).toBeCloseTo(80)
-  })
-
-  it('desconta os materiais na conferência do lucro', () => {
+  it('calcula o lucro bruto sem a taxa financeira e ignora o lucro informado no arquivo', () => {
     const rows = [
       ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Imposto', 'Materiais', 'TaxaFinanceira', 'Lucro'],
-      ['1', 'Vacina Alfa', '8', '4000', '3200', '0', '160', '80', '560'],
-      ['3', 'Aplicação de brinco', '6', '600', '100', '0', '5', '10', '485'],
+      ['1', 'Vacina Alfa', '8', '4000', '3200', '0', '160', '80', '1'],
     ]
-    const check = analyzeProfitability(abcOctober, ProfitReport.fromTable({ name: 'Lucro out.2026', rows })!).profitCheck
-    expect(check).toMatchObject({ divergent: [], missingColumns: [] })
-    expect(check.calculated).toBeCloseTo(560 + 485)
-  })
-
-  it('aponta as colunas que faltam para fechar o lucro e tolera arredondamento', () => {
-    const rows = [
-      ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Lucro'],
-      ['1', 'Vacina Alfa', '8', '4000', '3200', '720'],
-      ['3', 'Aplicação de brinco', '6', '600', '100', '500.03'],
-    ]
-    const check = analyzeProfitability(abcOctober, ProfitReport.fromTable({ name: 'Lucro out.2026', rows })!).profitCheck
-    expect(check.missingColumns).toEqual(['tax', 'materials', 'financialFee'])
-    expect(check.divergent.map((item) => item.description)).toEqual(['Vacina Alfa'])
+    const result = analyzeProfitability(abcOctober, ProfitReport.fromTable({ name: 'Lucro out.2026', rows })!)
+    expect(result.items[0]!.profit).toBe(4000 - 3200 - 160)
+    expect(result.totals.profit).toBe(640)
   })
 
   it('compara margens só com itens que têm custo cadastrado', () => {
-    expect(result.referenceMargin).toBeCloseTo((720 + 490 + 380 - 11) / (4000 + 600 + 800 + 50))
+    expect(result.referenceMargin).toBeCloseTo((800 + 500 + 400 - 10) / (4000 + 600 + 800 + 50))
   })
 
   it('não trata item fora da Curva ABC como classe B ou C', () => {

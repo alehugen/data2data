@@ -40,13 +40,47 @@ export class AbcReport {
   readonly totalValue: number
   readonly basis: AbcBasis | null
 
-  private constructor(name: string, items: AbcItem[], basis: AbcBasis | null) {
+  private constructor(
+    name: string,
+    items: AbcItem[],
+    basis: AbcBasis | null,
+    period: Period | null = parsePeriodFromText(name),
+  ) {
     this.name = name
-    this.period = parsePeriodFromText(name)
+    this.period = period
     this.items = items
     this.totalQuantity = sum(items.map((item) => item.quantity))
     this.totalValue = sum(items.map((item) => item.value))
     this.basis = basis
+  }
+
+  static combine(reports: readonly AbcReport[], name: string): AbcReport {
+    const first = reports[0]?.basis
+    const sameBasis = first && reports.every((report) => report.basis === first) ? first : 'value'
+    const merged = new Map<string, { code: string; description: string; quantity: number; value: number }>()
+    for (const item of reports.flatMap((report) => report.items)) {
+      const existing = merged.get(item.code)
+      merged.set(item.code, {
+        code: item.code,
+        description: item.description,
+        quantity: (existing?.quantity ?? 0) + item.quantity,
+        value: (existing?.value ?? 0) + item.value,
+      })
+    }
+    const totals = [...merged.values()]
+    const basis = sameBasis === 'value' && sum(totals.map(pickValue)) <= 0 ? 'quantity' : sameBasis
+    const pick = basis === 'quantity' ? pickQuantity : pickValue
+    const total = sum(totals.map(pick))
+    let before = 0
+    const items = [...totals]
+      .sort((a, b) => pick(b) - pick(a))
+      .map((item): AbcItem => {
+        const share = total ? pick(item) / total : 0
+        const abcClass = before < A_CUTOFF ? AbcClass.A : before < B_CUTOFF ? AbcClass.B : AbcClass.C
+        before += share
+        return { ...item, share, abcClass }
+      })
+    return new AbcReport(name, items, basis, null)
   }
 
   static fromTable(table: RawTable): AbcReport | null {
@@ -89,8 +123,10 @@ export class AbcReport {
   }
 }
 
-const pickQuantity = (item: AbcItem) => item.quantity
-const pickValue = (item: AbcItem) => item.value
+const pickQuantity = (item: { quantity: number }) => item.quantity
+const pickValue = (item: { value: number }) => item.value
+const A_CUTOFF = 0.8
+const B_CUTOFF = 0.95
 function classesFollow(items: readonly AbcItem[], pick: (item: AbcItem) => number): boolean {
   const classes = ABC_CLASSES.map((abcClass) => items.filter((item) => item.abcClass === abcClass).map(pick)).filter(
     (values) => values.length,

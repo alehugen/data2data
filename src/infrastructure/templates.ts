@@ -246,7 +246,6 @@ const PRODUCTS: Product[] = [
 ]
 
 const TAX_RATE = 0.04
-const FEE_RATE = 0.025
 const MATERIALS_RATE = 0.05
 
 interface Sale {
@@ -290,13 +289,12 @@ export function buildProfitTemplate(period: Period): File {
     const cost = round2(quantity * product.unitCost)
     const tax = round2(value * TAX_RATE)
     const materials = round2(cost * MATERIALS_RATE)
-    const fee = round2(value * FEE_RATE)
-    const profit = value - cost - tax - materials - fee
-    return [product.code, product.description, quantity, csvNumber(value), csvNumber(cost), csvNumber(tax), csvNumber(materials), csvNumber(fee), csvNumber(profit)]
+    const profit = value - cost - tax - materials
+    return [product.code, product.description, quantity, csvNumber(value), csvNumber(cost), csvNumber(tax), csvNumber(materials), csvNumber(profit)]
   })
 
   const csv = toCsv(
-    ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Imposto', 'Materiais', 'TaxaFinanceira', 'Lucro'],
+    ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Imposto', 'Materiais', 'Lucro'],
     rows,
   )
   return new File([csv], `Modelo_Lucro_por_Produto-${periodSuffix(period)}.csv`, { type: 'text/csv' })

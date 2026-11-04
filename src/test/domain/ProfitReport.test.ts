@@ -5,7 +5,7 @@ import { ProfitReport } from '@/domain/profit'
 const parse = (rows: string[][], name = 'Relatório_Lucro_por_Produto-out.2026') => ProfitReport.fromTable({ name, rows })
 
 describe('ProfitReport.fromTable', () => {
-  it('lê os itens com custo, impostos, taxas e lucro', () => {
+  it('lê os itens e calcula o lucro bruto sem a taxa financeira', () => {
     const report = parse(csvRows(PROFIT_OCTOBER))!
     expect(report.period).toEqual({ year: 2026, month: 10 })
     expect(report.items[0]).toEqual({
@@ -16,8 +16,7 @@ describe('ProfitReport.fromTable', () => {
       cost: 3200,
       tax: 0,
       materials: 0,
-      financialFee: 80,
-      profit: 720,
+      profit: 800,
     })
   })
 
@@ -28,8 +27,7 @@ describe('ProfitReport.fromTable', () => {
       cost: 3760,
       tax: 0,
       materials: 0,
-      financialFee: 111,
-      profit: 1679,
+      profit: 1790,
     })
   })
 
@@ -53,12 +51,12 @@ describe('ProfitReport.fromTable', () => {
     expect(report.totals.profit).toBe(40)
   })
 
-  it('trata custos, impostos e taxas como saídas mesmo quando vêm negativos', () => {
+  it('trata custos, impostos e materiais como saídas mesmo quando vêm negativos', () => {
     const report = parse([
-      ['Código', 'Descrição', 'Valor total', 'Custo', 'Imposto', 'Taxa financeira', 'Lucro'],
+      ['Código', 'Descrição', 'Valor total', 'Custo', 'Imposto', 'Materiais', 'Lucro'],
       ['1', 'X', '100', '-60', '-5', '-2', '33'],
     ])!
-    expect(report.items[0]).toMatchObject({ cost: 60, tax: 5, financialFee: 2, profit: 33 })
+    expect(report.items[0]).toMatchObject({ cost: 60, tax: 5, materials: 2, profit: 33 })
   })
 
   it('prefere a coluna de custo total à de custo unitário, em qualquer ordem', () => {
@@ -83,19 +81,32 @@ describe('ProfitReport.fromTable', () => {
       ['1', 'Item A', '2', '360', '184,24', '28,8', '9,212', '6,3', '131,448'],
       ['2', 'Item B', '3', '870', '430,65', '69,6', '21,5325', '15,24', '332,9775'],
     ])!
-    expect(report.hasColumn).toEqual({ tax: true, materials: true, financialFee: true })
-    expect(report.items[0]).toMatchObject({ cost: 184.24, materials: 9.212, profit: 131.448 })
+    expect(report.items[0]).toMatchObject({ cost: 184.24, materials: 9.212 })
+    expect(report.items[0]!.profit).toBeCloseTo(360 - 184.24 - 28.8 - 9.212)
     expect(report.totals.materials).toBeCloseTo(9.212 + 21.5325)
-    expect(report.totals.profit).toBeCloseTo(131.448 + 332.9775)
+    expect(report.totals.profit).toBeCloseTo(360 - 184.24 - 28.8 - 9.212 + (870 - 430.65 - 69.6 - 21.5325))
   })
 
   it('aceita relatórios antigos, sem coluna de materiais', () => {
     const report = parse(csvRows(PROFIT_OCTOBER))!
-    expect(report.hasColumn.materials).toBe(false)
     expect(report.totals.materials).toBe(0)
   })
 
   it('não confunde Curva ABC com relatório de lucro', () => {
     expect(parse([['ProCodigo', 'ProDescricao', 'Qtde', 'ValorTotal', 'Classificacao'], ['1', 'X', '1', '10', 'A']])).toBeNull()
+  })
+})
+
+describe('ProfitReport.combine', () => {
+  it('soma os itens pelo código', () => {
+    const october = parse(csvRows(PROFIT_OCTOBER))!
+    const withMaterials = parse([
+      ['ProCodigo', 'ProDescricao', 'PedValorTotal', 'PedICustoGerencial', 'Materiais', 'Lucro'],
+      ['1', 'Vacina Alfa', '1000', '800', '10', '190'],
+    ])!
+    const combined = ProfitReport.combine([october, withMaterials], 'Meses combinados')
+    expect(combined.period).toBeNull()
+    expect(combined.items.find((item) => item.code === '1')).toMatchObject({ revenue: 5000, cost: 4000, materials: 10, profit: 990 })
+    expect(combined.totals.profit).toBe(1790 + 190)
   })
 })

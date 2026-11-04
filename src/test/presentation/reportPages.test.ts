@@ -106,9 +106,25 @@ describe('AbcPage', () => {
     expect(page.text()).toContain('Lucratividade por item: set/26')
   })
 
+  it('combina todos os meses pelo seletor e explica a classificação recalculada', async () => {
+    const page = await mountAbc()
+    const select = page.getComponent(PeriodSelect)
+    const combined = select.props('groups')[1].options as { key: string; label: string }[]
+    expect(combined.map((o) => o.label)).toEqual(['Todos os meses (2)'])
+
+    select.vm.$emit('update:modelValue', combined[0]!.key)
+    await flushPromises()
+    expect(page.getComponent(PeriodSelect).props('modelValue')).toBe(combined[0]!.key)
+    expect(page.text()).toContain('Resultado de set/26 a out/26')
+    expect(page.text()).toContain('Classificação recalculada por quantidade vendida sobre set/26 a out/26')
+    expect(page.text()).toContain('Lucratividade por item: set/26 a out/26')
+    expect(page.text()).not.toContain('do mês')
+    expect(page.text()).not.toContain('Movimentação')
+  })
+
   it('mostra a variação da margem em pontos percentuais e a tabela de lucro com materiais', async () => {
     const page = await mountAbc()
-    expect(page.text()).toMatch(/Margem de lucro\s*30,3%.*p\.p\./s)
+    expect(page.text()).toMatch(/Margem de lucro\s*32,3%.*p\.p\./s)
     expect(page.text()).toContain('Materiais')
   })
 
