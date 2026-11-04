@@ -9,7 +9,9 @@ import VolumeMarginChart from '@/presentation/components/VolumeMarginChart.vue'
 import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { useFileImport } from '@/presentation/composables/useFileImport'
 import { useReports } from '@/presentation/composables/useReports'
+import SampleStatement from '@/presentation/components/SampleStatement.vue'
 import ImportPage from '@/presentation/pages/ImportPage.vue'
+import LandingPage from '@/presentation/pages/LandingPage.vue'
 import NotFoundPage from '@/presentation/pages/NotFoundPage.vue'
 import { routeForReport, routes } from '@/presentation/router'
 import { ABC_SEPTEMBER, latin1File } from '@/test/fixtures'
@@ -40,6 +42,17 @@ describe('rotas', () => {
     const [dataset] = await container.importFile.execute(new File(['a;b\n1;2'], 'tabela.csv'))
     expect(routeForReport(abc!)).toEqual({ name: 'abc' })
     expect(routeForReport(dataset!)).toEqual({ name: 'dataset', params: { id: dataset!.id } })
+  })
+})
+
+describe('LandingPage', () => {
+  it('abre com o título e a DRE de exemplo impressa como cupom', () => {
+    const page = mountWithProviders(LandingPage, { global: { stubs } })
+    expect(page.get('h1').text()).toBe('Imprima o mês e veja a conta fechar.')
+    const receipt = page.getComponent(SampleStatement)
+    expect(receipt.props('issuer')).toBe('Cafeteria exemplo')
+    expect(receipt.props('lines').at(-1)?.label).toBe('Resultado líquido')
+    expect(page.text()).toContain('Modelos para preencher')
   })
 })
 

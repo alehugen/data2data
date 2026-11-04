@@ -48,7 +48,9 @@ const share = (value: number) => (total.value ? value / total.value : 0)
           </span>
         </li>
       </ul>
-      <p class="mt-1 text-xs text-muted-foreground">Com valores negativos, a divisão em fatias não se aplica.</p>
+      <p v-if="segments.some((s) => s.value < 0)" class="mt-1 text-xs text-muted-foreground">
+        Com valores negativos, a divisão em fatias não se aplica.
+      </p>
     </template>
   </div>
 </template>

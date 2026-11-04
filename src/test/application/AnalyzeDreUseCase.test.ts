@@ -159,8 +159,6 @@ describe('meta de lucro', () => {
     expect(projection.revenue - projection.variableCosts - projection.fixedCosts).toBeCloseTo(100)
     expect(projection.revenueGap).toBeCloseTo(projection.revenue - 900)
     expect(projection.revenueChange).toBeCloseTo(projection.revenue / 900 - 1)
-    expect(projection.fixedCostCut).toBe(170)
-    expect(projection.contributionRatio).toBeCloseTo(700 / 900)
   })
 
   it('lista as contas que compõem a receita bruta no período', () => {
@@ -238,11 +236,12 @@ describe('meta de lucro', () => {
   })
 
   it('marca a meta como atingida quando o lucro do período já chega lá', () => {
-    expect(useCase.projectProfitTarget({ ...base, profit: 150 }, 100)).toMatchObject({ status: 'reached', fixedCostCut: 0 })
+    expect(useCase.projectProfitTarget({ ...base, profit: 150 }, 100)).toMatchObject({ status: 'reached', paths: null })
   })
 
-  it('omite o caminho pela margem quando ela precisaria passar de 100%', () => {
-    expect(useCase.projectProfitTarget(base, 1000)).toMatchObject({ contributionRatio: null })
+  it('pede receita zero quando a meta cabe nas despesas negativas', () => {
+    const projection = useCase.projectProfitTarget({ ...base, fixedCosts: -500, profit: 600 }, 100)
+    expect(projection).toMatchObject({ status: 'reached', revenue: 0 })
   })
 
   it('não projeta com margem de contribuição zerada ou negativa', () => {

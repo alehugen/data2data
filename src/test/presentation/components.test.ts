@@ -212,6 +212,18 @@ describe('ProfitTarget', () => {
     expect(active(wrapper).text()).toMatch(/Receita considerada: só Vendas vacinas\. As outras receitas \(R\$\s?8\.000\s*por mês\) ficam fora/)
   })
 
+  it('esconde caminhos que não se aplicam e mostra os grupos de despesa só quando existem', async () => {
+    const wrapper = mountTarget({
+      variableLines: [{ label: 'IMPOSTOS SOBRE VENDA', value: 30_000, kind: 'taxes', ratio: 0.6 }],
+      fixedGroups: [],
+    })
+    for (let i = 0; i < 4; i++) await next(wrapper)
+    const text = active(wrapper).text()
+    expect(text).toContain('Reajustar preços')
+    expect(text).not.toContain('Negociar compras')
+    expect(text).not.toContain('Maiores grupos')
+  })
+
   it('reconhece a meta já batida em vez de sugerir caminhos', async () => {
     const wrapper = mountTarget({ profit: 120_000 })
     for (let i = 0; i < 4; i++) await next(wrapper)
@@ -341,6 +353,21 @@ describe('ShareBar', () => {
     expect(wrapper.text()).toContain('Classe A 75%')
     expect(wrapper.text()).toContain('Classe C 0%')
     expect(wrapper.findAll('[role="img"] > div')).toHaveLength(2)
+  })
+
+  it('com tudo zerado, lista os valores sem falar em negativos', () => {
+    const wrapper = mount(ShareBar, {
+      props: {
+        title: 'Lucro',
+        formatValue: String,
+        segments: [
+          { label: 'Classe A', value: 0, color: '#000' },
+          { label: 'Classe B', value: 0, color: '#111' },
+        ],
+      },
+    })
+    expect(wrapper.find('[role="img"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('negativos')
   })
 
   it('lista os valores em vez de fatias quando há valor negativo', () => {

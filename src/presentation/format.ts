@@ -23,6 +23,7 @@ export const formatNumberWhole = (value: number) => wholeFormatter.format(value)
 export const formatCompact = (value: number) => compactFormatter.format(value)
 export const formatCurrency = (value: number) => currencyFormatter.format(value)
 export const formatCurrencyWhole = (value: number) => currencyWholeFormatter.format(value)
+export const formatSignedCurrency = (value: number) => (value > 0 ? '+' : '') + currencyWholeFormatter.format(value)
 export const formatCurrencyCompact = (value: number) => currencyCompactFormatter.format(value)
 export const formatPercent = (value: number) => percentFormatter.format(value)
 export const formatSignedPercent = (value: number) => `${value > 0 ? '+' : ''}${percentFormatter.format(value)}`

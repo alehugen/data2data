@@ -77,12 +77,12 @@ export type ProfitTargetProjection =
       readonly fixedCosts: number
       readonly revenueGap: number
       readonly revenueChange: number | null
-      readonly fixedCostCut: number
-      readonly contributionRatio: number | null
       readonly variableLines: readonly ProjectedCostLine[]
       readonly purchasesChange: number | null
       readonly paths: ProfitPaths | null
     }
+
+export type ReachableProjection = Exclude<ProfitTargetProjection, { status: 'unreachable' }>
 
 export interface DreAnalysis {
   readonly indexes: number[]
@@ -190,7 +190,6 @@ export class AnalyzeDreUseCase {
 
     const revenue = Math.max(0, (base.fixedCosts + target) / base.contributionRatio)
     const revenueGap = revenue - base.revenue
-    const contributionRatio = ratio(base.fixedCosts + target, base.revenue)
     const variableLines = base.variableLines.map((line) => {
       const projected = line.ratio * revenue
       return { ...line, projected, change: projected - line.value }
@@ -206,8 +205,6 @@ export class AnalyzeDreUseCase {
       fixedCosts: base.fixedCosts,
       revenueGap,
       revenueChange: relativeChange(revenue, base.revenue),
-      fixedCostCut: Math.max(0, target - base.profit),
-      contributionRatio: contributionRatio !== null && contributionRatio <= 1 ? contributionRatio : null,
       variableLines,
       purchasesChange: purchases.length ? sum(purchases.map((line) => line.change)) : null,
       paths: reached ? null : this.pathsTo(base, target - base.profit),
