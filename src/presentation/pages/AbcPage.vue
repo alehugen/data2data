@@ -9,6 +9,7 @@ import ChartCard from '@/presentation/components/ChartCard.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
 import PageHeader from '@/presentation/components/PageHeader.vue'
 import PageSection from '@/presentation/components/PageSection.vue'
+import PeriodSelect from '@/presentation/components/PeriodSelect.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
 import ReportLayout from '@/presentation/components/ReportLayout.vue'
 import type { NavSection } from '@/presentation/components/SectionNav.vue'
@@ -19,7 +20,6 @@ import StatCard from '@/presentation/components/StatCard.vue'
 import StatGrid from '@/presentation/components/StatGrid.vue'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
 import { Badge } from '@/presentation/components/ui/badge'
-import { Button } from '@/presentation/components/ui/button'
 import { Card } from '@/presentation/components/ui/card'
 import TrendChart from '@/presentation/components/TrendChart.vue'
 import VolumeMarginChart from '@/presentation/components/VolumeMarginChart.vue'
@@ -59,11 +59,11 @@ const INFO = {
   movement:
     'Compara cada item com o mês anterior importado, pelo código. Novo: não vendeu antes. Subiu/Caiu: mudou de classe (A é a melhor). Saiu: não vendeu neste mês.',
   items_table: 'Itens ordenados pela participação. Participação é o percentual informado pelo sistema ou, sem essa coluna, a fatia no critério de classificação; acumulado é a soma das participações até o item.',
-  profit: 'Lucro informado no relatório de lucro do mês, somado em todos os itens. O app confere se ele bate com valor vendido − custo gerencial − impostos − taxas financeiras e avisa nos pontos de análise quando não bate.',
+  profit: 'Lucro informado no relatório de lucro do mês, somado em todos os itens. O app confere se ele bate com valor vendido − custo gerencial − impostos − materiais − taxas financeiras e avisa nos pontos de análise quando não bate.',
   margin: 'Lucro ÷ valor vendido. Mostra quanto de cada real vendido vira lucro. A variação é em pontos percentuais (p.p.): de 20% para 22% são +2 p.p.',
   cost: 'Soma do custo gerencial dos itens vendidos (custo de aquisição do produto). O percentual é custo ÷ valor vendido.',
-  taxes: 'Soma de impostos e taxas financeiras (cartão, boleto) dos itens vendidos. O percentual é sobre o valor vendido.',
-  profitWaterfall: 'Parte do valor vendido e desconta custo, impostos e taxas até o lucro informado no relatório. Quando a conta não fecha, a barra "Diferença não explicada" mostra quanto falta ou sobra.',
+  taxes: 'Soma de impostos, materiais usados na aplicação e taxas financeiras (cartão, boleto) dos itens vendidos. O percentual é sobre o valor vendido.',
+  profitWaterfall: 'Parte do valor vendido e desconta custo, impostos, materiais e taxas até o lucro informado no relatório. Quando a conta não fecha, a barra "Diferença não explicada" mostra quanto falta ou sobra.',
   classProfit:
     'Compara quanto cada classe representa em quantidade, faturamento e lucro. Se a classe A tem fatia de lucro menor que a de quantidade, ela vende muito mas lucra proporcionalmente menos.',
   matrix:
@@ -78,6 +78,16 @@ const previous = computed(() => analysis.value?.previous)
 const profitability = computed(() => analysis.value?.profitability ?? null)
 const previousLabel = computed(() => (previous.value ? formatAbcMonth(previous.value.report) : undefined))
 const currentLabel = computed(() => (current.value ? formatAbcMonth(current.value.report) : ''))
+const monthKey = computed({
+  get: () => current.value?.report.id ?? '',
+  set: (id: string) => (selectedId.value = id),
+})
+const monthGroups = computed(() => [
+  {
+    label: 'Mês',
+    options: [...(analysis.value?.months ?? [])].reverse().map((m) => ({ key: m.report.id, label: formatAbcMonth(m.report) })),
+  },
+])
 const currentIndex = computed(() => analysis.value?.months.findIndex((m) => m.report.id === current.value?.report.id))
 const shareOfRevenue = (value: number) => ratio(value, profitability.value?.totals.revenue ?? 0) ?? 0
 const classLabel = (abcClass: AbcClass | null) => (abcClass ? `Classe ${abcClass}` : 'Sem classe na Curva ABC')
@@ -101,6 +111,9 @@ const kpis = computed(() => {
   ]
 })
 
+const otherCosts = (totals: { tax: number; materials: number; financialFee: number }) =>
+  totals.tax + totals.materials + totals.financialFee
+
 const profitKpis = computed(() => {
   const data = profitability.value
   if (!data) return []
@@ -123,10 +136,10 @@ const profitKpis = computed(() => {
       info: INFO.cost,
     },
     {
-      label: 'Impostos e taxas',
-      value: formatCurrencyCompact(totals.tax + totals.financialFee),
-      hint: `${formatPercent(shareOfRevenue(totals.tax + totals.financialFee))} do valor vendido`,
-      delta: previousTotals ? relativeChange(totals.tax + totals.financialFee, previousTotals.tax + previousTotals.financialFee) : null,
+      label: 'Impostos, materiais e taxas',
+      value: formatCurrencyCompact(otherCosts(totals)),
+      hint: `${formatPercent(shareOfRevenue(otherCosts(totals)))} do valor vendido`,
+      delta: previousTotals ? relativeChange(otherCosts(totals), otherCosts(previousTotals)) : null,
       lowerIsBetter: true,
       info: INFO.taxes,
     },
@@ -188,6 +201,7 @@ const profitWaterfall = computed(() => {
     { label: 'Valor vendido', value: totals.revenue, isTotal: true },
     { label: 'Custo gerencial', value: -totals.cost, isTotal: false },
     { label: 'Impostos', value: -totals.tax, isTotal: false },
+    { label: 'Materiais', value: -totals.materials, isTotal: false },
     { label: 'Taxas financeiras', value: -totals.financialFee, isTotal: false },
     { label: 'Diferença não explicada', value: profitCheck.divergent.length ? profitCheck.difference : 0, isTotal: false },
     { label: 'Lucro informado', value: totals.profit, isTotal: true },
@@ -268,21 +282,11 @@ const movementTone: Record<AbcMovement, string> = {
       "
     />
 
-    <div role="group" aria-label="Mês" class="flex flex-wrap gap-2">
-      <Button
-        v-for="month in analysis.months"
-        :key="month.report.id"
-        size="sm"
-        :variant="month.report.id === current.report.id ? 'default' : 'outline'"
-        :aria-pressed="month.report.id === current.report.id"
-        class="min-w-16"
-        @click="selectedId = month.report.id"
-      >
-        {{ formatAbcMonth(month.report) }}
-      </Button>
-    </div>
-
     <ReportLayout :sections="navSections">
+      <template #controls>
+        <PeriodSelect v-model="monthKey" :groups="monthGroups" />
+      </template>
+
       <PageSection id="indicadores" class="space-y-3">
         <SectionHeading title="Indicadores de vendas" :subtitle="`Resultado de ${currentLabel}`" />
         <StatGrid columns="grid-cols-2 lg:grid-cols-4">
@@ -436,6 +440,7 @@ const movementTone: Record<AbcMovement, string> = {
                   <TableHead class="px-3 py-2 text-right font-medium">Qtde</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Valor vendido</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Custo</TableHead>
+                  <TableHead class="px-3 py-2 text-right font-medium">Materiais</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Impostos e taxas</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Lucro</TableHead>
                   <TableHead class="px-3 py-2 text-right font-medium">Margem</TableHead>
@@ -457,6 +462,7 @@ const movementTone: Record<AbcMovement, string> = {
                   <TableCell class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.revenue) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.cost) }}</TableCell>
+                  <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.materials) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.tax + item.financialFee) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right font-medium" :class="item.profit < 0 && 'text-destructive'">{{ formatCurrency(item.profit) }}</TableCell>
                   <TableCell class="px-3 py-2 text-right">{{ item.margin !== null ? formatPercent(item.margin) : '–' }}</TableCell>

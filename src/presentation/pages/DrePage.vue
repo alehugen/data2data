@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { PhCalendarBlank } from '@phosphor-icons/vue'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { DreMetric } from '@/domain/dre'
 import { relativeChange } from '@/domain/shared'
 import ChartCard from '@/presentation/components/ChartCard.vue'
@@ -9,6 +8,7 @@ import InsightList from '@/presentation/components/InsightList.vue'
 import NotFound from '@/presentation/components/NotFound.vue'
 import PageHeader from '@/presentation/components/PageHeader.vue'
 import PageSection from '@/presentation/components/PageSection.vue'
+import PeriodSelect from '@/presentation/components/PeriodSelect.vue'
 import ProfitTarget from '@/presentation/components/ProfitTarget.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
 import ReportLayout from '@/presentation/components/ReportLayout.vue'
@@ -17,15 +17,6 @@ import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import StatGrid from '@/presentation/components/StatGrid.vue'
 import TrendChart from '@/presentation/components/TrendChart.vue'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/presentation/components/ui/select'
 import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
 import { DRE_MARGIN_LABELS, DRE_METRIC_INFO, DRE_METRIC_LABELS, useDreAnalysis } from '@/presentation/composables/useDreAnalysis'
@@ -39,11 +30,26 @@ import {
 } from '@/presentation/format'
 
 const props = defineProps<{ id: string }>()
-const { report, selections, selectedKey, analysis, periodLabels, insights } = useDreAnalysis(() => props.id)
+const { report, selections, selectedKey, analysis, periodLabels, insights, profitTargetFor } = useDreAnalysis(() => props.id)
+
+const ALL_REVENUE = 'all'
+const revenueSource = ref(ALL_REVENUE)
+const revenueOptions = computed(() => [
+  { value: ALL_REVENUE, label: 'Receita bruta' },
+  ...(analysis.value?.revenueSources ?? []).map((source) => ({ value: source.id, label: prettifyLabel(source.label) })),
+])
+watch(revenueOptions, (options) => {
+  if (!options.some((option) => option.value === revenueSource.value)) revenueSource.value = ALL_REVENUE
+})
+const targetBase = computed(() =>
+  revenueSource.value === ALL_REVENUE ? (analysis.value?.profitTarget ?? null) : profitTargetFor([revenueSource.value]),
+)
 const theme = useChartTheme()
 
-const monthOptions = computed(() => selections.value.filter((o) => o.type === 'month'))
-const yearOptions = computed(() => selections.value.filter((o) => o.type === 'year'))
+const periodGroups = computed(() => [
+  { label: 'Mês', options: selections.value.filter((o) => o.type === 'month') },
+  { label: 'Acumulado no ano', options: selections.value.filter((o) => o.type === 'year') },
+])
 
 const months = computed(() => report.value?.periods.map(formatPeriod) ?? [])
 const highlightIndex = computed(() => (analysis.value?.indexes.length === 1 ? analysis.value.indexes[0] : undefined))
@@ -123,27 +129,7 @@ const expenseItems = computed(() =>
   <NotFound v-if="!report" message="DRE não encontrada." />
 
   <div v-else-if="analysis" class="space-y-6">
-    <PageHeader title="Demonstração do resultado" :subtitle="report.name">
-      <div class="flex flex-col gap-1.5 text-sm">
-        <span id="periodo" class="text-muted-foreground">Período</span>
-        <Select v-model="selectedKey">
-          <SelectTrigger aria-labelledby="periodo" class="w-48 bg-card shadow-card">
-            <PhCalendarBlank class="text-muted-foreground" aria-hidden="true" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Mês</SelectLabel>
-              <SelectItem v-for="s in monthOptions" :key="s.key" :value="s.key">{{ s.label }}</SelectItem>
-            </SelectGroup>
-            <SelectGroup>
-              <SelectLabel>Acumulado no ano</SelectLabel>
-              <SelectItem v-for="s in yearOptions" :key="s.key" :value="s.key">{{ s.label }}</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
-    </PageHeader>
+    <PageHeader title="Demonstração do resultado" :subtitle="report.name" />
 
     <p
       v-if="report.ignoredPeriods.length"
@@ -155,6 +141,10 @@ const expenseItems = computed(() =>
     </p>
 
     <ReportLayout :sections="navSections">
+      <template #controls>
+        <PeriodSelect v-model="selectedKey" :groups="periodGroups" />
+      </template>
+
       <PageSection id="indicadores" class="space-y-3">
         <SectionHeading title="Indicadores" :subtitle="`Resultado de ${periodLabels.currentLong}`" />
         <StatGrid columns="grid-cols-2 md:grid-cols-3">
@@ -183,7 +173,10 @@ const expenseItems = computed(() =>
           :info="INFO.target"
         />
         <ProfitTarget
-          :base="analysis.profitTarget"
+          v-if="targetBase"
+          v-model:revenue="revenueSource"
+          :revenue-options="revenueOptions"
+          :base="targetBase"
           :reference="periodLabels.reference"
           :source="`${report.name}, ${periodLabels.currentLong}`"
         />

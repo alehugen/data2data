@@ -40,7 +40,8 @@ Para conhecer o app sem arquivos próprios, use **"Ver com dados de exemplo"** n
 
 Cruzado com a Curva ABC do mesmo mês, pelo código do produto, para verificar se o volume vendido se converte em lucro:
 
-- **Indicadores:** lucro, margem de lucro, custo gerencial e impostos e taxas, com variação frente ao mês anterior.
+- **Indicadores:** lucro, margem de lucro, custo gerencial e impostos, materiais e taxas, com variação frente ao mês anterior.
+- **Conferência do lucro:** cada item é conferido contra valor vendido − custo − impostos − materiais − taxas; diferenças aparecem nos pontos de análise e na cascata.
 - **Lucro por classe:** fatia de cada classe em quantidade, faturamento e lucro, e a margem de cada classe.
 - **Matriz volume × margem:** cada item posicionado pela quantidade vendida e pela margem, com as médias do mês como referência.
 - **Cascata da venda ao lucro** e ranking de lucro por item.
@@ -84,7 +85,7 @@ O tipo de relatório é identificado pelo **conteúdo**, não pelo nome do arqui
 |---|---|
 | **DRE** | Planilha com uma linha de meses (1 a 12) e, logo abaixo, a linha dos anos; basta um mês. Se houver várias abas, é usada a que contém **"DRE Geral"** no nome. É preciso existir a linha "Receita operacional bruta". |
 | **Curva ABC** | CSV com as colunas de descrição, quantidade e classificação. São aceitos `ProCodigo`, `ProDescricao`, `Qtde`, `ValorTotal`, `Classificacao`, `Percentual` e variações como `Código`, `Quantidade`, `Classe` e `Curva`. |
-| **Lucro por produto** | CSV com descrição, valor vendido, custo e lucro. São aceitos `ProDescricao`, `PedValorTotal`, `PedICustoGerencial`, `Imposto`, `TaxaFinanceira`, `Lucro` e variações como `Valor total`, `Custo` e `Taxas`. |
+| **Lucro por produto** | CSV com descrição, valor vendido, custo e lucro. São aceitos `ProDescricao`, `PedValorTotal`, `PedICustoGerencial`, `Imposto`, `Materiais`, `TaxaFinanceira`, `Lucro` e variações como `Valor total`, `Custo` e `Taxas`. |
 | **Tabela genérica** | Qualquer outro CSV, XLSX ou XLS. |
 
 Regras de leitura:

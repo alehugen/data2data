@@ -1,5 +1,5 @@
 import { ABC_CLASSES, type AbcClass, type AbcReport } from '@/domain/abc'
-import type { ProfitReport, ProfitTotals } from '@/domain/profit'
+import type { OptionalCost, ProfitReport, ProfitTotals } from '@/domain/profit'
 import { ratio, sum } from '@/domain/shared'
 
 export interface ProfitabilityItem {
@@ -10,6 +10,7 @@ export interface ProfitabilityItem {
   readonly revenue: number
   readonly cost: number
   readonly tax: number
+  readonly materials: number
   readonly financialFee: number
   readonly profit: number
   readonly margin: number | null
@@ -22,7 +23,7 @@ export interface ProfitCheck {
   readonly calculated: number
   readonly difference: number
   readonly divergent: ProfitabilityItem[]
-  readonly missingColumns: ('tax' | 'financialFee')[]
+  readonly missingColumns: OptionalCost[]
 }
 
 export interface ProfitSummary extends ProfitTotals {
@@ -85,18 +86,18 @@ export function analyzeProfitability(
       margin: ratio(item.profit, item.revenue),
       profitPerUnit: ratio(item.profit, item.quantity),
       costMissing: item.cost === 0 && item.revenue > 0,
-      unexplained: item.profit - (item.revenue - item.cost - item.tax - item.financialFee),
+      unexplained: item.profit - (item.revenue - item.cost - item.tax - item.materials - item.financialFee),
     }))
     .sort((a, b) => b.profit - a.profit)
 
-  const calculated = totals.revenue - totals.cost - totals.tax - totals.financialFee
+  const calculated = totals.revenue - totals.cost - totals.tax - totals.materials - totals.financialFee
   const profitCheck: ProfitCheck = {
     calculated,
     difference: totals.profit - calculated,
     divergent: items
       .filter((item) => exceedsRounding(item.unexplained, item.revenue))
       .sort((a, b) => Math.abs(b.unexplained) - Math.abs(a.unexplained)),
-    missingColumns: (['tax', 'financialFee'] as const).filter((column) => !profit.hasColumn[column]),
+    missingColumns: (['tax', 'materials', 'financialFee'] as const).filter((column) => !profit.hasColumn[column]),
   }
 
   const reliable = items.filter((item) => !item.costMissing && item.margin !== null)

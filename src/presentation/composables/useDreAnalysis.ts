@@ -96,8 +96,12 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
     report.value && analysis.value ? buildDreInsights(report.value, analysis.value, periodLabels.value) : [],
   )
 
+  const profitTargetFor = (sourceIds: readonly string[] | null) =>
+    report.value && selection.value ? container.analyzeDre.profitTargetFor(report.value, selection.value, sourceIds) : null
+
   return {
     report,
+    profitTargetFor,
     selections: computed(() => selections.value.map((s) => ({ key: selectionKey(s), label: labelOf(s), type: s.type }))),
     selectedKey,
     analysis,

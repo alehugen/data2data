@@ -6,11 +6,19 @@ import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import StatGrid from '@/presentation/components/StatGrid.vue'
 import { Button } from '@/presentation/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/presentation/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
 import { PROFIT_TARGETS, useProfitTarget } from '@/presentation/composables/useProfitTarget'
 import { formatCurrencyCompact, formatCurrencyWhole, formatPercent, prettifyLabel } from '@/presentation/format'
 
-const props = defineProps<{ base: ProfitTargetBase; reference: string; source: string }>()
+const props = defineProps<{
+  base: ProfitTargetBase
+  reference: string
+  source: string
+  revenueOptions: readonly { value: string; label: string }[]
+}>()
+const revenue = defineModel<string>('revenue', { required: true })
+const revenueName = computed(() => (props.base.revenueLabel ? prettifyLabel(props.base.revenueLabel) : 'Receita bruta'))
 const { target, projection } = useProfitTarget(() => props.base)
 
 const options = PROFIT_TARGETS.map((value) => ({ value: String(value), label: formatCurrencyCompact(value) }))
@@ -85,7 +93,7 @@ const comparison = computed(() => {
   const variableToday = base.revenue - contribution.value
 
   const rows: ComparisonRow[] = [
-    { label: 'Receita bruta', today: base.revenue, goal: p.revenue, gain: true },
+    { label: revenueName.value, today: base.revenue, goal: p.revenue, gain: true },
     ...(purchases.length
       ? [
           { label: 'Compras para vender', hint: 'Mercadorias e serviços', today: purchasesToday, goal: purchasesGoal },
@@ -129,7 +137,7 @@ const rows = computed<DetailRow[]>(() => {
   if (p.status === 'unreachable') return []
   const share = (value: number) => value / base.revenue
   return [
-    { label: 'Receita bruta', current: base.revenue, projected: p.revenue, share: 1, total: true },
+    { label: revenueName.value, current: base.revenue, projected: p.revenue, share: 1, total: true },
     ...p.variableLines.map((line) => ({
       label: prettifyLabel(line.label),
       current: -line.value,
@@ -160,9 +168,22 @@ const signedCurrency = (value: number) => `${value > 0 ? '+' : ''}${formatCurren
 
 <template>
   <div class="overflow-hidden rounded-xl border bg-card shadow-card">
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-      <p class="text-sm font-medium">Lucro desejado por mês</p>
-      <SegmentedControl v-model="selected" :options="options" label="Lucro desejado por mês" size="sm" class="flex-wrap" />
+    <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b px-5 py-4">
+      <div v-if="revenueOptions.length > 2" class="flex flex-col gap-1.5">
+        <span id="meta-receita" class="text-sm font-medium">Receita considerada</span>
+        <Select v-model="revenue">
+          <SelectTrigger aria-labelledby="meta-receita" class="w-56 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="option in revenueOptions" :key="option.value" :value="option.value">{{ option.label }}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium">Lucro desejado por mês</span>
+        <SegmentedControl v-model="selected" :options="options" label="Lucro desejado por mês" size="sm" class="flex-wrap" />
+      </div>
     </div>
 
     <div v-if="projection.status === 'unreachable'" class="max-w-prose space-y-2 p-6" aria-live="polite">
@@ -198,7 +219,7 @@ const signedCurrency = (value: number) => `${value > 0 ? '+' : ''}${formatCurren
       </nav>
 
       <div
-        class="grid max-h-[max(24rem,calc(100dvh-22rem))] grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden"
+        class="grid max-h-[max(24rem,calc(100dvh-26rem))] grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden"
         @keydown.left="goTo(step - 1)"
         @keydown.right="goTo(step + 1)"
       >
@@ -239,11 +260,11 @@ const signedCurrency = (value: number) => `${value > 0 ? '+' : ''}${formatCurren
                 v-if="bars"
                 class="space-y-4"
                 role="img"
-                :aria-label="`Receita ${reference}: ${formatCurrencyCompact(base.revenue)}. Receita na meta: ${formatCurrencyCompact(projection.revenue)}.`"
+                :aria-label="`${revenueName} ${reference}: ${formatCurrencyCompact(base.revenue)}. ${revenueName} na meta: ${formatCurrencyCompact(projection.revenue)}.`"
               >
                 <div>
                   <div class="mb-1.5 flex justify-between gap-3 text-sm">
-                    <span class="text-muted-foreground">Receita {{ reference }}</span>
+                    <span class="text-muted-foreground">{{ revenueName }} {{ reference }}</span>
                     <span class="font-medium figure">{{ formatCurrencyCompact(base.revenue) }}</span>
                   </div>
                   <div class="h-3 rounded-full bg-muted">
@@ -255,7 +276,7 @@ const signedCurrency = (value: number) => `${value > 0 ? '+' : ''}${formatCurren
                 </div>
                 <div>
                   <div class="mb-1.5 flex justify-between gap-3 text-sm">
-                    <span class="text-muted-foreground">Receita na meta</span>
+                    <span class="text-muted-foreground">{{ revenueName }} na meta</span>
                     <span class="font-medium figure">{{ formatCurrencyCompact(projection.revenue) }}</span>
                   </div>
                   <div class="flex h-3 gap-0.5 rounded-full bg-muted">
@@ -373,7 +394,7 @@ const signedCurrency = (value: number) => `${value > 0 ? '+' : ''}${formatCurren
                   {{ money(contribution) }} ÷ {{ money(base.revenue) }}
                 </p>
                 <p class="text-2xl font-semibold figure">= {{ formatPercent(base.contributionRatio) }}</p>
-                <p class="mt-1 text-xs text-muted-foreground">Margem de contribuição ÷ receita bruta</p>
+                <p class="mt-1 text-xs text-muted-foreground">Margem de contribuição ÷ {{ revenueName.toLowerCase() }}</p>
               </li>
               <li class="flex flex-col rounded-lg border bg-background/40 p-5">
                 <span class="grid size-7 place-items-center rounded-full bg-muted text-sm font-semibold figure" aria-hidden="true">2</span>
@@ -420,6 +441,10 @@ const signedCurrency = (value: number) => `${value > 0 ? '+' : ''}${formatCurren
                 <h4 class="font-semibold">De onde vêm os números</h4>
                 <ul class="mt-2 space-y-1.5 text-body">
                   <li>Base: {{ source }}<template v-if="base.months > 1">, média dos {{ base.months }} meses</template>.</li>
+                  <li v-if="base.revenueLabel">
+                    Receita considerada: só {{ revenueName }}. As outras receitas ({{ formatCurrencyWhole(base.excludedRevenue) }}
+                    por mês) ficam fora; custos variáveis e despesas continuam inteiros.
+                  </li>
                   <li>Custos variáveis: linhas entre a receita e a margem de contribuição.</li>
                   <li>
                     Despesas fixas: linha "Despesas operacionais"<template v-if="base.months > 1">, média mensal</template>.
@@ -450,7 +475,7 @@ const signedCurrency = (value: number) => `${value > 0 ? '+' : ''}${formatCurren
                 <TableHeader class="bg-muted">
                   <TableRow>
                     <TableHead class="sticky left-0 bg-muted px-4">Linha da DRE</TableHead>
-                    <TableHead class="px-4 text-right">Receita {{ reference }}</TableHead>
+                    <TableHead class="px-4 text-right">Valor {{ reference }}</TableHead>
                     <TableHead class="hidden px-4 text-right sm:table-cell">% da receita</TableHead>
                     <TableHead class="px-4 text-right">Na meta</TableHead>
                     <TableHead class="px-4 text-right">Diferença</TableHead>

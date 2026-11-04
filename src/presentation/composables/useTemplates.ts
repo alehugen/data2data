@@ -43,7 +43,7 @@ const TEMPLATES: TemplateInfo[] = [
     description:
       'Um arquivo por mês com valor vendido, custo, impostos, taxas e lucro de cada produto. É cruzado com a Curva ABC do mesmo mês.',
     naming: `O nome precisa ter o mês, como "Lucro_por_Produto-${fileSuffix(lastMonth())}.csv".`,
-    columns: ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Imposto', 'TaxaFinanceira', 'Lucro'],
+    columns: ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Imposto', 'Materiais', 'TaxaFinanceira', 'Lucro'],
   },
 ]
 

@@ -34,9 +34,17 @@ export interface VariableCostLine extends ProfitTargetLine {
   readonly ratio: number
 }
 
+export interface RevenueSource {
+  readonly id: string
+  readonly label: string
+  readonly value: number
+}
+
 export interface ProfitTargetBase {
   readonly months: number
   readonly revenue: number
+  readonly revenueLabel: string | null
+  readonly excludedRevenue: number
   readonly profit: number
   readonly contributionRatio: number
   readonly fixedCosts: number
@@ -82,6 +90,7 @@ export interface DreAnalysis {
   readonly kpis: DreKpi[]
   readonly breakEven: { readonly revenue: number; readonly actual: number } | null
   readonly profitTarget: ProfitTargetBase | null
+  readonly revenueSources: RevenueSource[]
   readonly waterfall: WaterfallStep[]
   readonly expenses: DreExpense[]
   readonly monthly: {
@@ -164,6 +173,7 @@ export class AnalyzeDreUseCase {
       kpis,
       breakEven: this.breakEven(profitTarget),
       profitTarget,
+      revenueSources: this.revenueSources(report, indexes),
       waterfall: this.waterfall(report, indexes),
       expenses,
       monthly,
@@ -302,13 +312,43 @@ export class AnalyzeDreUseCase {
       .map((line) => ({ label: line.label, values: [...line.values] }))
   }
 
-  private profitTargetBase(report: DreReport, indexes: number[], revenue: number): ProfitTargetBase | null {
+  profitTargetFor(
+    report: DreReport,
+    selection: DreSelection,
+    sourceIds: readonly string[] | null,
+  ): ProfitTargetBase | null {
+    const indexes = this.resolve(report, selection)
+    return this.profitTargetBase(
+      report,
+      indexes,
+      report.valueOf(report.metric(DreMetric.GrossRevenue), indexes),
+      sourceIds,
+    )
+  }
+
+  private revenueSources(report: DreReport, indexes: number[]): RevenueSource[] {
+    const gross = report.metric(DreMetric.GrossRevenue)
+    if (!gross) return []
+    return report
+      .children(gross.id)
+      .map((line) => ({ id: line.id, label: line.label, value: report.valueOf(line, indexes) / indexes.length }))
+      .filter((source) => source.value > 0)
+  }
+
+  private profitTargetBase(
+    report: DreReport,
+    indexes: number[],
+    totalRevenue: number,
+    sourceIds: readonly string[] | null = null,
+  ): ProfitTargetBase | null {
     const margin = report.metric(DreMetric.ContributionMargin)
     const operating = report.metric(DreMetric.OperatingExpenses)
+    const sources = sourceIds ? this.revenueSources(report, indexes).filter((s) => sourceIds.includes(s.id)) : null
+    const months = indexes.length
+    const revenue = sources ? sum(sources.map((source) => source.value)) * months : totalRevenue
     if (!margin || !operating || revenue <= 0) return null
 
-    const months = indexes.length
-    const contribution = report.valueOf(margin, indexes) / months
+    const contribution = (report.valueOf(margin, indexes) - (totalRevenue - revenue)) / months
     const fixedCosts = -report.valueOf(operating, indexes) / months
 
     const linesBetween = (from: DreLine | undefined, to: DreLine | undefined) => {
@@ -330,6 +370,8 @@ export class AnalyzeDreUseCase {
     return {
       months,
       revenue: revenue / months,
+      revenueLabel: sources ? sources.map((source) => source.label).join(' + ') : null,
+      excludedRevenue: (totalRevenue - revenue) / months,
       profit: contribution - fixedCosts,
       contributionRatio: (contribution * months) / revenue,
       fixedCosts,

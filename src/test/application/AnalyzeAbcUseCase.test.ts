@@ -113,7 +113,7 @@ describe('analyzeProfitability', () => {
   })
 
   it('confere o lucro informado com venda − custo − impostos − taxas', () => {
-    expect(result.profitCheck).toMatchObject({ divergent: [], missingColumns: [] })
+    expect(result.profitCheck).toMatchObject({ divergent: [], missingColumns: ['materials'] })
     expect(result.profitCheck.difference).toBeCloseTo(0)
 
     const rows = csvRows(PROFIT_OCTOBER).map((row) => (row[1] === 'Vacina Alfa' ? [...row.slice(0, 7), '800'] : row))
@@ -123,6 +123,17 @@ describe('analyzeProfitability', () => {
     expect(inflated.profitCheck.difference).toBeCloseTo(80)
   })
 
+  it('desconta os materiais na conferência do lucro', () => {
+    const rows = [
+      ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Imposto', 'Materiais', 'TaxaFinanceira', 'Lucro'],
+      ['1', 'Vacina Alfa', '8', '4000', '3200', '0', '160', '80', '560'],
+      ['3', 'Aplicação de brinco', '6', '600', '100', '0', '5', '10', '485'],
+    ]
+    const check = analyzeProfitability(abcOctober, ProfitReport.fromTable({ name: 'Lucro out.2026', rows })!).profitCheck
+    expect(check).toMatchObject({ divergent: [], missingColumns: [] })
+    expect(check.calculated).toBeCloseTo(560 + 485)
+  })
+
   it('aponta as colunas que faltam para fechar o lucro e tolera arredondamento', () => {
     const rows = [
       ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Lucro'],
@@ -130,7 +141,7 @@ describe('analyzeProfitability', () => {
       ['3', 'Aplicação de brinco', '6', '600', '100', '500.03'],
     ]
     const check = analyzeProfitability(abcOctober, ProfitReport.fromTable({ name: 'Lucro out.2026', rows })!).profitCheck
-    expect(check.missingColumns).toEqual(['tax', 'financialFee'])
+    expect(check.missingColumns).toEqual(['tax', 'materials', 'financialFee'])
     expect(check.divergent.map((item) => item.description)).toEqual(['Vacina Alfa'])
   })
 

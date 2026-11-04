@@ -15,6 +15,7 @@ describe('ProfitReport.fromTable', () => {
       revenue: 4000,
       cost: 3200,
       tax: 0,
+      materials: 0,
       financialFee: 80,
       profit: 720,
     })
@@ -26,6 +27,7 @@ describe('ProfitReport.fromTable', () => {
       revenue: 5550,
       cost: 3760,
       tax: 0,
+      materials: 0,
       financialFee: 111,
       profit: 1679,
     })
@@ -73,6 +75,24 @@ describe('ProfitReport.fromTable', () => {
       ['0101', 'X', '100', '60', '40'],
     ])!
     expect(report.items[0]!.code).toBe('101')
+  })
+
+  it('lê a coluna de materiais com decimais de várias casas', () => {
+    const report = parse([
+      ['ProCodigo', 'ProDescricao', 'Qtde', 'PedValorTotal', 'PedICustoGerencial', 'Imposto', 'Materiais', 'TaxaFinanceira', 'Lucro'],
+      ['1', 'Item A', '2', '360', '184,24', '28,8', '9,212', '6,3', '131,448'],
+      ['2', 'Item B', '3', '870', '430,65', '69,6', '21,5325', '15,24', '332,9775'],
+    ])!
+    expect(report.hasColumn).toEqual({ tax: true, materials: true, financialFee: true })
+    expect(report.items[0]).toMatchObject({ cost: 184.24, materials: 9.212, profit: 131.448 })
+    expect(report.totals.materials).toBeCloseTo(9.212 + 21.5325)
+    expect(report.totals.profit).toBeCloseTo(131.448 + 332.9775)
+  })
+
+  it('aceita relatórios antigos, sem coluna de materiais', () => {
+    const report = parse(csvRows(PROFIT_OCTOBER))!
+    expect(report.hasColumn.materials).toBe(false)
+    expect(report.totals.materials).toBe(0)
   })
 
   it('não confunde Curva ABC com relatório de lucro', () => {

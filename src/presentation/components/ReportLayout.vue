@@ -6,7 +6,11 @@ defineProps<{ sections: readonly NavSection[] }>()
 
 <template>
   <div class="grid gap-x-10 gap-y-4 lg:grid-cols-[12rem_minmax(0,1fr)]">
-    <SectionNav :sections="sections" />
+    <SectionNav :sections="sections">
+      <template v-if="$slots.controls" #controls>
+        <slot name="controls" />
+      </template>
+    </SectionNav>
     <div class="min-w-0 space-y-10">
       <slot />
     </div>

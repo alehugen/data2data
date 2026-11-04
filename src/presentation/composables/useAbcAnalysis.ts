@@ -40,6 +40,8 @@ export function useAbcAnalysis() {
   return { analysis, selectedId, insights, profitInsights }
 }
 
+const COST_NAMES = { tax: 'impostos', materials: 'materiais', financialFee: 'taxas financeiras' } as const
+
 const listNames = (items: readonly { description: string }[], limit = 3) =>
   `${items.slice(0, limit).map((item) => item.description).join(', ')}${items.length > limit ? '…' : ''}`
 
@@ -68,18 +70,18 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
   const reference = missingCost.length ? 'média dos itens com custo cadastrado' : 'média do mês'
   const { profitCheck } = profitability
   const checkFormula =
-    'Para cada item, compara o lucro informado com valor vendido − custo gerencial − impostos − taxas financeiras. Diferenças de até R$ 0,05 ou 0,1% do valor vendido contam como arredondamento.'
+    'Para cada item, compara o lucro informado com valor vendido − custo gerencial − impostos − materiais − taxas financeiras. Diferenças de até R$ 0,05 ou 0,1% do valor vendido contam como arredondamento.'
 
   if (profitCheck.divergent.length) {
     const count = profitCheck.divergent.length
-    const missing = profitCheck.missingColumns.map((column) => (column === 'tax' ? 'impostos' : 'taxas financeiras'))
+    const missing = profitCheck.missingColumns.map((column) => COST_NAMES[column])
     const examples = profitCheck.divergent
       .slice(0, 3)
       .map((item) => `${item.description} (${item.unexplained > 0 ? '+' : ''}${formatCurrency(item.unexplained)})`)
       .join(', ')
     insights.push({
       title: 'Lucro não confere',
-      description: `Em ${count} ${count === 1 ? 'item' : 'itens'}, o lucro informado não bate com valor − custo − impostos − taxas: ${examples}${count > 3 ? '…' : ''}. No total, o relatório informa ${formatCurrency(totals.profit)} e a conta dá ${formatCurrency(profitCheck.calculated)}.`,
+      description: `Em ${count} ${count === 1 ? 'item' : 'itens'}, o lucro informado não bate com valor − custo − impostos − materiais − taxas: ${examples}${count > 3 ? '…' : ''}. No total, o relatório informa ${formatCurrency(totals.profit)} e a conta dá ${formatCurrency(profitCheck.calculated)}.`,
       tone: 'negative',
       explanation: `${checkFormula} ${
         missing.length
@@ -148,7 +150,7 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
       title: 'Itens com prejuízo',
       description: `${losses.length} ${losses.length === 1 ? 'item teve' : 'itens tiveram'} lucro negativo: ${listNames(losses)}.`,
       tone: 'negative',
-      explanation: 'Itens em que custo gerencial + impostos + taxas superaram o valor vendido no mês.',
+      explanation: 'Itens em que custo gerencial + impostos + materiais + taxas superaram o valor vendido no mês.',
     })
   }
 
@@ -164,7 +166,7 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
   if (!profitCheck.divergent.length && items.length) {
     insights.push({
       title: 'Lucro conferido',
-      description: `O lucro informado dos ${items.length} itens bate com valor vendido − custo − impostos − taxas.`,
+      description: `O lucro informado dos ${items.length} itens bate com valor vendido − custo − impostos − materiais − taxas.`,
       tone: 'positive',
       explanation: checkFormula,
     })

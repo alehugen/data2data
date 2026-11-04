@@ -163,6 +163,30 @@ describe('meta de lucro', () => {
     expect(projection.contributionRatio).toBeCloseTo(700 / 900)
   })
 
+  it('lista as contas que compõem a receita bruta no período', () => {
+    expect(march.revenueSources.map(({ label, value }) => [label, value])).toEqual([
+      ['Serviços', 300],
+      ['Produtos', 600],
+    ])
+  })
+
+  it('toma só a receita escolhida como receita bruta, mantendo custos e despesas', () => {
+    const products = march.revenueSources.find((source) => source.label === 'Produtos')!
+    const onlyProducts = useCase.profitTargetFor(report, { type: 'month', index: 2 }, [products.id])!
+    expect(onlyProducts).toMatchObject({ revenue: 600, revenueLabel: 'Produtos', excludedRevenue: 300, fixedCosts: 600 })
+    expect(onlyProducts.contributionRatio).toBeCloseTo((530 - 300) / 600)
+    expect(onlyProducts.profit).toBeCloseTo(530 - 300 - 600)
+
+    const projection = useCase.projectProfitTarget(onlyProducts, 100)
+    if (projection.status === 'unreachable') throw new Error('meta deveria ser alcançável')
+    expect(projection.revenue).toBeCloseTo((600 + 100) / ((530 - 300) / 600))
+    expect(projection.revenue - projection.variableCosts - projection.fixedCosts).toBeCloseTo(100)
+  })
+
+  it('sem escolha, usa a receita bruta inteira', () => {
+    expect(useCase.profitTargetFor(report, { type: 'month', index: 2 }, null)).toEqual(base)
+  })
+
   it('lista os grupos de despesas operacionais do maior para o menor', () => {
     expect(base.fixedGroups).toEqual([
       { label: 'DESPESAS COM PESSOAL', value: 350 },

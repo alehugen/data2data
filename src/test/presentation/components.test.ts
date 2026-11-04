@@ -10,6 +10,7 @@ import ShareBar from '@/presentation/components/ShareBar.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
 import ProfitTarget from '@/presentation/components/ProfitTarget.vue'
 import ReportCard from '@/presentation/components/ReportCard.vue'
+import ReportLayout from '@/presentation/components/ReportLayout.vue'
 import SampleStatement from '@/presentation/components/SampleStatement.vue'
 import SectionNav from '@/presentation/components/SectionNav.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
@@ -96,10 +97,18 @@ describe('SampleStatement', () => {
   })
 })
 
+const REVENUE_OPTIONS = [
+  { value: 'all', label: 'Receita bruta' },
+  { value: 'l1', label: 'Locação de sala' },
+  { value: 'l2', label: 'Vendas vacinas' },
+]
+
 describe('ProfitTarget', () => {
   const base: ProfitTargetBase = {
     months: 1,
     revenue: 50_000,
+    revenueLabel: null,
+    excludedRevenue: 0,
     profit: -2_000,
     contributionRatio: 0.4,
     fixedCosts: 22_000,
@@ -116,7 +125,13 @@ describe('ProfitTarget', () => {
   }
   const mountTarget = (overrides: Partial<ProfitTargetBase> = {}) =>
     mountWithProviders(ProfitTarget, {
-      props: { base: { ...base, ...overrides }, reference: 'em out/26', source: 'DRE Geral, outubro de 2026' },
+      props: {
+        base: { ...base, ...overrides },
+        reference: 'em out/26',
+        source: 'DRE Geral, outubro de 2026',
+        revenue: 'all',
+        revenueOptions: REVENUE_OPTIONS,
+      },
     })
 
   const active = (wrapper: ReturnType<typeof mountTarget>) => wrapper.get('[data-active="true"]')
@@ -188,6 +203,15 @@ describe('ProfitTarget', () => {
     expect(cards[4]).toMatch(/Plano combinado.*\+R\$\s?10\smil\s*em vendas por mês\s*\+9,8%\s*nos preços\s*−R\$\s?4\smil\s*em despesas/)
   })
 
+  it('deixa escolher a receita considerada e explica o que ficou de fora', async () => {
+    const wrapper = mountTarget({ revenueLabel: 'Vendas vacinas', excludedRevenue: 8_000 })
+    expect(wrapper.get('#meta-receita').text()).toBe('Receita considerada')
+    expect(active(wrapper).text()).toContain('Vendas vacinas em out/26')
+    await next(wrapper)
+    await next(wrapper)
+    expect(active(wrapper).text()).toMatch(/Receita considerada: só Vendas vacinas\. As outras receitas \(R\$\s?8\.000\s*por mês\) ficam fora/)
+  })
+
   it('reconhece a meta já batida em vez de sugerir caminhos', async () => {
     const wrapper = mountTarget({ profit: 120_000 })
     for (let i = 0; i < 4; i++) await next(wrapper)
@@ -238,6 +262,17 @@ describe('ProfitTarget', () => {
     const wrapper = mountTarget({ contributionRatio: -0.05 })
     expect(wrapper.text()).toContain('Vender mais não leva a essa meta')
     expect(wrapper.find('table').exists()).toBe(false)
+  })
+})
+
+describe('ReportLayout', () => {
+  it('mostra os controles junto da navegação, que acompanha a rolagem', () => {
+    const wrapper = mount(ReportLayout, {
+      props: { sections: [{ id: 'a', label: 'A' }] },
+      slots: { controls: '<button>Período</button>', default: '<section id="a" />' },
+    })
+    expect(wrapper.get('nav').text()).toContain('Período')
+    expect(wrapper.get('nav').classes()).toContain('sticky')
   })
 })
 
