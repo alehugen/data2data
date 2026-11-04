@@ -44,11 +44,6 @@ export function useChartTheme() {
     return {
       series,
       chrome,
-      polarity: {
-        positive: series[0]!,
-        negative: series[7]!,
-        total: chrome.textMuted,
-      },
       abcClass: { A: series[0]!, B: series[1]!, C: series[2]! },
       fontFamily: "'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif",
       axisTooltip: {

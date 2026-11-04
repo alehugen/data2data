@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProfitTargetBase } from '@/application'
 import { DreReport } from '@/domain/dre'
 import AppFooter from '@/presentation/components/AppFooter.vue'
+import CellBreakdown from '@/presentation/components/CellBreakdown.vue'
 import DreTable from '@/presentation/components/DreTable.vue'
 import InfoTip from '@/presentation/components/InfoTip.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
@@ -17,7 +18,7 @@ import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import ThemeToggle from '@/presentation/components/ThemeToggle.vue'
 import { useTheme } from '@/presentation/composables/useTheme'
-import { dreRows } from '@/test/fixtures'
+import { LEDGER_ROWS, dreRows } from '@/test/fixtures'
 import { mountWithProviders } from './mountWithProviders'
 
 describe('InfoTip', () => {
@@ -473,6 +474,69 @@ describe('DreTable', () => {
 
   it('destaca a coluna do período selecionado', () => {
     expect(mountTable().get('[data-highlight]').text()).toBe('mar/26')
+  })
+
+  it('sem aba de lançamentos, os valores não são clicáveis', () => {
+    expect(mountTable().find('tbody td button').exists()).toBe(false)
+  })
+
+  it('abre os lançamentos que compõem um valor ao clicar', async () => {
+    const withLedger = DreReport.fromTables([
+      { name: 'DRE', sheet: 'DRE Geral', rows: dreRows() },
+      { name: 'Fluxo', sheet: 'Fluxo de Caixa', rows: LEDGER_ROWS },
+    ])!
+    const wrapper = mountWithProviders(DreTable, { props: { report: withLedger, highlight: [2] } })
+    const group = wrapper.findAll('tbody button').find((b) => b.text() === 'Despesas com pessoal')!
+    await group.trigger('click')
+
+    await wrapper.get('button[aria-label="Ver lançamentos de Salários em mar/26"]').trigger('click')
+    await flushPromises()
+    const dialog = document.body.querySelector('[role="dialog"]')!
+    expect(dialog.querySelector('h2')!.textContent).toBe('Salários')
+    expect(dialog.textContent).toContain('março de 2026, lançamentos pela data de pagamento')
+    expect(dialog.textContent).toContain('Confere')
+    expect(dialog.textContent).toMatch(/Soma de 2 lançamentos/)
+    expect([...dialog.querySelectorAll('tbody tr')].map((tr) => tr.textContent)).toEqual([
+      expect.stringMatching(/05\/03\/2026.*Folha de março, parte 1.*Matriz.*-R\$\s?200,00/),
+      expect.stringMatching(/20\/03\/2026.*Folha de março, parte 2.*Matriz.*-R\$\s?150,00/),
+    ])
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await flushPromises()
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+  })
+})
+
+describe('CellBreakdown', () => {
+  const breakdown = {
+    label: 'DESPESAS OPERACIONAIS',
+    period: { year: 2026, month: 3 },
+    value: -700,
+    total: -600,
+    difference: -100,
+    entries: [
+      { date: '2026-03-05', description: 'Folha', classification: 'Salários', unit: 'Matriz', value: -350, period: { year: 2026, month: 3 } },
+      { date: '2026-03-10', description: '', classification: 'Aluguel', unit: '', value: -250, period: { year: 2026, month: 3 } },
+    ],
+    accounts: [
+      { label: 'Salários', total: -350, count: 1 },
+      { label: 'Aluguel', total: -250, count: 1 },
+    ],
+  }
+
+  it('aponta a diferença e mostra o peso de cada conta', () => {
+    const wrapper = mount(CellBreakdown, { props: { breakdown } })
+    expect(wrapper.text()).toContain('Não confere')
+    expect(wrapper.text()).toMatch(/Diferença de -R\$\s?100,00/)
+    expect(wrapper.text()).toMatch(/Salários\s*-R\$\s?350,00\s*\(58,3%\)/)
+    expect(wrapper.findAll('thead th').map((th) => th.text())).toContain('Conta')
+    expect(wrapper.findAll('tbody tr')[1]!.text()).toMatch(/10\/03\/2026\s*–\s*Aluguel\s*–/)
+  })
+
+  it('avisa quando não há lançamentos pagos no mês', () => {
+    const wrapper = mount(CellBreakdown, { props: { breakdown: { ...breakdown, entries: [], accounts: [], total: 0 } } })
+    expect(wrapper.text()).toContain('Nenhum lançamento desta conta foi pago neste mês')
   })
 })
 

@@ -2,16 +2,20 @@
 import { PhCaretRight } from '@phosphor-icons/vue'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DreLineKind, DreMetric, type DreLine, type DreReport } from '@/domain/dre'
-import { formatPercent, formatPeriod, prettifyLabel } from '@/presentation/format'
+import { useCellBreakdown } from '@/presentation/composables/useCellBreakdown'
+import { formatPercent, formatPeriod, formatPeriodLong, prettifyLabel } from '@/presentation/format'
 import { Card } from '@/presentation/components/ui/card'
 import { Checkbox } from '@/presentation/components/ui/checkbox'
+import AppModal from './AppModal.vue'
+import CellBreakdown from './CellBreakdown.vue'
 import InfoTip from './InfoTip.vue'
 import SegmentedControl from './SegmentedControl.vue'
 
 const props = defineProps<{ report: DreReport; highlight: number[] }>()
+const { open, breakdown, canInspect, inspect } = useCellBreakdown(() => props.report)
 
 const TABLE_INFO =
-  'Valores como na planilha: receitas positivas, custos e despesas negativos. AV % = cada linha ÷ receita bruta do mesmo mês. Clique em um grupo para ver as contas que o compõem; a coluna destacada é o período selecionado.'
+  'Valores como na planilha: receitas positivas, custos e despesas negativos. AV % = cada linha ÷ receita bruta do mesmo mês. Clique em um grupo para ver as contas que o compõem; a coluna destacada é o período selecionado. Quando a planilha traz a aba de fluxo de caixa, clique em um valor para ver os lançamentos que o compõem.'
 
 const MODES = [
   { value: 'value', label: 'Valores (R$)' },
@@ -131,11 +135,27 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
               class="px-3 py-1.5 text-right figure whitespace-nowrap"
               :class="[highlight.includes(i) && 'bg-accent/40', value < 0 && 'text-destructive']"
             >
-              {{ cell(line, i) }}
+              <button
+                v-if="value !== 0 && canInspect(line)"
+                type="button"
+                class="-mx-1 rounded px-1 transition-colors duration-(--duration-fast) ease-out hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent"
+                :aria-label="`Ver lançamentos de ${prettifyLabel(line.label)} em ${formatPeriod(report.periods[i]!)}`"
+                @click="inspect(line, i)"
+              >
+                {{ cell(line, i) }}
+              </button>
+              <template v-else>{{ cell(line, i) }}</template>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+    <AppModal
+      v-model:open="open"
+      :title="breakdown ? prettifyLabel(breakdown.label) : ''"
+      :subtitle="breakdown ? `${formatPeriodLong(breakdown.period)}, lançamentos pela data de pagamento` : ''"
+    >
+      <CellBreakdown v-if="breakdown" :breakdown="breakdown" />
+    </AppModal>
   </Card>
 </template>

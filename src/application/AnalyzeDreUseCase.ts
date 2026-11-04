@@ -1,5 +1,5 @@
-import { DreLineKind, DreMetric, type DreLine, type DreReport } from '@/domain/dre'
-import { normalizeText, ratio, relativeChange, sum } from '@/domain/shared'
+import { DreLineKind, DreMetric, type DreLine, type DreReport, type LedgerEntry } from '@/domain/dre'
+import { normalizeText, ratio, relativeChange, sum, type Period } from '@/domain/shared'
 
 export type DreSelection = { type: 'month'; index: number } | { type: 'year'; year: number }
 
@@ -8,12 +8,6 @@ export interface DreKpi {
   readonly value: number
   readonly previous: number | null
   readonly margin: number | null
-}
-
-export interface WaterfallStep {
-  readonly label: string
-  readonly value: number
-  readonly isTotal: boolean
 }
 
 export interface DreExpense {
@@ -82,6 +76,16 @@ export type ProfitTargetProjection =
       readonly paths: ProfitPaths | null
     }
 
+export interface CellBreakdown {
+  readonly label: string
+  readonly period: Period
+  readonly value: number
+  readonly entries: readonly LedgerEntry[]
+  readonly total: number
+  readonly difference: number
+  readonly accounts: readonly { readonly label: string; readonly total: number; readonly count: number }[]
+}
+
 export type ReachableProjection = Exclude<ProfitTargetProjection, { status: 'unreachable' }>
 
 export interface DreAnalysis {
@@ -91,13 +95,11 @@ export interface DreAnalysis {
   readonly breakEven: { readonly revenue: number; readonly actual: number } | null
   readonly profitTarget: ProfitTargetBase | null
   readonly revenueSources: RevenueSource[]
-  readonly waterfall: WaterfallStep[]
   readonly expenses: DreExpense[]
   readonly monthly: {
     readonly revenue: number[]
     readonly ebitda: number[] | null
     readonly cash: number[] | null
-    readonly margins: { readonly metric: DreMetric; readonly values: (number | null)[] }[]
     readonly revenueMix: { readonly label: string; readonly values: number[] }[]
   }
   readonly facts: DreFacts
@@ -123,8 +125,6 @@ const KPI_METRICS: DreMetric[] = [
 ]
 
 const WITHOUT_MARGIN: DreMetric[] = [DreMetric.GrossRevenue, DreMetric.EndingCash]
-
-const MARGIN_METRICS: DreMetric[] = [DreMetric.ContributionMargin, DreMetric.Ebitda, DreMetric.NetIncome]
 
 const RECENT_WINDOW = 12
 
@@ -156,10 +156,6 @@ export class AnalyzeDreUseCase {
       revenue: monthlyRevenue,
       ebitda: monthlyOf(DreMetric.Ebitda),
       cash: monthlyOf(DreMetric.EndingCash),
-      margins: MARGIN_METRICS.filter((metric) => report.metric(metric)).map((metric) => ({
-        metric,
-        values: allIndexes.map((i) => ratio(value(metric, [i]), monthlyRevenue[i]!)),
-      })),
       revenueMix: this.revenueMix(report),
     }
 
@@ -174,7 +170,6 @@ export class AnalyzeDreUseCase {
       breakEven: this.breakEven(profitTarget),
       profitTarget,
       revenueSources: this.revenueSources(report, indexes),
-      waterfall: this.waterfall(report, indexes),
       expenses,
       monthly,
       facts: {
@@ -183,6 +178,26 @@ export class AnalyzeDreUseCase {
         ...this.trendFacts(report, monthly, this.windowOf(selection, indexes)),
       },
     }
+  }
+
+  breakdown(report: DreReport, lineId: string, periodIndex: number): CellBreakdown | null {
+    const line = report.lines.find((candidate) => candidate.id === lineId)
+    const period = report.periods[periodIndex]
+    if (!report.ledger.length || !line || !period || !report.accountsOf(line).length) return null
+
+    const entries = [...report.entriesOf(line, periodIndex)].sort((a, b) => a.date.localeCompare(b.date))
+    const total = sum(entries.map((entry) => entry.value))
+    const value = line.values[periodIndex] ?? 0
+    const accounts = report
+      .accountsOf(line)
+      .map((account) => {
+        const own = entries.filter((entry) => normalizeText(entry.classification) === normalizeText(account.label))
+        return { label: account.label, total: sum(own.map((entry) => entry.value)), count: own.length }
+      })
+      .filter((account) => account.count > 0)
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
+
+    return { label: line.label, period, value, entries, total, difference: value - total, accounts }
   }
 
   projectProfitTarget(base: ProfitTargetBase, target: number): ProfitTargetProjection {
@@ -266,26 +281,6 @@ export class AnalyzeDreUseCase {
       averageContributionMargin:
         margin && windowRevenue > 0 ? report.valueOf(margin, window) / windowRevenue : null,
     }
-  }
-
-  private waterfall(report: DreReport, indexes: number[]): WaterfallStep[] {
-    const last = report.metric(DreMetric.NetIncome) ?? report.metric(DreMetric.Ebitda)
-    const steps: WaterfallStep[] = []
-
-    for (const line of report.lines) {
-      if (line.parentId !== null || line.kind === DreLineKind.Balance) continue
-
-      const value = report.valueOf(line, indexes)
-      const isTotal = steps.length === 0 || line.kind === DreLineKind.Result
-      const previous = steps.at(-1)
-
-      const repeatsPreviousTotal = isTotal && previous?.isTotal && steps.length > 1 && Math.abs(previous.value - value) < 0.005
-      if (repeatsPreviousTotal) steps.pop()
-      if (isTotal || value !== 0) steps.push({ label: line.label, value, isTotal })
-
-      if (line === last) break
-    }
-    return steps
   }
 
   private expenses(report: DreReport, indexes: number[], revenue: number): DreExpense[] {

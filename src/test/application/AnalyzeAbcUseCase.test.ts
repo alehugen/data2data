@@ -35,7 +35,6 @@ describe('AnalyzeAbcUseCase', () => {
     })!
     const { ranking } = useCase.execute([shuffled])!
     expect(ranking.map((item) => item.share)).toEqual([0.4, 0.3, 0.2, 0.1])
-    expect(ranking.at(-1)!.cumulativeShare).toBeCloseTo(1)
   })
 
   it('analisa o mês escolhido', () => {
@@ -45,10 +44,9 @@ describe('AnalyzeAbcUseCase', () => {
     expect(analysis.movements).toEqual([])
   })
 
-  it('resume o mês por classe e acumula a participação', () => {
+  it('resume o mês por classe', () => {
     const analysis = useCase.execute([abcSeptember])!
     expect(analysis.current.byClass.A).toEqual({ items: 2, quantity: 15, value: 6000 })
-    expect(analysis.ranking.map((item) => item.cumulativeShare)).toEqual([0.5, 0.75, 0.9, 1])
   })
 
   it('compara itens entre meses', () => {

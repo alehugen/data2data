@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { container } from '@/infrastructure/container'
 import PeriodSelect, { type PeriodGroup } from '@/presentation/components/PeriodSelect.vue'
 import ProfitTarget from '@/presentation/components/ProfitTarget.vue'
-import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { useReports } from '@/presentation/composables/useReports'
 import AbcPage from '@/presentation/pages/AbcPage.vue'
 import DatasetPage from '@/presentation/pages/DatasetPage.vue'
@@ -16,8 +15,6 @@ const stubs = {
   RouterLink: RouterLinkStub,
   TrendChart: true,
   RankingBarChart: true,
-  VolumeMarginChart: true,
-  WaterfallChart: { name: 'WaterfallChart', props: ['steps'], template: '<div />' },
 }
 
 beforeEach(async () => {
@@ -73,6 +70,12 @@ describe('DrePage', () => {
     expect(page.getComponent(ProfitTarget).props('base')).toMatchObject({ revenue: 600, revenueLabel: 'Produtos', excludedRevenue: 300 })
   })
 
+  it('não mostra mais a cascata nem os gráficos de receita, EBITDA e margens', async () => {
+    const page = await mountDre()
+    for (const title of ['Da receita ao resultado', 'Receita e EBITDA', 'Margens']) expect(page.text()).not.toContain(title)
+    expect(page.findAll('nav[aria-label="Seções da página"] a').map((a) => a.text())).not.toContain('Receita e margens')
+  })
+
   it('mostra que a DRE não foi encontrada', () => {
     const page = mountWithProviders(DrePage, { props: { id: 'nao-existe' }, global: { stubs } })
     expect(page.text()).toContain('DRE não encontrada.')
@@ -103,12 +106,17 @@ describe('AbcPage', () => {
     expect(page.text()).toContain('Lucratividade por item: set/26')
   })
 
-  it('mostra a variação da margem em pontos percentuais e a cascata com o lucro informado', async () => {
+  it('mostra a variação da margem em pontos percentuais e a tabela de lucro com materiais', async () => {
     const page = await mountAbc()
     expect(page.text()).toMatch(/Margem de lucro\s*30,3%.*p\.p\./s)
-    const steps = page.getComponent(WaterfallChart).props('steps') as { label: string }[]
-    expect(steps.map((step) => step.label)).toEqual(['Valor vendido', 'Custo gerencial', 'Taxas financeiras', 'Lucro informado'])
     expect(page.text()).toContain('Materiais')
+  })
+
+  it('não mostra a cascata, o lucro por classe, o volume × margem nem a lista de itens', async () => {
+    const page = await mountAbc()
+    for (const title of ['Da venda ao lucro', 'Lucro por classe', 'Volume × margem', 'Itens de out/26']) {
+      expect(page.text()).not.toContain(title)
+    }
   })
 })
 

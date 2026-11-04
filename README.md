@@ -24,8 +24,9 @@ Para conhecer o app sem arquivos próprios, use **"Ver com dados de exemplo"** n
 - **Indicadores:** receita bruta, lucro bruto, margem de contribuição, EBITDA, resultado líquido e saldo de caixa, com margem sobre a receita e variação frente ao período anterior.
 - **Ponto de equilíbrio:** receita necessária para cobrir as despesas fixas com a margem de contribuição atual.
 - **Meta de lucro:** escolha um lucro mensal (R$ 10, 15, 20, 25, 50 ou 100 mil) e veja quanto a empresa precisa faturar por mês para chegar lá, quanto falta frente ao período e os caminhos sem vender mais: cortar despesas fixas ou subir a margem de contribuição.
-- **Gráficos:** cascata da receita ao resultado, receita e EBITDA mês a mês, margens, composição de custos e da receita e saldo de caixa.
+- **Gráficos:** composição de custos e da receita e saldo de caixa.
 - **DRE completa** em tabela, com grupos recolhíveis e alternância entre valores (R$) e análise vertical (AV%).
+- **Composição de cada valor:** se a planilha tiver uma aba de fluxo de caixa (classificação, valor e data de pagamento), clicar em um valor da DRE completa abre os lançamentos pagos naquele mês que o compõem, com subtotal por conta e a conferência com a célula.
 - Filtro por mês ou acumulado do ano.
 
 ### Curva ABC mensal (`.csv`)
@@ -41,10 +42,8 @@ Para conhecer o app sem arquivos próprios, use **"Ver com dados de exemplo"** n
 Cruzado com a Curva ABC do mesmo mês, pelo código do produto, para verificar se o volume vendido se converte em lucro:
 
 - **Indicadores:** lucro, margem de lucro, custo gerencial e impostos, materiais e taxas, com variação frente ao mês anterior.
-- **Conferência do lucro:** cada item é conferido contra valor vendido − custo − impostos − materiais − taxas; diferenças aparecem nos pontos de análise e na cascata.
-- **Lucro por classe:** fatia de cada classe em quantidade, faturamento e lucro, e a margem de cada classe.
-- **Matriz volume × margem:** cada item posicionado pela quantidade vendida e pela margem, com as médias do mês como referência.
-- **Cascata da venda ao lucro** e ranking de lucro por item.
+- **Conferência do lucro:** cada item é conferido contra valor vendido − custo − impostos − materiais − taxas; diferenças aparecem nos pontos de análise.
+- **Lucro por classe** na distribuição das classes, e ranking e tabela de lucro por item.
 - **Pontos de análise cruzados:** itens da classe A com margem abaixo da média ("vende muito, lucra pouco"), itens B/C com margem acima da média, prejuízos, custo não cadastrado e divergências entre os dois relatórios.
 
 ### Outras tabelas
@@ -221,7 +220,7 @@ Os dados de teste são **sintéticos** (`src/test/fixtures.ts`) e reproduzem a e
 ## Visualização de dados
 
 - **Paleta categórica:** ordem fixa, validada para daltonismo nos temas claro e escuro.
-- **Cores com papel fixo:** classes A/B/C sempre com as mesmas cores; na cascata, azul para aumentos, vermelho para reduções e cinza para totais.
+- **Cores com papel fixo:** classes A/B/C sempre com as mesmas cores.
 - **A cor nunca carrega a informação sozinha:** há legendas, ícones e valores em texto.
 - **Movimento:** as animações respeitam a preferência de movimento reduzido do sistema (`prefers-reduced-motion`).
 

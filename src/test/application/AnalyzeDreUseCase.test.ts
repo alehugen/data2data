@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DreMetric, DreReport } from '@/domain/dre'
-import { DRE_LINES, dreRows } from '@/test/fixtures'
+import { DRE_LINES, LEDGER_ROWS, dreRows } from '@/test/fixtures'
 import { AnalyzeDreUseCase } from '@/application'
 
 const report = DreReport.fromTable({ name: 'DRE Geral', sheet: 'DRE Geral', rows: dreRows() })!
@@ -39,31 +39,6 @@ describe('indicadores', () => {
   })
 })
 
-describe('cascata', () => {
-  it('segue a DRE da receita ao resultado, sem subtotais repetidos nem grupos zerados', () => {
-    expect(march.waterfall).toEqual([
-      { label: 'RECEITA OPERACIONAL BRUTA', value: 900, isTotal: true },
-      { label: 'IMPOSTOS SOBRE VENDA', value: -90, isTotal: false },
-      { label: 'CUSTOS DAS MERCADORIAS VENDIDAS', value: -280, isTotal: false },
-      { label: 'MARGEM DE CONTRIBUIÇÃO', value: 530, isTotal: true },
-      { label: 'DESPESAS OPERACIONAIS', value: -600, isTotal: false },
-      { label: 'RESULTADO LÍQUIDO', value: -70, isTotal: true },
-    ])
-  })
-
-  it('fecha: cada subtotal é o anterior somado às variações', () => {
-    let running = 0
-    for (const step of march.waterfall) {
-      if (step.isTotal) {
-        if (running !== 0) expect(step.value).toBeCloseTo(running)
-        running = step.value
-      } else {
-        running += step.value
-      }
-    }
-  })
-})
-
 describe('custos, ponto de equilíbrio e séries', () => {
   it('ordena os grupos de custo antes do EBITDA pelo valor', () => {
     expect(march.expenses.map((e) => [e.label, e.value])).toEqual([
@@ -93,7 +68,6 @@ describe('custos, ponto de equilíbrio e séries', () => {
     expect(march.monthly.ebitda).toEqual([100, 210, -70])
     expect(march.monthly.cash).toEqual([150, 360, 290])
     expect(march.monthly.revenueMix.map((s) => s.label)).toEqual(['Serviços', 'Produtos'])
-    expect(march.monthly.margins.map((m) => m.metric)).toEqual(['contributionMargin', 'ebitda', 'netIncome'])
   })
 })
 
@@ -135,6 +109,41 @@ describe('janela dos fatos', () => {
     expect(january.windowIndexes).toEqual([0, 1])
     expect(january.bestRevenue).toEqual({ index: 0, value: 5000 })
     expect(facts({ type: 'month', index: 0 }).bestRevenue).toBeNull()
+  })
+})
+
+describe('composição de uma célula', () => {
+  const withLedger = DreReport.fromTables([
+    { name: 'DRE', sheet: 'DRE Geral', rows: dreRows() },
+    { name: 'Fluxo', sheet: 'Fluxo de Caixa', rows: LEDGER_ROWS },
+  ])!
+  const lineId = (label: string) => withLedger.lines.find((line) => line.label === label)!.id
+
+  it('lista os lançamentos da conta no mês e confere com a DRE', () => {
+    const breakdown = useCase.breakdown(withLedger, lineId('Salários'), 2)!
+    expect(breakdown).toMatchObject({ label: 'Salários', period: { year: 2026, month: 3 }, value: -350, total: -350, difference: 0 })
+    expect(breakdown.entries.map((entry) => entry.date)).toEqual(['2026-03-05', '2026-03-20'])
+  })
+
+  it('soma por conta quando a linha é uma seção', () => {
+    const breakdown = useCase.breakdown(withLedger, lineId('DESPESAS OPERACIONAIS'), 2)!
+    expect(breakdown.accounts).toEqual([
+      { label: 'Salários', total: -350, count: 2 },
+      { label: 'Aluguel', total: -250, count: 1 },
+    ])
+    expect(breakdown.difference).toBe(0)
+  })
+
+  it('mostra a diferença quando faltam lançamentos', () => {
+    const breakdown = useCase.breakdown(withLedger, lineId('Salários'), 1)!
+    expect(breakdown).toMatchObject({ value: -300, total: -300, difference: 0 })
+    const missing = useCase.breakdown(withLedger, lineId('Simples Nacional'), 2)!
+    expect(missing).toMatchObject({ value: -90, total: 0, difference: -90, entries: [] })
+  })
+
+  it('não detalha sem lançamentos importados nem linhas de resultado', () => {
+    expect(useCase.breakdown(report, report.lines[1]!.id, 2)).toBeNull()
+    expect(useCase.breakdown(withLedger, lineId('MARGEM DE CONTRIBUIÇÃO'), 2)).toBeNull()
   })
 })
 

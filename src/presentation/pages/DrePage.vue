@@ -17,7 +17,6 @@ import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import StatGrid from '@/presentation/components/StatGrid.vue'
 import TrendChart from '@/presentation/components/TrendChart.vue'
-import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
 import { DRE_MARGIN_LABELS, DRE_METRIC_INFO, DRE_METRIC_LABELS, useDreAnalysis } from '@/presentation/composables/useDreAnalysis'
 import {
@@ -66,10 +65,6 @@ const kpiCards = computed(() =>
 )
 
 const INFO = {
-  waterfall:
-    'Parte da receita bruta e aplica, na ordem da DRE, cada grupo de custos e despesas (vermelho reduz, azul aumenta) até o resultado. As barras cinza são os subtotais da própria planilha; subtotais iguais em sequência aparecem uma vez só.',
-  revenue: 'Receita bruta e EBITDA de cada mês, em reais. EBITDA abaixo de zero indica operação no prejuízo naquele mês.',
-  margins: 'Cada linha é o resultado do mês ÷ receita bruta do mês. Meses sem receita ficam em branco.',
   expenses:
     'Grupos de custos e despesas anteriores ao EBITDA no período selecionado, do maior para o menor. O tooltip mostra quanto cada um consome da receita bruta.',
   mix: 'Contas que formam a receita bruta, empilhadas mês a mês. Só aparecem as contas com movimento.',
@@ -83,29 +78,10 @@ const navSections = computed<NavSection[]>(() => [
   { id: 'indicadores', label: 'Indicadores' },
   { id: 'analise', label: 'Pontos de análise' },
   ...(analysis.value?.profitTarget ? [{ id: 'meta', label: 'Meta de lucro' }] : []),
-  { id: 'cascata', label: 'Da receita ao resultado' },
-  { id: 'evolucao', label: 'Receita e margens' },
   { id: 'custos', label: 'Custos e receita' },
   ...(analysis.value?.monthly.cash ? [{ id: 'caixa', label: 'Saldo de caixa' }] : []),
   { id: 'dre-completa', label: 'DRE completa' },
 ])
-
-const revenueSeries = computed(() => {
-  const a = analysis.value
-  if (!a) return []
-  return [
-    { name: 'Receita bruta', type: 'bar' as const, data: a.monthly.revenue },
-    ...(a.monthly.ebitda ? [{ name: 'EBITDA', type: 'bar' as const, data: a.monthly.ebitda }] : []),
-  ]
-})
-
-const marginSeries = computed(() =>
-  (analysis.value?.monthly.margins ?? []).map((m) => ({
-    name: DRE_MARGIN_LABELS[m.metric] ?? m.metric,
-    type: 'line' as const,
-    data: m.values,
-  })),
-)
 
 const mixSeries = computed(() =>
   (analysis.value?.monthly.revenueMix ?? []).map((s) => ({
@@ -180,26 +156,6 @@ const expenseItems = computed(() =>
           :reference="periodLabels.reference"
           :source="`${report.name}, ${periodLabels.currentLong}`"
         />
-      </PageSection>
-
-      <PageSection id="cascata">
-        <ChartCard
-          title="Da receita ao resultado"
-          :subtitle="`Cascata da DRE: ${periodLabels.currentLong}`"
-          :info="INFO.waterfall"
-        >
-          <WaterfallChart :steps="analysis.waterfall" />
-        </ChartCard>
-      </PageSection>
-
-      <PageSection id="evolucao" class="grid gap-3 xl:grid-cols-2">
-        <ChartCard title="Receita e EBITDA" subtitle="Evolução mensal" :info="INFO.revenue">
-          <TrendChart :categories="months" :series="revenueSeries" :highlight-index="highlightIndex" />
-        </ChartCard>
-
-        <ChartCard title="Margens" subtitle="Percentual da receita bruta, mês a mês" :info="INFO.margins">
-          <TrendChart :categories="months" :series="marginSeries" format="percent" :highlight-index="highlightIndex" />
-        </ChartCard>
       </PageSection>
 
       <PageSection id="custos" class="grid gap-3 xl:grid-cols-2">

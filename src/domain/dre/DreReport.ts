@@ -1,4 +1,5 @@
 import type { RawTable } from '@/domain/ingestion'
+import { readLedger, type LedgerEntry } from './Ledger'
 import {
   comparePeriods,
   createIdentifier,
@@ -67,13 +68,21 @@ export class DreReport {
   readonly periods: readonly Period[]
   readonly lines: readonly DreLine[]
   readonly ignoredPeriods: readonly Period[]
+  readonly ledger: readonly LedgerEntry[]
   private readonly metrics: ReadonlyMap<DreMetric, DreLine>
 
-  private constructor(name: string, periods: Period[], lines: DreLine[], ignoredPeriods: Period[] = []) {
+  private constructor(
+    name: string,
+    periods: Period[],
+    lines: DreLine[],
+    ignoredPeriods: Period[] = [],
+    ledger: LedgerEntry[] = [],
+  ) {
     this.name = name
     this.periods = periods
     this.lines = lines
     this.ignoredPeriods = ignoredPeriods
+    this.ledger = ledger
     this.metrics = matchMetrics(lines)
   }
 
@@ -82,7 +91,11 @@ export class DreReport {
     const others = tables.filter((t) => !preferred.includes(t))
     for (const table of [...preferred, ...others]) {
       const report = DreReport.fromTable(table, asOf)
-      if (report) return report
+      if (!report) continue
+      const ledger = tables.filter((other) => other !== table).map(readLedger).find(Boolean)
+      return ledger
+        ? new DreReport(report.name, [...report.periods], [...report.lines], [...report.ignoredPeriods], ledger)
+        : report
     }
     if (tables.some((table) => DreReport.fromTable(table, END_OF_TIME))) {
       throw new DomainError(
@@ -122,6 +135,25 @@ export class DreReport {
     const report = new DreReport(table.name, header.periods.slice(start, last + 1), trimmed, ignored)
 
     return report.metric(DreMetric.GrossRevenue) ? report : null
+  }
+
+  accountsOf(line: DreLine): DreLine[] {
+    if (line.kind === DreLineKind.Account) return [line]
+    if (line.kind === DreLineKind.Result || line.kind === DreLineKind.Balance) return []
+    const children = this.children(line.id)
+    return children.length ? children.flatMap((child) => this.accountsOf(child)) : [line]
+  }
+
+  entriesOf(line: DreLine, periodIndex: number): LedgerEntry[] {
+    const period = this.periods[periodIndex]
+    if (!period) return []
+    const labels = new Set(this.accountsOf(line).map((account) => normalizeText(account.label)))
+    return this.ledger.filter(
+      (entry) =>
+        labels.has(normalizeText(entry.classification)) &&
+        entry.period.year === period.year &&
+        entry.period.month === period.month,
+    )
   }
 
   metric(metric: DreMetric): DreLine | undefined {

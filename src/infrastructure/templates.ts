@@ -103,6 +103,7 @@ const INSTRUCTIONS = [
   ['4. Pode renomear, incluir ou remover contas dentro de um grupo; ajuste a fórmula do grupo para somar as novas linhas.'],
   ['5. Meses sem movimento podem ficar zerados: eles são ignorados na análise.'],
   ['6. Salve e arraste o arquivo para o data2data.'],
+  ['7. A aba "Fluxo de Caixa" é opcional: com ela, clicar em um valor da DRE completa mostra os lançamentos pagos que o compõem.'],
 ]
 
 const byLabel = new Map(DRE_LINES.filter((line): line is Exclude<DreLine, null> => line !== null).map((l) => [l.label, l]))
@@ -146,6 +147,32 @@ export function sampleStatement(month: number): StatementLine[] {
   ]
 }
 
+const LEDGER_HEADER = ['DATA PAGTO', 'MOVIMENTAÇÃO', 'HISTÓRICO', 'CLASSIFICAÇÃO', 'VALOR', 'UNIDADE']
+
+function ledgerRows(year: number): (string | number)[][] {
+  const leaves = DRE_LINES.filter((line): line is DreLeaf => line !== null && 'monthly' in line)
+  return leaves.flatMap((leaf) =>
+    MONTH_NAMES.flatMap((_, month) => {
+      const value = valueOf(leaf.label, month)
+      if (!value) return []
+      const parts = Math.abs(value) > 5000 ? 3 : Math.abs(value) > 1000 ? 2 : 1
+      const share = round2(value / parts)
+      return Array.from({ length: parts }, (_, part) => {
+        const amount = part === parts - 1 ? round2(value - share * (parts - 1)) : share
+        const day = String(5 + part * 9).padStart(2, '0')
+        return [
+          `${year}-${String(month + 1).padStart(2, '0')}-${day}`,
+          amount < 0 ? 'Saída' : 'Entrada',
+          parts > 1 ? `${leaf.label} (parte ${part + 1} de ${parts})` : leaf.label,
+          leaf.label,
+          Math.abs(amount),
+          'Matriz',
+        ]
+      })
+    }),
+  )
+}
+
 export async function buildDreTemplate(year: number): Promise<File> {
   const { utils, write } = await import('xlsx')
   const firstDataRow = 4
@@ -185,6 +212,9 @@ export async function buildDreTemplate(year: number): Promise<File> {
 
   const workbook = utils.book_new()
   utils.book_append_sheet(workbook, sheet, 'DRE Geral')
+  const ledger = utils.aoa_to_sheet([LEDGER_HEADER, ...ledgerRows(year)])
+  ledger['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 40 }, { wch: 32 }, { wch: 12 }, { wch: 12 }]
+  utils.book_append_sheet(workbook, ledger, 'Fluxo de Caixa')
   const instructions = utils.aoa_to_sheet(INSTRUCTIONS)
   instructions['!cols'] = [{ wch: 110 }]
   utils.book_append_sheet(workbook, instructions, 'Instruções')

@@ -22,8 +22,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/presentation/components/ui/badge'
 import { Card } from '@/presentation/components/ui/card'
 import TrendChart from '@/presentation/components/TrendChart.vue'
-import VolumeMarginChart from '@/presentation/components/VolumeMarginChart.vue'
-import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { MOVEMENT_LABELS, useAbcAnalysis } from '@/presentation/composables/useAbcAnalysis'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
 import {
@@ -58,16 +56,10 @@ const INFO = {
     'Faturamento de cada mês importado, dividido por classe. Quando há relatório de lucro do mês, a linha mostra o lucro total para comparar com as vendas.',
   movement:
     'Compara cada item com o mês anterior importado, pelo código. Novo: não vendeu antes. Subiu/Caiu: mudou de classe (A é a melhor). Saiu: não vendeu neste mês.',
-  items_table: 'Itens ordenados pela participação. Participação é o percentual informado pelo sistema ou, sem essa coluna, a fatia no critério de classificação; acumulado é a soma das participações até o item.',
   profit: 'Lucro informado no relatório de lucro do mês, somado em todos os itens. O app confere se ele bate com valor vendido − custo gerencial − impostos − materiais − taxas financeiras e avisa nos pontos de análise quando não bate.',
   margin: 'Lucro ÷ valor vendido. Mostra quanto de cada real vendido vira lucro. A variação é em pontos percentuais (p.p.): de 20% para 22% são +2 p.p.',
   cost: 'Soma do custo gerencial dos itens vendidos (custo de aquisição do produto). O percentual é custo ÷ valor vendido.',
   taxes: 'Soma de impostos, materiais usados na aplicação e taxas financeiras (cartão, boleto) dos itens vendidos. O percentual é sobre o valor vendido.',
-  profitWaterfall: 'Parte do valor vendido e desconta custo, impostos, materiais e taxas até o lucro informado no relatório. Quando a conta não fecha, a barra "Diferença não explicada" mostra quanto falta ou sobra.',
-  classProfit:
-    'Compara quanto cada classe representa em quantidade, faturamento e lucro. Se a classe A tem fatia de lucro menor que a de quantidade, ela vende muito mas lucra proporcionalmente menos.',
-  matrix:
-    'Cada ponto é um item: quanto mais à direita, mais vendido; quanto mais alto, maior a margem. As linhas tracejadas são a margem média e o volume médio do mês. Canto inferior direito: vende muito e lucra pouco. Canto superior esquerdo: margem alta, pouco explorada.',
   profitRanking: 'Itens ordenados pelo lucro em reais no mês. A cor indica a classe ABC; o tooltip mostra a margem e o lucro por unidade.',
   profitTable:
     'Valores do relatório de lucro por produto, com a classe da Curva ABC do mesmo mês. O alerta indica custo zerado, o que costuma ser falta de cadastro e infla a margem.',
@@ -193,39 +185,6 @@ const evolution = computed(() => {
   }
 })
 
-const profitWaterfall = computed(() => {
-  const data = profitability.value
-  if (!data) return []
-  const { totals, profitCheck } = data
-  return [
-    { label: 'Valor vendido', value: totals.revenue, isTotal: true },
-    { label: 'Custo gerencial', value: -totals.cost, isTotal: false },
-    { label: 'Impostos', value: -totals.tax, isTotal: false },
-    { label: 'Materiais', value: -totals.materials, isTotal: false },
-    { label: 'Taxas financeiras', value: -totals.financialFee, isTotal: false },
-    { label: 'Diferença não explicada', value: profitCheck.divergent.length ? profitCheck.difference : 0, isTotal: false },
-    { label: 'Lucro informado', value: totals.profit, isTotal: true },
-  ].filter((step) => step.isTotal || Math.abs(step.value) >= 0.005)
-})
-
-const matrixPoints = computed(() =>
-  (profitability.value?.items ?? [])
-    .filter((item) => item.margin !== null && !item.costMissing)
-    .map((item) => ({
-      label: item.description,
-      quantity: item.quantity,
-      margin: item.margin!,
-      profit: item.profit,
-      color: classColor(item.abcClass),
-      group: classLabel(item.abcClass),
-    })),
-)
-
-const averageQuantity = computed(() => {
-  const points = matrixPoints.value
-  return points.length ? points.reduce((acc, p) => acc + p.quantity, 0) / points.length : 0
-})
-
 const profitRanking = computed(() =>
   (profitability.value?.items ?? []).map((item) => ({
     label: item.description,
@@ -246,13 +205,11 @@ const navSections = computed<NavSection[]>(() => {
     ...(data.profitability
       ? [
           { id: 'lucratividade', label: 'Lucratividade' },
-          { id: 'volume-margem', label: 'Volume × margem', nested: true },
           { id: 'lucro-por-item', label: 'Lucro por item', nested: true },
           { id: 'tabela-lucro', label: 'Tabela de lucro', nested: true },
         ]
       : []),
     ...(data.previous && data.movements.length ? [{ id: 'movimentacao', label: 'Movimentação' }] : []),
-    { id: 'itens', label: 'Itens do mês' },
   ]
 })
 
@@ -383,41 +340,6 @@ const movementTone: Record<AbcMovement, string> = {
 
         <InsightList :insights="profitInsights" />
 
-        <div class="grid gap-3 lg:grid-cols-2">
-          <ChartCard title="Da venda ao lucro" :subtitle="`Composição do resultado de ${currentLabel}`" :info="INFO.profitWaterfall">
-            <WaterfallChart :steps="profitWaterfall" />
-          </ChartCard>
-
-          <ChartCard title="Lucro por classe" subtitle="Fatia de cada classe em quantidade, faturamento e lucro" :info="INFO.classProfit">
-            <div class="space-y-5">
-              <ShareBar title="Quantidade" :segments="classSegments((c) => current!.byClass[c].quantity)" :format-value="(v) => `${formatNumber(v)} un.`" />
-              <ShareBar title="Faturamento" :segments="classSegments((c) => current!.byClass[c].value)" :format-value="formatCurrency" />
-              <ShareBar title="Lucro" :segments="profitSegments" :format-value="formatCurrency" />
-              <dl class="grid grid-cols-3 gap-2 text-center text-xs">
-                <div v-for="abcClass in ABC_CLASSES" :key="abcClass" class="rounded-lg bg-muted p-2">
-                  <dt class="text-muted-foreground">Margem classe {{ abcClass }}</dt>
-                  <dd class="text-base font-semibold text-foreground">{{ profitability.byClass[abcClass].margin !== null ? formatPercent(profitability.byClass[abcClass].margin!) : '–' }}</dd>
-                </div>
-              </dl>
-            </div>
-          </ChartCard>
-        </div>
-
-        <PageSection id="volume-margem">
-          <ChartCard title="Volume × margem" subtitle="Onde está o lucro de verdade" :info="INFO.matrix">
-            <ul class="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground" aria-label="Legenda">
-              <li v-for="abcClass in ABC_CLASSES" :key="abcClass" class="flex items-center gap-1.5">
-                <span class="size-2.5 rounded-full" :style="{ background: theme.abcClass[abcClass] }" />Classe {{ abcClass }}
-              </li>
-            </ul>
-            <VolumeMarginChart
-              :points="matrixPoints"
-              :average-margin="profitability.referenceMargin ?? 0"
-              :average-quantity="averageQuantity"
-            />
-          </ChartCard>
-        </PageSection>
-
         <PageSection id="lucro-por-item">
           <ChartCard title="Lucro por item" subtitle="Do mais ao menos lucrativo" :info="INFO.profitRanking">
             <RankingBarChart
@@ -526,35 +448,6 @@ const movementTone: Record<AbcMovement, string> = {
         </Card>
       </PageSection>
 
-      <PageSection id="itens" class="space-y-3">
-        <SectionHeading :title="`Itens de ${currentLabel}`" :info="INFO.items_table" />
-        <Card class="gap-0 py-0">
-          <Table>
-            <TableHeader class="bg-muted/60">
-              <TableRow>
-                <TableHead class="px-3 py-2 font-medium">#</TableHead>
-                <TableHead class="px-3 py-2 font-medium">Item</TableHead>
-                <TableHead class="px-3 py-2 font-medium">Classe</TableHead>
-                <TableHead class="px-3 py-2 text-right font-medium">Quantidade</TableHead>
-                <TableHead class="px-3 py-2 text-right font-medium">Participação</TableHead>
-                <TableHead class="px-3 py-2 text-right font-medium">Acumulado</TableHead>
-                <TableHead class="px-3 py-2 text-right font-medium">Faturamento</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody class="tabular-nums">
-              <TableRow v-for="(item, i) in analysis.ranking" :key="item.code">
-                <TableCell class="px-3 py-2 text-muted-foreground">{{ i + 1 }}</TableCell>
-                <TableCell class="px-3 py-2">{{ item.description }}</TableCell>
-                <TableCell class="px-3 py-2"><AbcBadge :abc-class="item.abcClass" /></TableCell>
-                <TableCell class="px-3 py-2 text-right">{{ formatNumber(item.quantity) }}</TableCell>
-                <TableCell class="px-3 py-2 text-right">{{ formatPercent(item.share) }}</TableCell>
-                <TableCell class="px-3 py-2 text-right text-muted-foreground">{{ formatPercent(item.cumulativeShare) }}</TableCell>
-                <TableCell class="px-3 py-2 text-right">{{ formatCurrency(item.value) }}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </Card>
-      </PageSection>
     </ReportLayout>
   </div>
 </template>

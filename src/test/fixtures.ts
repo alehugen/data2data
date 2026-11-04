@@ -9,6 +9,18 @@ const DRE_MONTHS = [
   [3, 2026],
 ] as const
 
+export const LEDGER_ROWS: string[][] = [
+  ['DATA DE EMISSÃO', 'MOVIMENTAÇÃO', 'HISTÓRICO', 'CLASSIFICAÇÃO', 'VALOR', 'DATA PAGTO', 'UNIDADE'],
+  ['2026-02-20', 'Saída', 'Folha de março, parte 1', 'Salários', '200', '2026-03-05', 'Matriz'],
+  ['2026-02-20', 'Saída', 'Folha de março, parte 2', 'Salários', '150', '2026-03-20', 'Matriz'],
+  ['2026-03-01', 'Saída', 'Aluguel da loja', 'Aluguel', '250', '2026-03-10', 'Matriz'],
+  ['2026-03-02', 'Entrada', 'Vendas da semana', 'Produtos', '400', '2026-03-08', 'Matriz'],
+  ['2026-03-09', 'Entrada', 'Vendas da semana', 'Produtos', '200', '2026-03-15', 'Matriz'],
+  ['2026-03-09', 'Entrada', 'Consultoria', 'Serviços', '300', '2026-03-18', 'Matriz'],
+  ['2026-03-25', 'Saída', 'Aluguel de abril, ainda não pago', 'Aluguel', '260', '', 'Matriz'],
+  ['2026-01-20', 'Saída', 'Folha de fevereiro', 'Salários', '300', '2026-02-05', 'Matriz'],
+]
+
 export const DRE_LINES: readonly DreLine[] = [
   ['RECEITA OPERACIONAL BRUTA', 0, 1000, 1200, 900],
   ['Serviços', 0, 400, 500, 300],

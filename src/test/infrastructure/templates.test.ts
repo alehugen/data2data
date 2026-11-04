@@ -64,11 +64,6 @@ describe('modelo de DRE', () => {
     expect(kindOf('MARGEM DE CONTRIBUIÇÃO')).toBe('result')
 
     const analysis = new AnalyzeDreUseCase().execute(report!, { type: 'month', index: 5 })
-    let running = 0
-    for (const step of analysis.waterfall) {
-      if (step.isTotal && running !== 0) expect(step.value).toBeCloseTo(running, 1)
-      running = step.isTotal ? step.value : running + step.value
-    }
     expect(analysis.breakEven).not.toBeNull()
 
     const operating = report!.lines.find((line) => line.label === 'DESPESAS OPERACIONAIS')!.values[5]!
@@ -79,6 +74,18 @@ describe('modelo de DRE', () => {
       'DESPESAS NÃO DESEMBOLSÁVEIS',
     ])
     expect(analysis.breakEven!.revenue).toBeCloseTo(-operating / target.contributionRatio, 2)
+  })
+
+  it('traz uma aba de fluxo de caixa cujos lançamentos fecham com cada célula da DRE', async () => {
+    const [report] = (await importFile.execute(await buildDreTemplate(2026))) as DreReport[]
+    expect(report!.ledger.length).toBeGreaterThan(0)
+    const useCase = new AnalyzeDreUseCase()
+    for (const line of report!.lines) {
+      report!.periods.forEach((_, index) => {
+        const breakdown = useCase.breakdown(report!, line.id, index)
+        if (breakdown && line.values[index]) expect(Math.abs(breakdown.difference), `${line.label} ${index}`).toBeLessThan(0.05)
+      })
+    }
   })
 
   it('carrega o saldo final de um mês como saldo inicial do seguinte', async () => {

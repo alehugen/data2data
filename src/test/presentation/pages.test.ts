@@ -5,8 +5,6 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { container } from '@/infrastructure/container'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
 import TrendChart from '@/presentation/components/TrendChart.vue'
-import VolumeMarginChart from '@/presentation/components/VolumeMarginChart.vue'
-import WaterfallChart from '@/presentation/components/WaterfallChart.vue'
 import { useFileImport } from '@/presentation/composables/useFileImport'
 import { useReports } from '@/presentation/composables/useReports'
 import SampleStatement from '@/presentation/components/SampleStatement.vue'
@@ -90,10 +88,8 @@ describe('gráficos sem dados', () => {
   it.each([
     ['ranking', RankingBarChart, { items: [], valueLabel: 'Valor' }],
     ['evolução', TrendChart, { categories: ['jan/26'], series: [{ name: 'Receita', type: 'bar', data: [0] }] }],
-    ['cascata', WaterfallChart, { steps: [] }],
-    ['volume × margem', VolumeMarginChart, { points: [], averageMargin: 0, averageQuantity: 0 }],
   ])('%s mostra um aviso em vez de um gráfico vazio', (_, component, props) => {
     const wrapper = mountWithProviders(component, { props: props as never })
-    expect(wrapper.text()).toMatch(/Sem dados para exibir|Nenhum item com custo/)
+    expect(wrapper.text()).toContain('Sem dados para exibir')
   })
 })

@@ -41,7 +41,7 @@ export interface AbcAnalysis {
   readonly months: AbcMonthSummary[]
   readonly current: AbcMonthSummary
   readonly previous: AbcMonthSummary | null
-  readonly ranking: (AbcItem & { readonly cumulativeShare: number })[]
+  readonly ranking: AbcItem[]
   readonly movements: AbcItemMovement[]
   readonly profitability: AbcProfitability | null
 }
@@ -86,11 +86,7 @@ export class AnalyzeAbcUseCase {
     if (!current) return null
     const previous = current.report.period ? (months[currentIndex - 1] ?? null) : null
 
-    let cumulative = 0
-    const ranking = [...current.report.items].sort((a, b) => b.share - a.share).map((item) => {
-      cumulative += item.share
-      return { ...item, cumulativeShare: Math.min(cumulative, 1) }
-    })
+    const ranking = [...current.report.items].sort((a, b) => b.share - a.share)
 
     return {
       months,
