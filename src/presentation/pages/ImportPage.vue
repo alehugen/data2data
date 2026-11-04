@@ -10,7 +10,7 @@ import { Card } from '@/presentation/components/ui/card'
 import { useFileImport } from '@/presentation/composables/useFileImport'
 import { useReports } from '@/presentation/composables/useReports'
 import { useTemplates } from '@/presentation/composables/useTemplates'
-import { describeReport, formatAbcMonth, formatPeriod } from '@/presentation/format'
+import { describeReport, formatAbcMonth, formatPeriod, formatPeriodList } from '@/presentation/format'
 import { routeForReport } from '@/presentation/router'
 
 const { reports, dreReports, abcReports, profitReports, datasets, remove } = useReports()
@@ -105,7 +105,7 @@ const importSummary = computed(() => {
             v-for="report in dreReports"
             :key="report.id"
             :title="report.name"
-            :subtitle="`${report.periods.length} ${report.periods.length === 1 ? 'mês' : 'meses'}, de ${formatPeriod(report.periods[0]!)} a ${formatPeriod(report.periods.at(-1)!)}`"
+            :subtitle="`${report.periods.length} ${report.periods.length === 1 ? 'mês' : 'meses'}, de ${formatPeriod(report.periods[0]!)} a ${formatPeriod(report.periods.at(-1)!)}${report.ignoredPeriods.length ? `; ${formatPeriodList(report.ignoredPeriods)} em aberto, fora da análise` : ''}`"
             :to="routeForReport(report)"
             :icon="PhChartLineUp"
             removable

@@ -1,4 +1,4 @@
-import { parseNumber, sum } from '@/domain/shared'
+import { detectNumberConvention, parseNumber, sum } from '@/domain/shared'
 
 export interface ColumnStatistics {
   readonly count: number
@@ -9,7 +9,8 @@ export interface ColumnStatistics {
 }
 
 export function computeStatistics(values: readonly string[]): ColumnStatistics {
-  const numbers = values.map(parseNumber).filter(Number.isFinite)
+  const convention = detectNumberConvention(values)
+  const numbers = values.map((value) => parseNumber(value, convention)).filter(Number.isFinite)
   if (!numbers.length) return { count: 0, sum: 0, mean: 0, min: 0, max: 0 }
 
   const total = sum(numbers)

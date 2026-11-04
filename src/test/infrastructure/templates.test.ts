@@ -18,7 +18,11 @@ import { XlsxFileParser } from '@/infrastructure/XlsxFileParser'
 let importFile: ImportFileUseCase
 
 beforeEach(() => {
-  importFile = new ImportFileUseCase([new CsvFileParser(), new XlsxFileParser()], new InMemoryReportRepository())
+  importFile = new ImportFileUseCase(
+    [new CsvFileParser(), new XlsxFileParser()],
+    new InMemoryReportRepository(),
+    () => new Date(2027, 0, 10),
+  )
 })
 
 describe('previousMonth', () => {
@@ -29,6 +33,17 @@ describe('previousMonth', () => {
 })
 
 describe('modelo de DRE', () => {
+  it('importado no meio do ano, deixa de fora os meses em aberto', async () => {
+    const midYear = new ImportFileUseCase([new XlsxFileParser()], new InMemoryReportRepository(), () => new Date(2026, 10, 3))
+    const [report] = (await midYear.execute(await buildDreTemplate(2026))) as DreReport[]
+    expect(report!.periods).toHaveLength(10)
+    expect(report!.periods.at(-1)).toEqual({ year: 2026, month: 10 })
+    expect(report!.ignoredPeriods).toEqual([
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ])
+  })
+
   it('é reconhecido como DRE com os 12 meses e as linhas-chave', async () => {
     const file = await buildDreTemplate(2026)
     expect(file.name).toBe('Modelo_DRE-2026.xlsx')
@@ -55,6 +70,15 @@ describe('modelo de DRE', () => {
       running = step.isTotal ? step.value : running + step.value
     }
     expect(analysis.breakEven).not.toBeNull()
+
+    const operating = report!.lines.find((line) => line.label === 'DESPESAS OPERACIONAIS')!.values[5]!
+    const target = analysis.profitTarget!
+    expect(target.fixedCosts).toBeCloseTo(-operating, 2)
+    expect(target.excludedLines.map((line) => line.label)).toEqual([
+      'OUTRAS RECEITAS OPERACIONAIS',
+      'DESPESAS NÃO DESEMBOLSÁVEIS',
+    ])
+    expect(analysis.breakEven!.revenue).toBeCloseTo(-operating / target.contributionRatio, 2)
   })
 
   it('carrega o saldo final de um mês como saldo inicial do seguinte', async () => {

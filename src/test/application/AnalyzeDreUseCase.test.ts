@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DreMetric, DreReport } from '@/domain/dre'
-import { dreRows } from '@/test/fixtures'
+import { DRE_LINES, dreRows } from '@/test/fixtures'
 import { AnalyzeDreUseCase } from '@/application'
 
 const report = DreReport.fromTable({ name: 'DRE Geral', sheet: 'DRE Geral', rows: dreRows() })!
@@ -80,6 +80,14 @@ describe('custos, ponto de equilíbrio e séries', () => {
     expect(march.breakEven!.actual).toBe(900)
   })
 
+  it('coincide com a meta de lucro zero, no mês e no acumulado', () => {
+    for (const analysis of [march, year]) {
+      const zero = useCase.projectProfitTarget(analysis.profitTarget!, 0)
+      if (zero.status === 'unreachable') throw new Error('meta deveria ser alcançável')
+      expect(analysis.breakEven!.revenue).toBeCloseTo(zero.revenue * analysis.profitTarget!.months)
+    }
+  })
+
   it('monta as séries mensais', () => {
     expect(march.monthly.revenue).toEqual([1000, 1200, 900])
     expect(march.monthly.ebitda).toEqual([100, 210, -70])
@@ -94,11 +102,132 @@ describe('fatos', () => {
     expect(march.facts).toMatchObject({
       revenueChange: -0.25,
       bestRevenue: { index: 1, value: 1200 },
-      recentMonths: 3,
+      windowIndexes: [0, 1, 2],
       positiveEbitdaMonths: 2,
       negativeCashMonths: 0,
     })
     expect(march.facts.topExpense?.label).toBe('DESPESAS COM PESSOAL')
-    expect(march.facts.averageContributionMargin).toBeCloseTo((0.6 + 730 / 1200 + 530 / 900) / 3)
+  })
+
+  it('pondera a margem de contribuição média pela receita', () => {
+    expect(march.facts.averageContributionMargin).toBeCloseTo((600 + 730 + 530) / (1000 + 1200 + 900))
+  })
+})
+
+describe('janela dos fatos', () => {
+  const withDecember = DreReport.fromTable({
+    name: 'DRE',
+    sheet: 'DRE Geral',
+    rows: dreRows({ lines: DRE_LINES.map((line) => line && ([line[0], line[2]! * 5, ...line.slice(2)] as typeof line)) }),
+  })!
+  const facts = (selection: Parameters<typeof useCase.execute>[1]) => useCase.execute(withDecember, selection).facts
+
+  it('no acumulado do ano, usa só os meses daquele ano', () => {
+    expect(withDecember.periods[0]).toEqual({ year: 2025, month: 12 })
+    const year2026 = facts({ type: 'year', year: 2026 })
+    expect(year2026.windowIndexes).toEqual([1, 2, 3])
+    expect(year2026.bestRevenue).toEqual({ index: 2, value: 1200 })
+    expect(year2026.averageContributionMargin).toBeCloseTo((600 + 730 + 530) / (1000 + 1200 + 900))
+  })
+
+  it('no mês, olha só para trás: nunca inclui meses depois do selecionado', () => {
+    const january = facts({ type: 'month', index: 1 })
+    expect(january.windowIndexes).toEqual([0, 1])
+    expect(january.bestRevenue).toEqual({ index: 0, value: 5000 })
+    expect(facts({ type: 'month', index: 0 }).bestRevenue).toBeNull()
+  })
+})
+
+describe('meta de lucro', () => {
+  const base = march.profitTarget!
+
+  it('usa as despesas operacionais como fixas e o resultado operacional como lucro', () => {
+    expect(base).toMatchObject({ months: 1, revenue: 900, profit: -70, fixedCosts: 600 })
+    expect(base.contributionRatio).toBeCloseTo(530 / 900)
+  })
+
+  it('no acumulado, usa a média mensal das despesas operacionais, como na receita', () => {
+    expect(year.profitTarget).toMatchObject({ months: 3, fixedCosts: (500 + 520 + 600) / 3 })
+    expect(year.profitTarget!.revenue).toBeCloseTo((1000 + 1200 + 900) / 3)
+  })
+
+  it('calcula a receita que gera o lucro desejado e a conta fecha', () => {
+    const projection = useCase.projectProfitTarget(base, 100)
+    if (projection.status === 'unreachable') throw new Error('meta deveria ser alcançável')
+    expect(projection.status).toBe('pending')
+    expect(projection.revenue).toBeCloseTo(700 / (530 / 900))
+    expect(projection.revenue - projection.variableCosts - projection.fixedCosts).toBeCloseTo(100)
+    expect(projection.revenueGap).toBeCloseTo(projection.revenue - 900)
+    expect(projection.revenueChange).toBeCloseTo(projection.revenue / 900 - 1)
+    expect(projection.fixedCostCut).toBe(170)
+    expect(projection.contributionRatio).toBeCloseTo(700 / 900)
+  })
+
+  it('lista os grupos de despesas operacionais do maior para o menor', () => {
+    expect(base.fixedGroups).toEqual([
+      { label: 'DESPESAS COM PESSOAL', value: 350 },
+      { label: 'DESPESAS GERAIS', value: 250 },
+    ])
+  })
+
+  it('calcula caminhos que fecham sozinhos a diferença até a meta', () => {
+    const projection = useCase.projectProfitTarget(base, 100)
+    if (projection.status === 'unreachable' || !projection.paths) throw new Error('esperava caminhos')
+    const { paths } = projection
+    expect(paths.gap).toBe(170)
+    expect(paths.sales.amount).toBeCloseTo(170 / (530 / 900))
+    expect(paths.sales.amount).toBeCloseTo(projection.revenueGap)
+    expect(paths.price).toBeCloseTo(170 / (900 * 0.9))
+    expect(paths.purchases!.share).toBeCloseTo(170 / 280)
+    expect(paths.fixed!.share).toBeCloseTo(170 / 600)
+    expect(paths.combined.fixed).toBeCloseTo(170 / 3)
+    expect(paths.combined.sales * (530 / 900) + paths.combined.price! * 810 + paths.combined.fixed).toBeCloseTo(170)
+  })
+
+  it('não sugere cortar mais do que existe nem caminhos para meta já batida', () => {
+    const big = useCase.projectProfitTarget(base, 10_000)
+    if (big.status === 'unreachable') throw new Error('meta deveria ser alcançável')
+    expect(big.paths).toMatchObject({ purchases: null, fixed: null })
+    expect(useCase.projectProfitTarget({ ...base, profit: 150 }, 100)).toMatchObject({ paths: null })
+  })
+
+  it('separa as linhas variáveis por tipo', () => {
+    expect(base.variableLines).toEqual([
+      { label: 'IMPOSTOS SOBRE VENDA', value: 90, kind: 'taxes', ratio: 0.1 },
+      { label: 'CUSTOS DAS MERCADORIAS VENDIDAS', value: 280, kind: 'purchases', ratio: 280 / 900 },
+    ])
+    expect(base.excludedLines).toEqual([])
+  })
+
+  it('projeta cada custo variável na proporção da receita e destaca as compras a mais', () => {
+    const projection = useCase.projectProfitTarget(base, 100)
+    if (projection.status === 'unreachable') throw new Error('meta deveria ser alcançável')
+    const purchases = projection.variableLines.find((line) => line.kind === 'purchases')!
+    expect(purchases.projected).toBeCloseTo((280 / 900) * projection.revenue)
+    expect(projection.purchasesChange).toBeCloseTo(purchases.projected - 280)
+    expect(projection.variableLines.reduce((total, line) => total + line.projected, 0)).toBeCloseTo(projection.variableCosts)
+  })
+
+  it('não estima compras quando a DRE não tem linhas de custo das vendas', () => {
+    const projection = useCase.projectProfitTarget({ ...base, variableLines: base.variableLines.filter((l) => l.kind !== 'purchases') }, 100)
+    expect(projection).toMatchObject({ purchasesChange: null })
+  })
+
+  it('marca a meta como atingida quando o lucro do período já chega lá', () => {
+    expect(useCase.projectProfitTarget({ ...base, profit: 150 }, 100)).toMatchObject({ status: 'reached', fixedCostCut: 0 })
+  })
+
+  it('omite o caminho pela margem quando ela precisaria passar de 100%', () => {
+    expect(useCase.projectProfitTarget(base, 1000)).toMatchObject({ contributionRatio: null })
+  })
+
+  it('não projeta com margem de contribuição zerada ou negativa', () => {
+    expect(useCase.projectProfitTarget({ ...base, contributionRatio: -0.1 }, 100)).toEqual({ status: 'unreachable', target: 100 })
+  })
+
+  it('usa a média mensal no acumulado do ano', () => {
+    const yearly = year.profitTarget!
+    expect(yearly.months).toBe(3)
+    expect(yearly.revenue).toBeCloseTo(3100 / 3)
   })
 })

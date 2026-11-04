@@ -75,16 +75,20 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
     const r = report.value
     const a = analysis.value
     const s = selection.value
-    if (!r || !a || !s) return { current: '', currentLong: '', previous: '' }
-    const previous = a.previousIndexes
-      ? s.type === 'month'
-        ? formatPeriod(r.periods[a.previousIndexes[0]!]!)
-        : `${s.year - 1}`
-      : ''
+    if (!r || !a || !s) return { current: '', currentLong: '', previous: '', reference: '', window: '', when: '' }
+    const span = (indexes: number[]) => {
+      const first = formatPeriod(r.periods[indexes[0]!]!)
+      const last = formatPeriod(r.periods[indexes.at(-1)!]!)
+      return first === last ? first : `${first} a ${last}`
+    }
+    const previous = a.previousIndexes ? span(a.previousIndexes) : ''
     return {
       current: labelOf(s),
       currentLong: s.type === 'month' ? formatPeriodLong(r.periods[s.index]!) : `acumulado de ${s.year}`,
       previous,
+      reference: s.type === 'month' ? `em ${labelOf(s)}` : `na média mensal de ${s.year}`,
+      window: s.type === 'month' ? `até ${labelOf(s)}` : `de ${s.year}`,
+      when: s.type === 'month' ? `em ${labelOf(s)}` : `no acumulado de ${s.year}`,
     }
   })
 
@@ -105,12 +109,13 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
 export function buildDreInsights(
   report: DreReport,
   analysis: DreAnalysis,
-  labels: { current: string; previous: string },
+  labels: { current: string; previous: string; window: string; when: string },
 ): Insight[] {
   const { facts, kpis, breakEven } = analysis
   const items: Insight[] = []
   const kpi = (metric: DreMetric) => kpis.find((k) => k.metric === metric)
-  const window = `últimos ${facts.recentMonths} meses do relatório`
+  const months = facts.windowIndexes.length
+  const window = `${months} meses ${labels.window}`
 
   if (facts.revenueChange !== null && labels.previous) {
     const up = facts.revenueChange >= 0
@@ -118,7 +123,7 @@ export function buildDreInsights(
       title: up ? 'Receita em alta' : 'Receita em queda',
       description: `A receita bruta ${up ? 'cresceu' : 'caiu'} ${formatPercent(Math.abs(facts.revenueChange))} em relação a ${labels.previous}.`,
       tone: up ? 'positive' : 'negative',
-      explanation: `(Receita bruta de ${labels.current} − receita bruta de ${labels.previous}) ÷ receita bruta de ${labels.previous}. No acumulado do ano, compara com os mesmos meses do ano anterior.`,
+      explanation: `(Receita bruta do período − receita bruta de ${labels.previous}) ÷ receita bruta de ${labels.previous}. No acumulado do ano, compara com os mesmos meses do ano anterior.`,
     })
   }
 
@@ -127,7 +132,7 @@ export function buildDreInsights(
     const positive = ebitda.value >= 0
     items.push({
       title: positive ? 'Operação lucrativa' : 'Operação no prejuízo',
-      description: `EBITDA de ${formatCurrencyCompact(ebitda.value)} em ${labels.current}${ebitda.margin !== null ? `, margem de ${formatPercent(ebitda.margin)}` : ''}.`,
+      description: `EBITDA de ${formatCurrencyCompact(ebitda.value)} ${labels.when}${ebitda.margin !== null ? `, margem de ${formatPercent(ebitda.margin)}` : ''}.`,
       tone: positive ? 'positive' : 'negative',
       explanation: 'EBITDA é o resultado da operação antes de itens não desembolsáveis e movimentações não operacionais. Margem EBITDA = EBITDA ÷ receita bruta. Positivo indica operação lucrativa no período.',
     })
@@ -137,9 +142,9 @@ export function buildDreInsights(
     const gap = breakEven.actual / breakEven.revenue - 1
     items.push({
       title: 'Ponto de equilíbrio',
-      description: `São necessários ${formatCurrencyCompact(breakEven.revenue)} de receita para cobrir as despesas fixas; a receita ficou ${formatPercent(Math.abs(gap))} ${gap >= 0 ? 'acima' : 'abaixo'}.`,
+      description: `São necessários ${formatCurrencyCompact(breakEven.revenue)} de receita ${labels.when} para cobrir as despesas operacionais; a receita ficou ${formatPercent(Math.abs(gap))} ${gap >= 0 ? 'acima' : 'abaixo'}.`,
       tone: gap >= 0 ? 'positive' : 'negative',
-      explanation: 'Despesas operacionais (fixas) ÷ margem de contribuição %. É a receita mínima para não ter prejuízo operacional, mantida a margem atual. A diferença compara a receita real com esse valor.',
+      explanation: 'Despesas operacionais (fixas) ÷ margem de contribuição % do período. É a receita em que a margem de contribuição cobre exatamente as despesas operacionais, mantida a margem atual. Outras receitas, depreciação e itens não operacionais não entram. A diferença compara a receita real com esse valor.',
     })
   }
 
@@ -152,29 +157,29 @@ export function buildDreInsights(
     })
   }
 
-  if (facts.positiveEbitdaMonths !== null) {
-    const ratio = facts.positiveEbitdaMonths / facts.recentMonths
+  if (facts.positiveEbitdaMonths !== null && months > 1) {
+    const ratio = facts.positiveEbitdaMonths / months
     items.push({
       title: 'Consistência do resultado',
-      description: `EBITDA positivo em ${facts.positiveEbitdaMonths} dos últimos ${facts.recentMonths} meses.`,
+      description: `EBITDA positivo em ${facts.positiveEbitdaMonths} dos ${window}.`,
       tone: ratio >= 0.5 ? 'positive' : 'negative',
-      explanation: `Quantidade de meses com EBITDA acima de zero nos ${window}, independente do período selecionado. Fica positivo a partir de metade dos meses.`,
+      explanation: `Quantidade de meses com EBITDA acima de zero nos ${window}. No mês selecionado, olha até 12 meses terminando nele; no acumulado, os meses do ano. Fica positivo a partir de metade dos meses.`,
     })
   }
 
-  if (facts.negativeCashMonths !== null) {
+  if (facts.negativeCashMonths !== null && months > 1) {
     const explanation = `Quantidade de meses com saldo final de caixa abaixo de zero nos ${window}.`
     items.push(
       facts.negativeCashMonths
         ? {
             title: 'Pressão no caixa',
-            description: `O saldo de caixa terminou negativo em ${facts.negativeCashMonths} dos últimos ${facts.recentMonths} meses.`,
+            description: `O saldo de caixa terminou negativo em ${facts.negativeCashMonths} dos ${window}.`,
             tone: 'negative',
             explanation,
           }
         : {
             title: 'Caixa saudável',
-            description: `O saldo de caixa ficou positivo em todos os últimos ${facts.recentMonths} meses.`,
+            description: `O saldo de caixa ficou positivo em todos os ${window}.`,
             tone: 'positive',
             explanation,
           },
@@ -184,18 +189,18 @@ export function buildDreInsights(
   if (facts.bestRevenue) {
     items.push({
       title: 'Melhor mês de receita',
-      description: `${formatPeriodLong(report.periods[facts.bestRevenue.index]!)} com ${formatCurrencyCompact(facts.bestRevenue.value)}.`,
+      description: `${formatPeriodLong(report.periods[facts.bestRevenue.index]!)} com ${formatCurrencyCompact(facts.bestRevenue.value)}, entre os ${window}.`,
       tone: 'neutral',
-      explanation: 'Mês com a maior receita bruta em todo o período do relatório.',
+      explanation: `Mês com a maior receita bruta entre os ${window}.`,
     })
   }
 
-  if (facts.averageContributionMargin !== null) {
+  if (facts.averageContributionMargin !== null && months > 1) {
     items.push({
       title: 'Margem de contribuição média',
-      description: `${formatPercent(facts.averageContributionMargin)} nos últimos ${facts.recentMonths} meses: de cada R$ 100 vendidos, sobram R$ ${Math.round(facts.averageContributionMargin * 100)} para pagar as despesas fixas.`,
+      description: `${formatPercent(facts.averageContributionMargin)} nos ${window}: de cada R$ 100 vendidos, sobram R$ ${Math.round(facts.averageContributionMargin * 100)} para pagar as despesas fixas.`,
       tone: 'neutral',
-      explanation: `Média simples da margem de contribuição % (margem de contribuição ÷ receita bruta) dos meses com receita nos ${window}.`,
+      explanation: `Soma da margem de contribuição ÷ soma da receita bruta dos ${window}. Meses que vendem mais pesam mais na média.`,
     })
   }
 

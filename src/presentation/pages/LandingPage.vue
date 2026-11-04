@@ -50,7 +50,7 @@ const FEATURES = [
   {
     icon: PhChartLineUp,
     title: 'DRE',
-    text: 'Receita, margens, EBITDA, resultado e saldo de caixa por mês ou acumulado do ano. Cascata da receita ao resultado, ponto de equilíbrio e a DRE completa com análise vertical.',
+    text: 'Receita, margens, EBITDA, resultado e saldo de caixa por mês ou acumulado do ano. Cascata da receita ao resultado, ponto de equilíbrio, meta de lucro e a DRE completa com análise vertical.',
   },
   {
     icon: PhRanking,

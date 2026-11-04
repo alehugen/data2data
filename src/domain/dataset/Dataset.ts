@@ -1,5 +1,5 @@
 import type { FileFormat, RawTable } from '@/domain/ingestion'
-import { createIdentifier, type Identifier } from '@/domain/shared'
+import { createIdentifier, isTotalLabel, type Identifier } from '@/domain/shared'
 import { inferColumnType, type Column } from './Column'
 
 export type Row = Record<string, string>
@@ -25,7 +25,9 @@ export class Dataset {
     const [headers = [], ...cells] = filled
     const keys = uniqueKeys(headers)
 
-    const rows: Row[] = cells.map((row) => Object.fromEntries(keys.map((key, i) => [key, row[i] ?? ''])))
+    const rows: Row[] = cells
+      .filter((row) => !isTotalLabel(row.find((cell) => cell.trim() !== '') ?? ''))
+      .map((row) => Object.fromEntries(keys.map((key, i) => [key, row[i] ?? ''])))
     const columns: Column[] = keys.map((key) => ({
       key,
       label: key,

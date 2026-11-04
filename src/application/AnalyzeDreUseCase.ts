@@ -1,5 +1,5 @@
-import { DreLineKind, DreMetric, type DreReport } from '@/domain/dre'
-import { ratio, relativeChange, sum } from '@/domain/shared'
+import { DreLineKind, DreMetric, type DreLine, type DreReport } from '@/domain/dre'
+import { normalizeText, ratio, relativeChange, sum } from '@/domain/shared'
 
 export type DreSelection = { type: 'month'; index: number } | { type: 'year'; year: number }
 
@@ -22,11 +22,66 @@ export interface DreExpense {
   readonly share: number
 }
 
+export type VariableCostKind = 'taxes' | 'purchases' | 'expenses'
+
+export interface ProfitTargetLine {
+  readonly label: string
+  readonly value: number
+}
+
+export interface VariableCostLine extends ProfitTargetLine {
+  readonly kind: VariableCostKind
+  readonly ratio: number
+}
+
+export interface ProfitTargetBase {
+  readonly months: number
+  readonly revenue: number
+  readonly profit: number
+  readonly contributionRatio: number
+  readonly fixedCosts: number
+  readonly variableLines: readonly VariableCostLine[]
+  readonly excludedLines: readonly ProfitTargetLine[]
+  readonly fixedGroups: readonly ProfitTargetLine[]
+}
+
+export interface ProfitPaths {
+  readonly gap: number
+  readonly sales: { readonly amount: number; readonly change: number | null }
+  readonly price: number | null
+  readonly purchases: { readonly amount: number; readonly share: number } | null
+  readonly fixed: { readonly amount: number; readonly share: number } | null
+  readonly combined: { readonly sales: number; readonly price: number | null; readonly fixed: number }
+}
+
+export interface ProjectedCostLine extends VariableCostLine {
+  readonly projected: number
+  readonly change: number
+}
+
+export type ProfitTargetProjection =
+  | { readonly status: 'unreachable'; readonly target: number }
+  | {
+      readonly status: 'pending' | 'reached'
+      readonly target: number
+      readonly revenue: number
+      readonly variableCosts: number
+      readonly fixedCosts: number
+      readonly revenueGap: number
+      readonly revenueChange: number | null
+      readonly fixedCostCut: number
+      readonly contributionRatio: number | null
+      readonly variableLines: readonly ProjectedCostLine[]
+      readonly purchasesChange: number | null
+      readonly paths: ProfitPaths | null
+    }
+
 export interface DreAnalysis {
   readonly indexes: number[]
   readonly previousIndexes: number[] | null
   readonly kpis: DreKpi[]
   readonly breakEven: { readonly revenue: number; readonly actual: number } | null
+  readonly profitTarget: ProfitTargetBase | null
   readonly waterfall: WaterfallStep[]
   readonly expenses: DreExpense[]
   readonly monthly: {
@@ -43,7 +98,7 @@ export interface DreFacts {
   readonly revenueChange: number | null
   readonly topExpense: DreExpense | null
   readonly bestRevenue: { readonly index: number; readonly value: number } | null
-  readonly recentMonths: number
+  readonly windowIndexes: readonly number[]
   readonly positiveEbitdaMonths: number | null
   readonly negativeCashMonths: number | null
   readonly averageContributionMargin: number | null
@@ -101,20 +156,69 @@ export class AnalyzeDreUseCase {
 
     const expenses = this.expenses(report, indexes, revenue)
     const previousRevenue = previousIndexes ? value(DreMetric.GrossRevenue, previousIndexes) : null
+    const profitTarget = this.profitTargetBase(report, indexes, revenue)
 
     return {
       indexes,
       previousIndexes,
       kpis,
-      breakEven: this.breakEven(report, indexes, revenue),
+      breakEven: this.breakEven(profitTarget),
+      profitTarget,
       waterfall: this.waterfall(report, indexes),
       expenses,
       monthly,
       facts: {
         revenueChange: relativeChange(revenue, previousRevenue),
         topExpense: expenses[0] ?? null,
-        ...this.trendFacts(monthly),
+        ...this.trendFacts(report, monthly, this.windowOf(selection, indexes)),
       },
+    }
+  }
+
+  projectProfitTarget(base: ProfitTargetBase, target: number): ProfitTargetProjection {
+    if (base.contributionRatio <= 0) return { status: 'unreachable', target }
+
+    const revenue = Math.max(0, (base.fixedCosts + target) / base.contributionRatio)
+    const revenueGap = revenue - base.revenue
+    const contributionRatio = ratio(base.fixedCosts + target, base.revenue)
+    const variableLines = base.variableLines.map((line) => {
+      const projected = line.ratio * revenue
+      return { ...line, projected, change: projected - line.value }
+    })
+    const purchases = variableLines.filter((line) => line.kind === 'purchases')
+    const reached = target <= base.profit
+
+    return {
+      status: reached ? 'reached' : 'pending',
+      target,
+      revenue,
+      variableCosts: revenue * (1 - base.contributionRatio),
+      fixedCosts: base.fixedCosts,
+      revenueGap,
+      revenueChange: relativeChange(revenue, base.revenue),
+      fixedCostCut: Math.max(0, target - base.profit),
+      contributionRatio: contributionRatio !== null && contributionRatio <= 1 ? contributionRatio : null,
+      variableLines,
+      purchasesChange: purchases.length ? sum(purchases.map((line) => line.change)) : null,
+      paths: reached ? null : this.pathsTo(base, target - base.profit),
+    }
+  }
+
+  private pathsTo(base: ProfitTargetBase, gap: number): ProfitPaths {
+    const purchasesValue = sum(base.variableLines.filter((line) => line.kind === 'purchases').map((line) => line.value))
+    const priceSensitive = sum(base.variableLines.filter((line) => line.kind !== 'purchases').map((line) => line.ratio))
+    const priceBase = base.revenue * (1 - priceSensitive)
+    const priceFor = (amount: number) => (priceBase > 0 ? amount / priceBase : null)
+    const salesFor = (amount: number) => amount / base.contributionRatio
+    const third = gap / 3
+
+    return {
+      gap,
+      sales: { amount: salesFor(gap), change: ratio(salesFor(gap), base.revenue) },
+      price: priceFor(gap),
+      purchases: purchasesValue > 0 && gap <= purchasesValue ? { amount: gap, share: gap / purchasesValue } : null,
+      fixed: base.fixedCosts > 0 && gap <= base.fixedCosts ? { amount: gap, share: gap / base.fixedCosts } : null,
+      combined: { sales: salesFor(third), price: priceFor(third), fixed: third },
     }
   }
 
@@ -132,21 +236,28 @@ export class AnalyzeDreUseCase {
     return previous.length && previous.every((i) => i >= 0) ? previous : null
   }
 
-  private trendFacts(monthly: DreAnalysis['monthly']) {
-    const recent = monthly.revenue.map((_, i) => i).slice(-RECENT_WINDOW)
-    const countRecent = (series: number[] | null, test: (value: number) => boolean) =>
-      series ? recent.filter((i) => test(series[i]!)).length : null
+  private windowOf(selection: DreSelection, indexes: number[]): number[] {
+    if (selection.type === 'year') return indexes
+    const start = Math.max(0, selection.index - RECENT_WINDOW + 1)
+    return Array.from({ length: selection.index - start + 1 }, (_, i) => start + i)
+  }
 
-    const bestValue = Math.max(...monthly.revenue)
-    const contributionMargins = (monthly.margins.find((m) => m.metric === DreMetric.ContributionMargin)?.values ?? [])
-      .filter((v, i): v is number => v !== null && recent.includes(i))
+  private trendFacts(report: DreReport, monthly: DreAnalysis['monthly'], window: number[]) {
+    const count = (series: number[] | null, test: (value: number) => boolean) =>
+      series ? window.filter((i) => test(series[i]!)).length : null
+
+    const best = window.reduce<number | null>((top, i) => (top === null || monthly.revenue[i]! > monthly.revenue[top]! ? i : top), null)
+    const windowRevenue = report.valueOf(report.metric(DreMetric.GrossRevenue), window)
+    const margin = report.metric(DreMetric.ContributionMargin)
 
     return {
-      bestRevenue: bestValue > 0 ? { index: monthly.revenue.indexOf(bestValue), value: bestValue } : null,
-      recentMonths: recent.length,
-      positiveEbitdaMonths: countRecent(monthly.ebitda, (v) => v > 0),
-      negativeCashMonths: countRecent(monthly.cash, (v) => v < 0),
-      averageContributionMargin: contributionMargins.length ? sum(contributionMargins) / contributionMargins.length : null,
+      windowIndexes: window,
+      bestRevenue:
+        window.length > 1 && best !== null && monthly.revenue[best]! > 0 ? { index: best, value: monthly.revenue[best]! } : null,
+      positiveEbitdaMonths: count(monthly.ebitda, (v) => v > 0),
+      negativeCashMonths: count(monthly.cash, (v) => v < 0),
+      averageContributionMargin:
+        margin && windowRevenue > 0 ? report.valueOf(margin, window) / windowRevenue : null,
     }
   }
 
@@ -191,13 +302,58 @@ export class AnalyzeDreUseCase {
       .map((line) => ({ label: line.label, values: [...line.values] }))
   }
 
-  private breakEven(report: DreReport, indexes: number[], revenue: number) {
-    if (!report.metric(DreMetric.OperatingExpenses)) return null
+  private profitTargetBase(report: DreReport, indexes: number[], revenue: number): ProfitTargetBase | null {
+    const margin = report.metric(DreMetric.ContributionMargin)
+    const operating = report.metric(DreMetric.OperatingExpenses)
+    if (!margin || !operating || revenue <= 0) return null
 
-    const fixedExpenses = -report.valueOf(report.metric(DreMetric.OperatingExpenses), indexes)
-    const marginRatio = ratio(report.valueOf(report.metric(DreMetric.ContributionMargin), indexes), revenue)
-    if (!marginRatio || marginRatio <= 0 || fixedExpenses <= 0) return null
+    const months = indexes.length
+    const contribution = report.valueOf(margin, indexes) / months
+    const fixedCosts = -report.valueOf(operating, indexes) / months
 
-    return { revenue: fixedExpenses / marginRatio, actual: revenue }
+    const linesBetween = (from: DreLine | undefined, to: DreLine | undefined) => {
+      const start = from ? report.lines.indexOf(from) : -1
+      const end = to ? report.lines.indexOf(to) : -1
+      return report.lines
+        .slice(start + 1, end)
+        .filter((line) => line.parentId === null && line.kind !== DreLineKind.Result && line.kind !== DreLineKind.Balance)
+        .map((line) => ({ line, value: report.valueOf(line, indexes) / months }))
+        .filter(({ value }) => value !== 0)
+    }
+
+    const salesTaxes = report.metric(DreMetric.SalesTaxes)
+    const kindOf = (line: DreLine): VariableCostKind =>
+      line === salesTaxes ? 'taxes' : normalizeText(line.label).startsWith('CUSTO') ? 'purchases' : 'expenses'
+
+    const lastResult = report.metric(DreMetric.NetIncome) ?? report.metric(DreMetric.Ebitda)
+
+    return {
+      months,
+      revenue: revenue / months,
+      profit: contribution - fixedCosts,
+      contributionRatio: (contribution * months) / revenue,
+      fixedCosts,
+      variableLines: linesBetween(report.metric(DreMetric.GrossRevenue), margin).map(({ line, value }) => ({
+        label: line.label,
+        value: -value,
+        kind: kindOf(line),
+        ratio: -value / (revenue / months),
+      })),
+      excludedLines: lastResult
+        ? linesBetween(margin, lastResult)
+            .filter(({ line }) => line !== operating)
+            .map(({ line, value }) => ({ label: line.label, value }))
+        : [],
+      fixedGroups: report
+        .children(operating.id)
+        .map((line) => ({ label: line.label, value: -report.valueOf(line, indexes) / months }))
+        .filter((line) => line.value > 0)
+        .sort((a, b) => b.value - a.value),
+    }
+  }
+
+  private breakEven(base: ProfitTargetBase | null) {
+    if (!base || base.contributionRatio <= 0 || base.fixedCosts <= 0) return null
+    return { revenue: (base.fixedCosts / base.contributionRatio) * base.months, actual: base.revenue * base.months }
   }
 }

@@ -32,5 +32,11 @@ const pad = (n: number) => String(n).padStart(2, '0')
 
 function toCellText(value: unknown): string {
   if (value instanceof Date) return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
+  if (typeof value === 'number') return numberText(value)
   return String(value ?? '').trim()
+}
+
+function numberText(value: number): string {
+  const text = String(value)
+  return /^-?\d{1,3}\.\d{3}$/.test(text) ? `${text}0` : text
 }

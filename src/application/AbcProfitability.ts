@@ -15,6 +15,14 @@ export interface ProfitabilityItem {
   readonly margin: number | null
   readonly profitPerUnit: number | null
   readonly costMissing: boolean
+  readonly unexplained: number
+}
+
+export interface ProfitCheck {
+  readonly calculated: number
+  readonly difference: number
+  readonly divergent: ProfitabilityItem[]
+  readonly missingColumns: ('tax' | 'financialFee')[]
 }
 
 export interface ProfitSummary extends ProfitTotals {
@@ -25,7 +33,7 @@ export interface ClassProfitability {
   readonly revenue: number
   readonly profit: number
   readonly margin: number | null
-  readonly profitShare: number
+  readonly profitShare: number | null
 }
 
 export interface RevenueMismatch {
@@ -38,6 +46,9 @@ export interface AbcProfitability {
   readonly totals: ProfitSummary
   readonly previousTotals: ProfitSummary | null
   readonly byClass: Record<AbcClass, ClassProfitability>
+  readonly outsideAbc: { readonly revenue: number; readonly profit: number }
+  readonly referenceMargin: number | null
+  readonly profitCheck: ProfitCheck
   readonly items: ProfitabilityItem[]
   readonly lowMarginVolume: ProfitabilityItem[]
   readonly hiddenGems: ProfitabilityItem[]
@@ -51,6 +62,10 @@ export interface AbcProfitability {
 }
 
 const REVENUE_TOLERANCE = 0.01
+const ROUNDING_TOLERANCE = 0.05
+
+const exceedsRounding = (difference: number, base: number) =>
+  Math.abs(difference) > Math.max(ROUNDING_TOLERANCE, Math.abs(base) * 0.001)
 
 const summarize = (totals: ProfitTotals): ProfitSummary => ({ ...totals, margin: ratio(totals.profit, totals.revenue) })
 
@@ -70,22 +85,47 @@ export function analyzeProfitability(
       margin: ratio(item.profit, item.revenue),
       profitPerUnit: ratio(item.profit, item.quantity),
       costMissing: item.cost === 0 && item.revenue > 0,
+      unexplained: item.profit - (item.revenue - item.cost - item.tax - item.financialFee),
     }))
     .sort((a, b) => b.profit - a.profit)
 
+  const calculated = totals.revenue - totals.cost - totals.tax - totals.financialFee
+  const profitCheck: ProfitCheck = {
+    calculated,
+    difference: totals.profit - calculated,
+    divergent: items
+      .filter((item) => exceedsRounding(item.unexplained, item.revenue))
+      .sort((a, b) => Math.abs(b.unexplained) - Math.abs(a.unexplained)),
+    missingColumns: (['tax', 'financialFee'] as const).filter((column) => !profit.hasColumn[column]),
+  }
+
   const reliable = items.filter((item) => !item.costMissing && item.margin !== null)
-  const averageMargin = totals.margin ?? 0
+  const referenceMargin = marginOf(reliable)
+  const outside = items.filter((item) => item.abcClass === null)
+  const outsideAbc = { revenue: sum(outside.map((item) => item.revenue)), profit: sum(outside.map((item) => item.profit)) }
+  const classes = byClass(items, reliable)
+  const parts = [...ABC_CLASSES.map((abcClass) => classes[abcClass].profit), outsideAbc.profit]
+  const sharesMakeSense = totals.profit > 0 && parts.every((part) => part >= 0)
+  const comparable = referenceMargin ?? 0
 
   return {
     totals,
     previousTotals: previousProfit ? summarize(previousProfit.totals) : null,
-    byClass: byClass(items, totals.profit),
+    byClass: Object.fromEntries(
+      ABC_CLASSES.map((abcClass) => [
+        abcClass,
+        { ...classes[abcClass], profitShare: sharesMakeSense ? ratio(classes[abcClass].profit, totals.profit) : null },
+      ]),
+    ) as Record<AbcClass, ClassProfitability>,
+    outsideAbc,
+    referenceMargin,
+    profitCheck,
     items,
-    lowMarginVolume: reliable
-      .filter((item) => item.abcClass === 'A' && item.margin! < averageMargin)
+    lowMarginVolume: referenceMargin === null ? [] : reliable
+      .filter((item) => item.abcClass === 'A' && item.margin! < comparable)
       .sort((a, b) => a.margin! - b.margin!),
-    hiddenGems: reliable
-      .filter((item) => item.abcClass !== 'A' && item.profit > 0 && item.margin! > averageMargin)
+    hiddenGems: referenceMargin === null ? [] : reliable
+      .filter((item) => (item.abcClass === 'B' || item.abcClass === 'C') && item.profit > 0 && item.margin! > comparable)
       .sort((a, b) => b.margin! - a.margin!),
     losses: items.filter((item) => item.profit < 0).sort((a, b) => a.profit - b.profit),
     missingCost: items.filter((item) => item.costMissing),
@@ -101,13 +141,24 @@ export function analyzeProfitability(
   }
 }
 
-function byClass(items: readonly ProfitabilityItem[], totalProfit: number): Record<AbcClass, ClassProfitability> {
+const marginOf = (items: readonly ProfitabilityItem[]) =>
+  ratio(sum(items.map((item) => item.profit)), sum(items.map((item) => item.revenue)))
+
+function byClass(
+  items: readonly ProfitabilityItem[],
+  reliable: readonly ProfitabilityItem[],
+): Record<AbcClass, Omit<ClassProfitability, 'profitShare'>> {
   return Object.fromEntries(
     ABC_CLASSES.map((abcClass) => {
       const inClass = items.filter((item) => item.abcClass === abcClass)
-      const revenue = sum(inClass.map((item) => item.revenue))
-      const profit = sum(inClass.map((item) => item.profit))
-      return [abcClass, { revenue, profit, margin: ratio(profit, revenue), profitShare: ratio(profit, totalProfit) ?? 0 }]
+      return [
+        abcClass,
+        {
+          revenue: sum(inClass.map((item) => item.revenue)),
+          profit: sum(inClass.map((item) => item.profit)),
+          margin: marginOf(reliable.filter((item) => item.abcClass === abcClass)),
+        },
+      ]
     }),
-  ) as Record<AbcClass, ClassProfitability>
+  ) as Record<AbcClass, Omit<ClassProfitability, 'profitShare'>>
 }

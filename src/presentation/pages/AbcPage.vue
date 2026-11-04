@@ -53,17 +53,17 @@ const INFO = {
   distribution:
     'Participação de cada classe no total do mês. A classe A reúne os poucos itens que concentram a maior parte do critério do relatório (geralmente ~80%), a B os intermediários e a C o restante. A classificação vem do sistema de origem.',
   ranking:
-    'Itens ordenados por quantidade (ordem do relatório) ou por faturamento. A cor indica a classe; o tooltip mostra a participação acumulada, que é a base da curva de Pareto.',
+    'Itens ordenados pela quantidade vendida ou pelo faturamento, conforme a opção escolhida. A cor indica a classe ABC do item.',
   evolution:
     'Faturamento de cada mês importado, dividido por classe. Quando há relatório de lucro do mês, a linha mostra o lucro total para comparar com as vendas.',
   movement:
     'Compara cada item com o mês anterior importado, pelo código. Novo: não vendeu antes. Subiu/Caiu: mudou de classe (A é a melhor). Saiu: não vendeu neste mês.',
-  items_table: 'Itens na ordem do relatório. Participação é o percentual informado pelo sistema; acumulado é a soma das participações até o item.',
-  profit: 'Lucro = valor vendido − custo gerencial − impostos − taxas financeiras, somado em todos os itens do relatório de lucro do mês.',
-  margin: 'Lucro ÷ valor vendido. Mostra quanto de cada real vendido vira lucro. A variação é relativa à margem do mês anterior.',
+  items_table: 'Itens ordenados pela participação. Participação é o percentual informado pelo sistema ou, sem essa coluna, a fatia no critério de classificação; acumulado é a soma das participações até o item.',
+  profit: 'Lucro informado no relatório de lucro do mês, somado em todos os itens. O app confere se ele bate com valor vendido − custo gerencial − impostos − taxas financeiras e avisa nos pontos de análise quando não bate.',
+  margin: 'Lucro ÷ valor vendido. Mostra quanto de cada real vendido vira lucro. A variação é em pontos percentuais (p.p.): de 20% para 22% são +2 p.p.',
   cost: 'Soma do custo gerencial dos itens vendidos (custo de aquisição do produto). O percentual é custo ÷ valor vendido.',
   taxes: 'Soma de impostos e taxas financeiras (cartão, boleto) dos itens vendidos. O percentual é sobre o valor vendido.',
-  profitWaterfall: 'Parte do valor vendido e desconta custo, impostos e taxas até chegar ao lucro do mês, como no relatório de lucro por produto.',
+  profitWaterfall: 'Parte do valor vendido e desconta custo, impostos e taxas até o lucro informado no relatório. Quando a conta não fecha, a barra "Diferença não explicada" mostra quanto falta ou sobra.',
   classProfit:
     'Compara quanto cada classe representa em quantidade, faturamento e lucro. Se a classe A tem fatia de lucro menor que a de quantidade, ela vende muito mas lucra proporcionalmente menos.',
   matrix:
@@ -109,8 +109,9 @@ const profitKpis = computed(() => {
     { label: 'Lucro', value: formatCurrencyCompact(totals.profit), delta: relativeChange(totals.profit, previousTotals?.profit), info: INFO.profit },
     {
       label: 'Margem de lucro',
-      value: formatPercent(totals.margin ?? 0),
-      delta: relativeChange(totals.margin ?? 0, previousTotals?.margin),
+      value: totals.margin !== null ? formatPercent(totals.margin) : '–',
+      delta: totals.margin !== null && previousTotals?.margin != null ? totals.margin - previousTotals.margin : null,
+      deltaUnit: 'points' as const,
       info: INFO.margin,
     },
     {
@@ -135,18 +136,28 @@ const profitKpis = computed(() => {
 const classSegments = (pick: (abcClass: AbcClass) => number) =>
   ABC_CLASSES.map((abcClass) => ({ label: `Classe ${abcClass}`, value: pick(abcClass), color: theme.value.abcClass[abcClass] }))
 
+const profitSegments = computed(() => {
+  const data = profitability.value
+  if (!data) return []
+  const segments = classSegments((c) => data.byClass[c].profit)
+  return data.outsideAbc.profit
+    ? [...segments, { label: 'Fora da curva', value: data.outsideAbc.profit, color: theme.value.chrome.textMuted }]
+    : segments
+})
+
 const rankingItems = computed(() => {
-  const items = [...(analysis.value?.ranking ?? [])]
-  if (rankingBy.value === 'value') items.sort((a, b) => b.value - a.value)
-  return items.map((item) => ({
-    label: item.description,
-    value: rankingBy.value === 'quantity' ? item.quantity : item.value,
-    color: theme.value.abcClass[item.abcClass],
-    detail:
-      rankingBy.value === 'quantity'
-        ? `Classe ${item.abcClass}, ${formatCurrency(item.value)}, acumulado de ${formatPercent(item.cumulativeShare)}`
-        : `Classe ${item.abcClass}, ${formatNumber(item.quantity)} un.`,
-  }))
+  const pick = (item: { quantity: number; value: number }) => (rankingBy.value === 'quantity' ? item.quantity : item.value)
+  return [...(analysis.value?.ranking ?? [])]
+    .sort((a, b) => pick(b) - pick(a))
+    .map((item) => ({
+      label: item.description,
+      value: pick(item),
+      color: theme.value.abcClass[item.abcClass],
+      detail:
+        rankingBy.value === 'quantity'
+          ? `Classe ${item.abcClass}, ${formatCurrency(item.value)}`
+          : `Classe ${item.abcClass}, ${formatNumber(item.quantity)} un.`,
+    }))
 })
 
 const evolution = computed(() => {
@@ -170,15 +181,17 @@ const evolution = computed(() => {
 })
 
 const profitWaterfall = computed(() => {
-  const totals = profitability.value?.totals
-  if (!totals) return []
+  const data = profitability.value
+  if (!data) return []
+  const { totals, profitCheck } = data
   return [
     { label: 'Valor vendido', value: totals.revenue, isTotal: true },
     { label: 'Custo gerencial', value: -totals.cost, isTotal: false },
     { label: 'Impostos', value: -totals.tax, isTotal: false },
     { label: 'Taxas financeiras', value: -totals.financialFee, isTotal: false },
-    { label: 'Lucro', value: totals.profit, isTotal: true },
-  ].filter((step) => step.isTotal || step.value !== 0)
+    { label: 'Diferença não explicada', value: profitCheck.divergent.length ? profitCheck.difference : 0, isTotal: false },
+    { label: 'Lucro informado', value: totals.profit, isTotal: true },
+  ].filter((step) => step.isTotal || Math.abs(step.value) >= 0.005)
 })
 
 const matrixPoints = computed(() =>
@@ -304,7 +317,7 @@ const movementTone: Record<AbcMovement, string> = {
             <ShareBar
               v-if="profitability"
               title="Lucro"
-              :segments="classSegments((c) => Math.max(0, profitability!.byClass[c].profit))"
+              :segments="profitSegments"
               :format-value="formatCurrency"
             />
           </div>
@@ -358,6 +371,7 @@ const movementTone: Record<AbcMovement, string> = {
             :hint="kpi.hint"
             :delta="kpi.delta"
             :delta-label="previousLabel"
+            :delta-unit="kpi.deltaUnit"
             :lower-is-better="kpi.lowerIsBetter"
             :info="kpi.info"
           />
@@ -374,11 +388,11 @@ const movementTone: Record<AbcMovement, string> = {
             <div class="space-y-5">
               <ShareBar title="Quantidade" :segments="classSegments((c) => current!.byClass[c].quantity)" :format-value="(v) => `${formatNumber(v)} un.`" />
               <ShareBar title="Faturamento" :segments="classSegments((c) => current!.byClass[c].value)" :format-value="formatCurrency" />
-              <ShareBar title="Lucro" :segments="classSegments((c) => Math.max(0, profitability!.byClass[c].profit))" :format-value="formatCurrency" />
+              <ShareBar title="Lucro" :segments="profitSegments" :format-value="formatCurrency" />
               <dl class="grid grid-cols-3 gap-2 text-center text-xs">
                 <div v-for="abcClass in ABC_CLASSES" :key="abcClass" class="rounded-lg bg-muted p-2">
                   <dt class="text-muted-foreground">Margem classe {{ abcClass }}</dt>
-                  <dd class="text-base font-semibold text-foreground">{{ formatPercent(profitability.byClass[abcClass].margin ?? 0) }}</dd>
+                  <dd class="text-base font-semibold text-foreground">{{ profitability.byClass[abcClass].margin !== null ? formatPercent(profitability.byClass[abcClass].margin!) : '–' }}</dd>
                 </div>
               </dl>
             </div>
@@ -394,7 +408,7 @@ const movementTone: Record<AbcMovement, string> = {
             </ul>
             <VolumeMarginChart
               :points="matrixPoints"
-              :average-margin="profitability.totals.margin ?? 0"
+              :average-margin="profitability.referenceMargin ?? 0"
               :average-quantity="averageQuantity"
             />
           </ChartCard>

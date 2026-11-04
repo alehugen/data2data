@@ -9,6 +9,7 @@ import InsightList from '@/presentation/components/InsightList.vue'
 import NotFound from '@/presentation/components/NotFound.vue'
 import PageHeader from '@/presentation/components/PageHeader.vue'
 import PageSection from '@/presentation/components/PageSection.vue'
+import ProfitTarget from '@/presentation/components/ProfitTarget.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
 import ReportLayout from '@/presentation/components/ReportLayout.vue'
 import type { NavSection } from '@/presentation/components/SectionNav.vue'
@@ -33,6 +34,7 @@ import {
   formatCurrencyCompact,
   formatPercent,
   formatPeriod,
+  formatPeriodList,
   prettifyLabel,
 } from '@/presentation/format'
 
@@ -66,12 +68,15 @@ const INFO = {
     'Grupos de custos e despesas anteriores ao EBITDA no período selecionado, do maior para o menor. O tooltip mostra quanto cada um consome da receita bruta.',
   mix: 'Contas que formam a receita bruta, empilhadas mês a mês. Só aparecem as contas com movimento.',
   cash: 'Saldo final de caixa informado na DRE para cada mês (saldo inicial + variação).',
+  target:
+    'Receita necessária = (despesas operacionais + lucro desejado) ÷ margem de contribuição %. O lucro da meta é o resultado operacional: margem de contribuição − despesas operacionais. Outras receitas, depreciação e itens não operacionais ficam de fora. No acumulado do ano, receita e despesas são a média mensal.',
   insights: 'Frases geradas automaticamente a partir dos números. Passe o mouse no ícone de cada card para ver o cálculo.',
 }
 
 const navSections = computed<NavSection[]>(() => [
   { id: 'indicadores', label: 'Indicadores' },
   { id: 'analise', label: 'Pontos de análise' },
+  ...(analysis.value?.profitTarget ? [{ id: 'meta', label: 'Meta de lucro' }] : []),
   { id: 'cascata', label: 'Da receita ao resultado' },
   { id: 'evolucao', label: 'Receita e margens' },
   { id: 'custos', label: 'Custos e receita' },
@@ -140,6 +145,15 @@ const expenseItems = computed(() =>
       </div>
     </PageHeader>
 
+    <p
+      v-if="report.ignoredPeriods.length"
+      class="rounded-lg border-l-4 border-l-primary bg-accent/40 px-4 py-3 text-sm text-body"
+    >
+      <strong class="font-semibold text-foreground">{{ formatPeriodList(report.ignoredPeriods) }}</strong>
+      {{ report.ignoredPeriods.length === 1 ? 'não entra' : 'não entram' }} na análise: só contam os meses já encerrados.
+      Mês em andamento e projeções da planilha ficam de fora até o mês terminar.
+    </p>
+
     <ReportLayout :sections="navSections">
       <PageSection id="indicadores" class="space-y-3">
         <SectionHeading title="Indicadores" :subtitle="`Resultado de ${periodLabels.currentLong}`" />
@@ -160,6 +174,19 @@ const expenseItems = computed(() =>
       <PageSection id="analise" class="space-y-3">
         <SectionHeading title="Pontos de análise" :info="INFO.insights" />
         <InsightList :insights="insights" />
+      </PageSection>
+
+      <PageSection v-if="analysis.profitTarget" id="meta" class="space-y-3">
+        <SectionHeading
+          title="Meta de lucro"
+          subtitle="Quanto a empresa precisa vender por mês para lucrar o valor escolhido"
+          :info="INFO.target"
+        />
+        <ProfitTarget
+          :base="analysis.profitTarget"
+          :reference="periodLabels.reference"
+          :source="`${report.name}, ${periodLabels.currentLong}`"
+        />
       </PageSection>
 
       <PageSection id="cascata">

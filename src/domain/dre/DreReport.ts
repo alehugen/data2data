@@ -1,6 +1,9 @@
 import type { RawTable } from '@/domain/ingestion'
 import {
+  comparePeriods,
   createIdentifier,
+  detectNumberConvention,
+  DomainError,
   normalizeText,
   parseNumber,
   periodKey,
@@ -54,6 +57,7 @@ const METRIC_LABELS: Record<DreMetric, string[]> = {
 }
 
 const PREFERRED_SHEET = 'DRE GERAL'
+const END_OF_TIME = new Date(9999, 0, 1)
 
 export class DreReport {
   readonly kind = 'dre' as const
@@ -62,35 +66,43 @@ export class DreReport {
   readonly name: string
   readonly periods: readonly Period[]
   readonly lines: readonly DreLine[]
+  readonly ignoredPeriods: readonly Period[]
   private readonly metrics: ReadonlyMap<DreMetric, DreLine>
 
-  private constructor(name: string, periods: Period[], lines: DreLine[]) {
+  private constructor(name: string, periods: Period[], lines: DreLine[], ignoredPeriods: Period[] = []) {
     this.name = name
     this.periods = periods
     this.lines = lines
+    this.ignoredPeriods = ignoredPeriods
     this.metrics = matchMetrics(lines)
   }
 
-  static fromTables(tables: readonly RawTable[]): DreReport | null {
+  static fromTables(tables: readonly RawTable[], asOf: Date = new Date()): DreReport | null {
     const preferred = tables.filter((t) => normalizeText(t.sheet ?? '').includes(PREFERRED_SHEET))
     const others = tables.filter((t) => !preferred.includes(t))
     for (const table of [...preferred, ...others]) {
-      const report = DreReport.fromTable(table)
+      const report = DreReport.fromTable(table, asOf)
       if (report) return report
+    }
+    if (tables.some((table) => DreReport.fromTable(table, END_OF_TIME))) {
+      throw new DomainError(
+        'A DRE só tem meses que ainda não terminaram. Os meses entram na análise depois de encerrados.',
+      )
     }
     return null
   }
 
-  static fromTable(table: RawTable): DreReport | null {
+  static fromTable(table: RawTable, asOf: Date = new Date()): DreReport | null {
     const header = findPeriodHeader(table.rows)
     if (!header) return null
 
     const dataRows = table.rows.slice(header.rowIndex + 2)
     const labelColumn = findLabelColumn(dataRows, header.columns[0]!)
+    const convention = detectNumberConvention(dataRows.flatMap((row) => header.columns.map((col) => row[col] ?? '')))
     const entries = dataRows.map((row) => ({
       label: (row[labelColumn] ?? '').trim(),
       values: header.columns.map((col) => {
-        const value = parseNumber(row[col] ?? '')
+        const value = parseNumber(row[col] ?? '', convention)
         return Number.isFinite(value) ? value : 0
       }),
     }))
@@ -100,8 +112,14 @@ export class DreReport {
     if (!range || !lines.length) return null
 
     const [start, end] = range
-    const trimmed = lines.map((line) => ({ ...line, values: line.values.slice(start, end + 1) }))
-    const report = new DreReport(table.name, header.periods.slice(start, end + 1), trimmed)
+    const firstOpen = { year: asOf.getFullYear(), month: asOf.getMonth() + 1 }
+    const closed = header.periods.map((period) => comparePeriods(period, firstOpen) < 0)
+    const last = closed.lastIndexOf(true, end)
+    if (last < start) return null
+
+    const trimmed = lines.map((line) => ({ ...line, values: line.values.slice(start, last + 1) }))
+    const ignored = header.periods.slice(last + 1, end + 1)
+    const report = new DreReport(table.name, header.periods.slice(start, last + 1), trimmed, ignored)
 
     return report.metric(DreMetric.GrossRevenue) ? report : null
   }
@@ -149,7 +167,10 @@ function findPeriodHeader(rows: string[][]): PeriodHeader | null {
       periods.push(period)
     })
 
-    if (periods.length > (best?.periods.length ?? 0)) best = { rowIndex, columns, periods }
+    const order = periods.map((_, i) => i).sort((x, y) => comparePeriods(periods[x]!, periods[y]!))
+    if (periods.length > (best?.periods.length ?? 0)) {
+      best = { rowIndex, columns: order.map((i) => columns[i]!), periods: order.map((i) => periods[i]!) }
+    }
   }
   return best
 }

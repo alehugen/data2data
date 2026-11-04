@@ -1,4 +1,4 @@
-import { parseNumber } from '@/domain/shared'
+import { detectNumberConvention, parseNumber } from '@/domain/shared'
 
 export interface CategoryTotal {
   readonly category: string
@@ -20,9 +20,10 @@ export function computeBreakdown(
   limit = 10,
 ): CategoryTotal[] {
   const totals = new Map<string, number>()
+  const convention = detectNumberConvention(values)
 
   categories.forEach((rawCategory, i) => {
-    const value = parseNumber(values[i] ?? '')
+    const value = parseNumber(values[i] ?? '', convention)
     if (!Number.isFinite(value)) return
     const category = rawCategory.trim() || EMPTY_CATEGORY
     totals.set(category, (totals.get(category) ?? 0) + value)

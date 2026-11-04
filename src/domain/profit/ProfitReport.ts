@@ -1,5 +1,13 @@
 import { findTableHeader, type RawTable } from '@/domain/ingestion'
-import { createIdentifier, parsePeriodFromText, sum, type Identifier, type Period } from '@/domain/shared'
+import {
+  createIdentifier,
+  isTotalLabel,
+  normalizeCode,
+  parsePeriodFromText,
+  sum,
+  type Identifier,
+  type Period,
+} from '@/domain/shared'
 
 export interface ProfitItem {
   readonly code: string
@@ -51,12 +59,14 @@ export class ProfitReport {
   readonly period: Period | null
   readonly items: readonly ProfitItem[]
   readonly totals: ProfitTotals
+  readonly hasColumn: Readonly<Record<'tax' | 'financialFee', boolean>>
 
-  private constructor(name: string, items: ProfitItem[]) {
+  private constructor(name: string, items: ProfitItem[], hasColumn: Record<'tax' | 'financialFee', boolean>) {
     this.name = name
     this.period = parsePeriodFromText(name)
     this.items = items
     this.totals = totalsOf(items)
+    this.hasColumn = hasColumn
   }
 
   static fromTable(table: RawTable): ProfitReport | null {
@@ -66,21 +76,26 @@ export class ProfitReport {
     const items = table.rows
       .slice(header.rowIndex + 1)
       .filter((row) => header.text(row, 'description') && header.text(row, 'revenue'))
+      .filter((row) => !isTotalLabel(header.text(row, 'description')) && !isTotalLabel(header.text(row, 'code')))
       .map((row) => {
         const description = header.text(row, 'description')
         return {
-          code: header.text(row, 'code') || description,
+          code: normalizeCode(header.text(row, 'code')) || description,
           description,
           quantity: header.number(row, 'quantity'),
           revenue: header.number(row, 'revenue'),
-          cost: header.number(row, 'cost'),
-          tax: header.number(row, 'tax'),
-          financialFee: header.number(row, 'financialFee'),
+          cost: Math.abs(header.number(row, 'cost')),
+          tax: Math.abs(header.number(row, 'tax')),
+          financialFee: Math.abs(header.number(row, 'financialFee')),
           profit: header.number(row, 'profit'),
         }
       })
 
-    return items.length ? new ProfitReport(table.name, mergeByCode(items)) : null
+    const hasColumn = {
+      tax: header.columns.tax !== undefined,
+      financialFee: header.columns.financialFee !== undefined,
+    }
+    return items.length ? new ProfitReport(table.name, mergeByCode(items), hasColumn) : null
   }
 }
 

@@ -4,6 +4,7 @@ import { InMemoryReportRepository } from '@/infrastructure/InMemoryReportReposit
 import { XlsxFileParser } from '@/infrastructure/XlsxFileParser'
 import { ABC_OCTOBER, ABC_SEPTEMBER, PROFIT_OCTOBER, dreRows, latin1File, xlsxFile } from '@/test/fixtures'
 import { ImportFileUseCase } from '@/application'
+import { computeStatistics } from '@/domain/analysis'
 
 let repository: InMemoryReportRepository
 let importFile: ImportFileUseCase
@@ -39,6 +40,14 @@ describe('ImportFileUseCase', () => {
     const reports = await importFile.execute(file)
     expect(reports.map((r) => r.kind)).toEqual(['dre'])
     expect(reports[0]!.kind === 'dre' && reports[0]!.periods).toHaveLength(3)
+  })
+
+  it('lê números do XLSX com três casas decimais sem confundir com milhar', async () => {
+    const file = xlsxFile('pesos.xlsx', { Pesos: [['Item', 'Kg'], ['A', '0.125'], ['B', '10.125'], ['C', '2']] })
+    const [report] = await importFile.execute(file)
+    if (report?.kind !== 'dataset') throw new Error('esperava uma tabela')
+    const column = report.columns[1]!.key
+    expect(computeStatistics(report.rows.map((row) => row[column] ?? '')).sum).toBeCloseTo(12.25)
   })
 
   it('importa planilhas genéricas aba por aba', async () => {

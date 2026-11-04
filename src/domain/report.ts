@@ -23,11 +23,11 @@ const hasData = (table: RawTable) => table.rows.some((row) => row.some((cell) =>
 const recognizeEach = <T>(tables: readonly RawTable[], recognize: (table: RawTable) => T | null): T[] =>
   tables.map(recognize).filter((report): report is T => report !== null)
 
-export function recognizeReports(tables: readonly RawTable[], format: FileFormat): Report[] {
+export function recognizeReports(tables: readonly RawTable[], format: FileFormat, asOf: Date = new Date()): Report[] {
   const filled = tables.filter(hasData)
   if (!filled.length) throw new DomainError('O arquivo não contém dados.')
 
-  const dre = DreReport.fromTables(filled)
+  const dre = DreReport.fromTables(filled, asOf)
   if (dre) return [dre]
 
   const profit = recognizeEach(filled, ProfitReport.fromTable)

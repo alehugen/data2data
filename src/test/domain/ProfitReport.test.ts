@@ -40,6 +40,41 @@ describe('ProfitReport.fromTable', () => {
     expect(report.items).toEqual([expect.objectContaining({ quantity: 3, revenue: 300, cost: 180, profit: 120 })])
   })
 
+  it('ignora linhas de total no fim do arquivo', () => {
+    const report = parse([
+      ['Código', 'Descrição', 'Qtde', 'Valor total', 'Custo', 'Lucro'],
+      ['1', 'X', '1', '100', '60', '40'],
+      ['', 'TOTAL', '1', '100', '60', '40'],
+      ['Total geral', 'Total geral', '1', '100', '60', '40'],
+    ])!
+    expect(report.items).toHaveLength(1)
+    expect(report.totals.profit).toBe(40)
+  })
+
+  it('trata custos, impostos e taxas como saídas mesmo quando vêm negativos', () => {
+    const report = parse([
+      ['Código', 'Descrição', 'Valor total', 'Custo', 'Imposto', 'Taxa financeira', 'Lucro'],
+      ['1', 'X', '100', '-60', '-5', '-2', '33'],
+    ])!
+    expect(report.items[0]).toMatchObject({ cost: 60, tax: 5, financialFee: 2, profit: 33 })
+  })
+
+  it('prefere a coluna de custo total à de custo unitário, em qualquer ordem', () => {
+    const report = parse([
+      ['Código', 'Descrição', 'Qtde', 'Valor total', 'Custo', 'Custo total', 'Lucro'],
+      ['1', 'X', '10', '100', '6', '60', '40'],
+    ])!
+    expect(report.items[0]!.cost).toBe(60)
+  })
+
+  it('ignora zeros à esquerda no código do produto', () => {
+    const report = parse([
+      ['Código', 'Descrição', 'Valor total', 'Custo', 'Lucro'],
+      ['0101', 'X', '100', '60', '40'],
+    ])!
+    expect(report.items[0]!.code).toBe('101')
+  })
+
   it('não confunde Curva ABC com relatório de lucro', () => {
     expect(parse([['ProCodigo', 'ProDescricao', 'Qtde', 'ValorTotal', 'Classificacao'], ['1', 'X', '1', '10', 'A']])).toBeNull()
   })

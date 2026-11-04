@@ -23,6 +23,7 @@ Para conhecer o app sem arquivos próprios, use **"Ver com dados de exemplo"** n
 - Lê a DRE gerencial mensal e reconstrói a hierarquia de contas (seções, grupos, contas e linhas de resultado) a partir da estrutura da planilha.
 - **Indicadores:** receita bruta, lucro bruto, margem de contribuição, EBITDA, resultado líquido e saldo de caixa, com margem sobre a receita e variação frente ao período anterior.
 - **Ponto de equilíbrio:** receita necessária para cobrir as despesas fixas com a margem de contribuição atual.
+- **Meta de lucro:** escolha um lucro mensal (R$ 10, 15, 20, 25, 50 ou 100 mil) e veja quanto a empresa precisa faturar por mês para chegar lá, quanto falta frente ao período e os caminhos sem vender mais: cortar despesas fixas ou subir a margem de contribuição.
 - **Gráficos:** cascata da receita ao resultado, receita e EBITDA mês a mês, margens, composição de custos e da receita e saldo de caixa.
 - **DRE completa** em tabela, com grupos recolhíveis e alternância entre valores (R$) e análise vertical (AV%).
 - Filtro por mês ou acumulado do ano.

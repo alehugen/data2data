@@ -5,16 +5,18 @@ import { DomainError, periodKey } from '@/domain/shared'
 export class ImportFileUseCase {
   private readonly parsers: readonly FileParser[]
   private readonly repository: ReportRepository
+  private readonly now: () => Date
 
-  constructor(parsers: readonly FileParser[], repository: ReportRepository) {
+  constructor(parsers: readonly FileParser[], repository: ReportRepository, now: () => Date = () => new Date()) {
     this.parsers = parsers
     this.repository = repository
+    this.now = now
   }
 
   async execute(file: File): Promise<Report[]> {
     const source = SourceFile.fromFile(file)
     const tables = await this.parse(source)
-    const reports = recognizeReports(tables, source.format)
+    const reports = recognizeReports(tables, source.format, this.now())
 
     await this.replaceSameMonth(reports)
     await Promise.all(reports.map((report) => this.repository.save(report)))

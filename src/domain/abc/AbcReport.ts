@@ -1,5 +1,5 @@
 import { findTableHeader, type RawTable } from '@/domain/ingestion'
-import { createIdentifier, parsePeriodFromText, sum, type Identifier, type Period } from '@/domain/shared'
+import { createIdentifier, normalizeCode, parsePeriodFromText, sum, type Identifier, type Period } from '@/domain/shared'
 
 export const AbcClass = { A: 'A', B: 'B', C: 'C' } as const
 export type AbcClass = (typeof AbcClass)[keyof typeof AbcClass]
@@ -40,13 +40,13 @@ export class AbcReport {
   readonly totalValue: number
   readonly basis: AbcBasis | null
 
-  private constructor(name: string, items: AbcItem[]) {
+  private constructor(name: string, items: AbcItem[], basis: AbcBasis | null) {
     this.name = name
     this.period = parsePeriodFromText(name)
     this.items = items
     this.totalQuantity = sum(items.map((item) => item.quantity))
     this.totalValue = sum(items.map((item) => item.value))
-    this.basis = detectBasis(items, this.totalQuantity, this.totalValue)
+    this.basis = basis
   }
 
   static fromTable(table: RawTable): AbcReport | null {
@@ -56,7 +56,7 @@ export class AbcReport {
     const rows = table.rows
       .slice(header.rowIndex + 1)
       .map((row) => ({
-        code: header.text(row, 'code'),
+        code: normalizeCode(header.text(row, 'code')),
         description: header.text(row, 'description'),
         quantity: header.number(row, 'quantity'),
         value: header.number(row, 'value'),
@@ -69,18 +69,44 @@ export class AbcReport {
 
     const declaredShareTotal = sum(rows.map((row) => row.rawShare ?? 0))
     const shareScale = declaredShareTotal > 1.5 ? 100 : 1
-    const totalQuantity = sum(rows.map((row) => row.quantity))
-    const quantityShare = (quantity: number) => (totalQuantity ? quantity / totalQuantity : 0)
+    const declared = declaredShareTotal > 0
 
-    const items = rows.map(({ rawShare, ...row }) => ({
+    const classified = rows.map(({ rawShare, ...row }) => ({
       ...row,
       code: row.code || row.description,
       abcClass: row.abcClass as AbcClass,
-      share: declaredShareTotal > 0 && rawShare !== null ? rawShare / shareScale : quantityShare(row.quantity),
+      share: declared && rawShare !== null ? rawShare / shareScale : 0,
     }))
+    const items = mergeByCode(classified)
 
-    return new AbcReport(table.name, mergeByCode(items))
+    if (declared) return new AbcReport(table.name, items, detectBasis(items))
+
+    const basis = inferBasis(items)
+    const pick = basis === 'quantity' || sum(items.map((item) => item.value)) <= 0 ? pickQuantity : pickValue
+    const total = sum(items.map(pick))
+    const withShares = items.map((item) => ({ ...item, share: total ? pick(item) / total : 0 }))
+    return new AbcReport(table.name, withShares, basis)
   }
+}
+
+const pickQuantity = (item: AbcItem) => item.quantity
+const pickValue = (item: AbcItem) => item.value
+function classesFollow(items: readonly AbcItem[], pick: (item: AbcItem) => number): boolean {
+  const classes = ABC_CLASSES.map((abcClass) => items.filter((item) => item.abcClass === abcClass).map(pick)).filter(
+    (values) => values.length,
+  )
+  return classes.every((values, i) => {
+    const next = classes[i + 1]
+    return !next || Math.min(...values) >= Math.max(...next)
+  })
+}
+
+function inferBasis(items: readonly AbcItem[]): AbcBasis | null {
+  const byValue = sum(items.map(pickValue)) > 0 && classesFollow(items, pickValue)
+  const byQuantity = classesFollow(items, pickQuantity)
+  if (byValue) return 'value'
+  if (byQuantity) return 'quantity'
+  return null
 }
 
 function mergeByCode(items: AbcItem[]): AbcItem[] {
@@ -102,10 +128,12 @@ function mergeByCode(items: AbcItem[]): AbcItem[] {
   return [...merged.values()]
 }
 
-function detectBasis(items: readonly AbcItem[], totalQuantity: number, totalValue: number): AbcBasis | null {
-  const matches = (pick: (item: AbcItem) => number, total: number) =>
-    total > 0 && items.every((item) => Math.abs(item.share - pick(item) / total) < 0.005)
-  if (matches((item) => item.quantity, totalQuantity)) return 'quantity'
-  if (matches((item) => item.value, totalValue)) return 'value'
+function detectBasis(items: readonly AbcItem[]): AbcBasis | null {
+  const matches = (pick: (item: AbcItem) => number) => {
+    const total = sum(items.map(pick))
+    return total > 0 && items.every((item) => Math.abs(item.share - pick(item) / total) < 0.005)
+  }
+  if (matches(pickQuantity)) return 'quantity'
+  if (matches(pickValue)) return 'value'
   return null
 }

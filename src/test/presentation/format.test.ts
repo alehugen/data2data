@@ -8,6 +8,7 @@ import {
   formatCurrency,
   formatPercent,
   formatPeriod,
+  formatPeriodList,
   formatPeriodLong,
   formatSignedPercent,
   prettifyLabel,
@@ -26,6 +27,14 @@ describe('formatadores', () => {
   it('formata períodos', () => {
     expect(formatPeriod({ year: 2026, month: 10 })).toBe('out/26')
     expect(formatPeriodLong({ year: 2026, month: 10 })).toBe('outubro de 2026')
+    expect(formatPeriodList([{ year: 2026, month: 11 }])).toBe('nov/26')
+    expect(
+      formatPeriodList([
+        { year: 2026, month: 10 },
+        { year: 2026, month: 11 },
+        { year: 2026, month: 12 },
+      ]),
+    ).toBe('out/26, nov/26 e dez/26')
   })
 
   it('descreve relatórios mensais pelo mês ou, sem mês, pelo nome', () => {

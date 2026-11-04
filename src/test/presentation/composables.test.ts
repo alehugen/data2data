@@ -96,12 +96,21 @@ describe('useDreAnalysis', () => {
 
     const { selections, selectedKey, analysis, periodLabels, insights } = useDreAnalysis(report!.id)
     expect(selections.value.map((s) => s.label)).toEqual(['mar/26', 'fev/26', 'jan/26', 'Acumulado 2026'])
-    expect(periodLabels.value).toEqual({ current: 'mar/26', currentLong: 'março de 2026', previous: 'fev/26' })
+    expect(periodLabels.value).toEqual({
+      current: 'mar/26',
+      currentLong: 'março de 2026',
+      previous: 'fev/26',
+      reference: 'em mar/26',
+      window: 'até mar/26',
+      when: 'em mar/26',
+    })
     expect(insights.value.length).toBeGreaterThan(0)
 
     selectedKey.value = 'y:2026'
     expect(analysis.value?.indexes).toEqual([0, 1, 2])
     expect(periodLabels.value.currentLong).toBe('acumulado de 2026')
+    expect(periodLabels.value.reference).toBe('na média mensal de 2026')
+    expect(periodLabels.value.when).toBe('no acumulado de 2026')
   })
 
   it('não encontra uma DRE inexistente', () => {

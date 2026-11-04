@@ -15,6 +15,7 @@ const currencyCompactFormatter = new Intl.NumberFormat(LOCALE, {
 })
 const currencyWholeFormatter = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 const percentFormatter = new Intl.NumberFormat(LOCALE, { style: 'percent', maximumFractionDigits: 1 })
+const pointsFormatter = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const monthLongFormatter = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric' })
 
 export const formatNumber = (value: number) => numberFormatter.format(value)
@@ -25,10 +26,16 @@ export const formatCurrencyWhole = (value: number) => currencyWholeFormatter.for
 export const formatCurrencyCompact = (value: number) => currencyCompactFormatter.format(value)
 export const formatPercent = (value: number) => percentFormatter.format(value)
 export const formatSignedPercent = (value: number) => `${value > 0 ? '+' : ''}${percentFormatter.format(value)}`
+export const formatSignedPoints = (value: number) =>
+  `${value > 0 ? '+' : ''}${pointsFormatter.format(value * 100)} p.p.`
 
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 export const formatPeriod = ({ year, month }: Period) => `${MONTHS[month - 1]}/${String(year).slice(2)}`
+export const formatPeriodList = (periods: readonly Period[]) => {
+  const labels = periods.map(formatPeriod)
+  return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} e ${labels.at(-1)}` : (labels[0] ?? '')
+}
 export const formatPeriodLong = ({ year, month }: Period) => monthLongFormatter.format(new Date(year, month - 1))
 export const formatAbcMonth = (report: MonthlyReport) => (report.period ? formatPeriod(report.period) : report.name)
 

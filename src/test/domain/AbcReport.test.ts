@@ -63,4 +63,21 @@ describe('AbcReport: coluna de percentual', () => {
     expect(report.items.map((item) => item.share)).toEqual([0.75, 0.25])
     expect(report.basis).toBe('quantity')
   })
+
+  it('sem percentual, deduz pelas classes que a curva é por faturamento', () => {
+    const report = AbcReport.fromTable({
+      name: 'abc set.2026',
+      rows: [['Descrição', 'Qtde', 'Valor total', 'Classe'], ['Caro', '1', '1000', 'A'], ['Barato', '100', '100', 'C']],
+    })!
+    expect(report.basis).toBe('value')
+    expect(report.items.map((item) => item.share)).toEqual([1000 / 1100, 100 / 1100])
+  })
+
+  it('não inventa critério quando as classes não seguem quantidade nem faturamento', () => {
+    const report = AbcReport.fromTable({
+      name: 'abc set.2026',
+      rows: [['Descrição', 'Qtde', 'Valor total', 'Classe'], ['X', '1', '100', 'A'], ['Y', '5', '500', 'B']],
+    })!
+    expect(report.basis).toBeNull()
+  })
 })

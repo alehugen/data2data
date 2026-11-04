@@ -76,13 +76,18 @@ export class AnalyzeAbcUseCase {
     )
     const months = [...reports].sort(chronological).map((report) => this.summarize(report, profitByMonth))
 
-    const currentIndex = reportId ? months.findIndex((m) => m.report.id === reportId) : months.length - 1
+    const latestDated = months.map((m) => m.report.period !== null).lastIndexOf(true)
+    const currentIndex = reportId
+      ? months.findIndex((m) => m.report.id === reportId)
+      : latestDated !== -1
+        ? latestDated
+        : months.length - 1
     const current = months[currentIndex]
     if (!current) return null
-    const previous = months[currentIndex - 1] ?? null
+    const previous = current.report.period ? (months[currentIndex - 1] ?? null) : null
 
     let cumulative = 0
-    const ranking = current.report.items.map((item) => {
+    const ranking = [...current.report.items].sort((a, b) => b.share - a.share).map((item) => {
       cumulative += item.share
       return { ...item, cumulativeShare: Math.min(cumulative, 1) }
     })

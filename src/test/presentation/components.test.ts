@@ -1,12 +1,14 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ProfitTargetBase } from '@/application'
 import { DreReport } from '@/domain/dre'
 import AppFooter from '@/presentation/components/AppFooter.vue'
 import DreTable from '@/presentation/components/DreTable.vue'
 import InfoTip from '@/presentation/components/InfoTip.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
+import ProfitTarget from '@/presentation/components/ProfitTarget.vue'
 import ReportCard from '@/presentation/components/ReportCard.vue'
 import SampleStatement from '@/presentation/components/SampleStatement.vue'
 import SectionNav from '@/presentation/components/SectionNav.vue'
@@ -50,6 +52,11 @@ describe('StatCard', () => {
     const wrapper = mount(StatCard, { props: { label: 'Lucro', value: '1', delta: null } })
     expect(wrapper.text()).not.toContain('%')
   })
+
+  it('mostra variação de margem em pontos percentuais', () => {
+    const wrapper = mount(StatCard, { props: { label: 'Margem', value: '22%', delta: 0.02, deltaUnit: 'points' } })
+    expect(wrapper.text()).toContain('+2,0 p.p.')
+  })
 })
 
 describe('SampleStatement', () => {
@@ -86,6 +93,151 @@ describe('SampleStatement', () => {
     ])
     expect(wrapper.text()).toContain('No vermelho')
     expect(wrapper.text()).toContain('-20% da receita')
+  })
+})
+
+describe('ProfitTarget', () => {
+  const base: ProfitTargetBase = {
+    months: 1,
+    revenue: 50_000,
+    profit: -2_000,
+    contributionRatio: 0.4,
+    fixedCosts: 22_000,
+    variableLines: [
+      { label: 'IMPOSTOS SOBRE VENDA', value: 4_000, kind: 'taxes', ratio: 0.08 },
+      { label: 'CUSTOS DAS MERCADORIAS VENDIDAS', value: 21_000, kind: 'purchases', ratio: 0.42 },
+      { label: 'OUTRAS DESPESAS VARIÁVEIS', value: 5_000, kind: 'expenses', ratio: 0.1 },
+    ],
+    excludedLines: [{ label: 'DESPESAS NÃO DESEMBOLSÁVEIS', value: -800 }],
+    fixedGroups: [
+      { label: 'DESPESAS COM PESSOAL', value: 15_000 },
+      { label: 'DESPESAS ADMINISTRATIVAS', value: 7_000 },
+    ],
+  }
+  const mountTarget = (overrides: Partial<ProfitTargetBase> = {}) =>
+    mountWithProviders(ProfitTarget, {
+      props: { base: { ...base, ...overrides }, reference: 'em out/26', source: 'DRE Geral, outubro de 2026' },
+    })
+
+  const active = (wrapper: ReturnType<typeof mountTarget>) => wrapper.get('[data-active="true"]')
+  const next = (wrapper: ReturnType<typeof mountTarget>) =>
+    wrapper.findAll('button').find((b) => b.text().startsWith('Próximo'))!.trigger('click')
+
+  it('começa no resultado, na primeira meta acima do lucro atual', () => {
+    const wrapper = mountTarget()
+    expect(wrapper.get('[aria-pressed="true"], [data-state="on"]').text()).toMatch(/R\$\s?10\smil/)
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Resultado')
+    expect(wrapper.findAll('section')).toHaveLength(5)
+    expect(wrapper.findAll('section[inert]')).toHaveLength(4)
+    expect(active(wrapper).text()).toMatch(/precisa chegar a\s*R\$\s?80\smil/)
+    expect(active(wrapper).text()).toMatch(/Faturar a mais\s*R\$\s?30\smil\s*\+60% sobre a receita em out\/26/)
+    expect(active(wrapper).text()).toMatch(/Comprar a mais para vender\s*R\$\s?12,6\smil/)
+    expect(wrapper.text()).toContain('1 de 5')
+  })
+
+  it('compara hoje com a meta, linha a linha, com valores e diferença', async () => {
+    const wrapper = mountTarget()
+    await next(wrapper)
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Hoje × meta')
+    const rows = active(wrapper).findAll('ul.divide-y > li').map((li) => li.text())
+    expect(rows).toHaveLength(5)
+    expect(rows[0]).toMatch(/Receita bruta.*Hoje: R\$\s?50\.000.*Na meta: R\$\s?80\.000.*\+R\$\s?30\.000/)
+    expect(rows[1]).toMatch(/Compras para vender.*Hoje: R\$\s?21\.000.*Na meta: R\$\s?33\.600.*\+R\$\s?12\.600/)
+    expect(rows[2]).toMatch(/Outros custos variáveis.*Hoje: R\$\s?9\.000.*Na meta: R\$\s?14\.400/)
+    expect(rows[3]).toMatch(/Despesas operacionais.*Hoje: R\$\s?22\.000.*Na meta: R\$\s?22\.000.*igual/)
+    expect(rows[4]).toMatch(/Resultado operacional.*Hoje: -R\$\s?2\.000.*Na meta: R\$\s?10\.000.*\+R\$\s?12\.000/)
+    expect(active(wrapper).text()).toMatch(/Margem de lucro em out\/26\s*-4%.*Margem de lucro na meta\s*12,5%/)
+  })
+
+  it('mostra a conta passo a passo com os números do período e a prova', async () => {
+    const wrapper = mountTarget()
+    await next(wrapper)
+    await next(wrapper)
+    const slide = active(wrapper).text()
+    expect(slide).toContain('Como calculamos')
+    expect(slide).toMatch(/R\$\s?20\.000 ÷ R\$\s?50\.000\s*= 40%/)
+    expect(slide).toMatch(/Linha da DRE em out\/26\s*= R\$\s?22\.000\s*Despesas operacionais/)
+    expect(slide).toMatch(/\(R\$\s?22\.000 \+ R\$\s?10\.000\) ÷\s*40%\s*= R\$\s?80\.000/)
+    expect(slide).toMatch(/R\$\s?80\.000 de receita − R\$\s?48\.000 de\s*custos variáveis \(60% da receita\) −\s*R\$\s?22\.000 de despesas fixas =\s*R\$\s?10\.000 de lucro/)
+  })
+
+  it('no acumulado, mostra as despesas operacionais como média dos meses', async () => {
+    const wrapper = mountTarget({ months: 3 })
+    await next(wrapper)
+    await next(wrapper)
+    expect(active(wrapper).text()).toMatch(/R\$\s?66\.000 ÷ 3 meses\s*= R\$\s?22\.000\s*Despesas operacionais, média mensal/)
+  })
+
+  it('mostra junto da conta de onde vêm os números e o que fica de fora', async () => {
+    const wrapper = mountTarget()
+    await next(wrapper)
+    await next(wrapper)
+    expect(active(wrapper).text()).toContain('Base: DRE Geral, outubro de 2026.')
+    expect(active(wrapper).text()).toMatch(/hoje -R\$\s?2\.000 por mês\.\s*Fora da conta: Despesas não desembolsáveis \(-R\$\s?800\)/)
+  })
+
+  it('sugere caminhos que fecham a meta, cada um com seu número', async () => {
+    const wrapper = mountTarget()
+    for (let i = 0; i < 4; i++) await next(wrapper)
+    const cards = active(wrapper).findAll('ul.grid > li').map((li) => li.text())
+    expect(active(wrapper).text()).toMatch(/Faltam R\$\s?12\.000 de\s*resultado por mês/)
+    expect(cards[0]).toMatch(/Vender mais\s*\+R\$\s?30\smil\s*de vendas por mês\s*\(\+60%\)/)
+    expect(cards[1]).toMatch(/Reajustar preços\s*\+29,3%/)
+    expect(cards[2]).toMatch(/Negociar compras\s*−57,1%.*R\$\s?12\smil a menos por mês/)
+    expect(cards[3]).toMatch(/Cortar despesas operacionais\s*−R\$\s?12\smil.*54,5% das despesas operacionais.*Despesas com pessoal \(R\$\s?15\smil\)/)
+    expect(cards[4]).toMatch(/Plano combinado.*\+R\$\s?10\smil\s*em vendas por mês\s*\+9,8%\s*nos preços\s*−R\$\s?4\smil\s*em despesas/)
+  })
+
+  it('reconhece a meta já batida em vez de sugerir caminhos', async () => {
+    const wrapper = mountTarget({ profit: 120_000 })
+    for (let i = 0; i < 4; i++) await next(wrapper)
+    expect(active(wrapper).text()).toMatch(/A meta já é batida.*A folga é de\s*R\$\s?20\.000 por mês/)
+  })
+
+  it('segue para a tabela linha a linha e para as premissas, e volta ao início', async () => {
+    const wrapper = mountTarget()
+    await next(wrapper)
+    await next(wrapper)
+    await next(wrapper)
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Linha a linha')
+    const purchases = active(wrapper).findAll('tbody tr').find((tr) => tr.text().includes('Custos das mercadorias vendidas'))!
+    expect(purchases.text()).toContain('compras')
+    expect(purchases.text()).toMatch(/42%.*-R\$\s?33\.600.*-R\$\s?12\.600/)
+    expect(active(wrapper).findAll('tbody tr').at(-1)!.text()).toMatch(/Resultado operacional.*R\$\s?10\.000/)
+
+    await next(wrapper)
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Caminhos e sugestões')
+    expect(wrapper.text()).toContain('5 de 5')
+
+    await wrapper.findAll('button').find((b) => b.text() === 'Voltar ao início')!.trigger('click')
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Resultado')
+  })
+
+  it('troca de passo pelas setas do teclado', async () => {
+    const wrapper = mountTarget()
+    await active(wrapper).trigger('keydown', { key: 'ArrowRight' })
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Hoje × meta')
+    await active(wrapper).trigger('keydown', { key: 'ArrowLeft' })
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Resultado')
+  })
+
+  it('recalcula ao escolher outra meta', async () => {
+    const wrapper = mountTarget()
+    const option = wrapper.findAll('button').find((b) => /R\$\s?50\smil/.test(b.text()))!
+    await option.trigger('click')
+    expect(active(wrapper).text()).toMatch(/precisa chegar a\s*R\$\s?180\smil/)
+  })
+
+  it('avisa quando a meta já foi atingida', () => {
+    const wrapper = mountTarget({ profit: 120_000 })
+    expect(wrapper.text()).toMatch(/Meta atingida: o resultado operacional em out\/26 foi de R\$\s?120\smil/)
+    expect(wrapper.text()).not.toContain('Outros caminhos')
+  })
+
+  it('explica por que vender mais não resolve com margem negativa', () => {
+    const wrapper = mountTarget({ contributionRatio: -0.05 })
+    expect(wrapper.text()).toContain('Vender mais não leva a essa meta')
+    expect(wrapper.find('table').exists()).toBe(false)
   })
 })
 
@@ -154,6 +306,22 @@ describe('ShareBar', () => {
     expect(wrapper.text()).toContain('Classe A 75%')
     expect(wrapper.text()).toContain('Classe C 0%')
     expect(wrapper.findAll('[role="img"] > div')).toHaveLength(2)
+  })
+
+  it('lista os valores em vez de fatias quando há valor negativo', () => {
+    const wrapper = mount(ShareBar, {
+      props: {
+        title: 'Lucro',
+        formatValue: String,
+        segments: [
+          { label: 'Classe A', value: 200, color: '#000' },
+          { label: 'Classe B', value: -300, color: '#111' },
+        ],
+      },
+    })
+    expect(wrapper.find('[role="img"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Classe B -300')
+    expect(wrapper.text()).not.toContain('%')
   })
 })
 

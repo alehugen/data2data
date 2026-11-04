@@ -109,4 +109,36 @@ describe('DreReport: cabeçalho de meses', () => {
     expect(report.periods).toHaveLength(3)
     expect(report.periods[0]).toEqual({ year: 2026, month: 1 })
   })
+
+  it('só considera meses já encerrados e registra os ignorados', () => {
+    const report = DreReport.fromTable({ name: 'DRE', sheet: 'DRE Geral', rows: dreRows() }, new Date(2026, 2, 15))!
+    expect(report.periods).toEqual([
+      { year: 2026, month: 1 },
+      { year: 2026, month: 2 },
+    ])
+    expect(report.ignoredPeriods).toEqual([{ year: 2026, month: 3 }])
+    expect(report.metric(DreMetric.GrossRevenue)?.values).toEqual([1000, 1200])
+  })
+
+  it('explica quando a DRE só tem meses em aberto', () => {
+    expect(() => DreReport.fromTables([{ name: 'DRE', sheet: 'DRE Geral', rows: dreRows() }], new Date(2026, 0, 20))).toThrow(
+      'A DRE só tem meses que ainda não terminaram.',
+    )
+  })
+
+  it('põe os meses em ordem cronológica mesmo com colunas fora de ordem', () => {
+    const rows = [
+      ['', '2', '12', '1'],
+      ['DESCRIÇÃO', '2026', '2025', '2026'],
+      ['RECEITA OPERACIONAL BRUTA', '300', '100', '200'],
+      ['Vendas', '300', '100', '200'],
+    ]
+    const report = DreReport.fromTable({ name: 'DRE', rows })!
+    expect(report.periods).toEqual([
+      { year: 2025, month: 12 },
+      { year: 2026, month: 1 },
+      { year: 2026, month: 2 },
+    ])
+    expect(report.metric(DreMetric.GrossRevenue)?.values).toEqual([100, 200, 300])
+  })
 })

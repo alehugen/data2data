@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   compareByPeriod,
   comparePeriods,
+  detectNumberConvention,
   normalizeText,
   parseNumber,
   parsePeriodFromText,
@@ -35,8 +36,40 @@ describe('parseNumber', () => {
     expect(parseNumber(input)).toBeCloseTo(expected, 10)
   })
 
-  it.each(['', '   ', 'Meningite B', '01.02.2026', '2026-09-30', '1-2'])('não trata "%s" como número', (input) => {
+  it.each(['', '   ', 'Meningite B', '01.02.2026', '2026-09-30', '1-2', '1.23.4'])('não trata "%s" como número', (input) => {
     expect(parseNumber(input)).toBeNaN()
+  })
+
+  it.each([
+    ['0,500', 0.5],
+    ['0.125', 0.125],
+    ['-0,125', -0.125],
+    ['1.234', 1234],
+  ])('sem padrão da coluna, lê "%s" como %d', (input, expected) => {
+    expect(parseNumber(input)).toBeCloseTo(expected, 10)
+  })
+
+  it.each([
+    ['1,500', 'br', 1.5],
+    ['1.500', 'br', 1500],
+    ['1,500', 'us', 1500],
+    ['1.500', 'us', 1.5],
+    ['1.234,5', 'us', 1234.5],
+  ] as const)('com padrão da coluna, lê "%s" (%s) como %d', (input, convention, expected) => {
+    expect(parseNumber(input, convention)).toBeCloseTo(expected, 10)
+  })
+})
+
+describe('detectNumberConvention', () => {
+  it.each([
+    [['1,500', '12,25', '3'], 'br'],
+    [['1,500', '1.234.567'], 'br'],
+    [['1,500', '12.25'], 'us'],
+    [['1,500', '1,234,567'], 'us'],
+    [['1,500', '2.000', '3'], undefined],
+    [['12,5', '12.5'], undefined],
+  ] as const)('em %j, detecta %s', (values, expected) => {
+    expect(detectNumberConvention(values)).toBe(expected)
   })
 })
 

@@ -50,47 +50,84 @@ const describeMargins = (items: readonly ProfitabilityItem[]) =>
     .join(', ')
 
 export function buildProfitInsights(profitability: AbcProfitability, { previous }: AbcAnalysis): Insight[] {
-  const { totals, previousTotals, byClass, lowMarginVolume, hiddenGems, losses, missingCost, mismatches, items } =
-    profitability
+  const {
+    totals,
+    previousTotals,
+    byClass,
+    referenceMargin,
+    lowMarginVolume,
+    hiddenGems,
+    losses,
+    missingCost,
+    mismatches,
+    items,
+  } = profitability
   const insights: Insight[] = []
   const previousMonth = previous ? formatAbcMonth(previous.report) : ''
-  const averageMargin = formatPercent(totals.margin ?? 0)
+  const averageMargin = formatPercent(referenceMargin ?? 0)
+  const reference = missingCost.length ? 'média dos itens com custo cadastrado' : 'média do mês'
+  const { profitCheck } = profitability
+  const checkFormula =
+    'Para cada item, compara o lucro informado com valor vendido − custo gerencial − impostos − taxas financeiras. Diferenças de até R$ 0,05 ou 0,1% do valor vendido contam como arredondamento.'
 
-  if (previousTotals) {
-    const change = relativeChange(totals.profit, previousTotals.profit) ?? 0
+  if (profitCheck.divergent.length) {
+    const count = profitCheck.divergent.length
+    const missing = profitCheck.missingColumns.map((column) => (column === 'tax' ? 'impostos' : 'taxas financeiras'))
+    const examples = profitCheck.divergent
+      .slice(0, 3)
+      .map((item) => `${item.description} (${item.unexplained > 0 ? '+' : ''}${formatCurrency(item.unexplained)})`)
+      .join(', ')
+    insights.push({
+      title: 'Lucro não confere',
+      description: `Em ${count} ${count === 1 ? 'item' : 'itens'}, o lucro informado não bate com valor − custo − impostos − taxas: ${examples}${count > 3 ? '…' : ''}. No total, o relatório informa ${formatCurrency(totals.profit)} e a conta dá ${formatCurrency(profitCheck.calculated)}.`,
+      tone: 'negative',
+      explanation: `${checkFormula} ${
+        missing.length
+          ? `O arquivo não tem coluna de ${missing.join(' nem de ')}; se o sistema desconta esses valores do lucro, a diferença vem daí.`
+          : 'A diferença costuma vir de descontos, fretes ou outros custos que o sistema desconta do lucro e não estão no arquivo.'
+      } Os indicadores usam o lucro informado.`,
+    })
+  }
+
+  const change = previousTotals ? relativeChange(totals.profit, previousTotals.profit) : null
+  if (change !== null) {
     insights.push({
       title: change >= 0 ? 'Lucro em alta' : 'Lucro em queda',
-      description: `Lucro de ${formatCurrencyCompact(totals.profit)} (margem de ${averageMargin}), ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
+      description: `Lucro de ${formatCurrencyCompact(totals.profit)}${totals.margin !== null ? ` (margem de ${formatPercent(totals.margin)})` : ''}, ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
       tone: change >= 0 ? 'positive' : 'negative',
-      explanation: `Lucro = valor vendido − custo gerencial − impostos − taxas financeiras, somado em todos os itens do relatório de lucro. Variação comparada com o relatório de lucro de ${previousMonth}.`,
+      explanation: `Lucro informado no relatório de lucro, somado em todos os itens. Variação = (lucro do mês − lucro de ${previousMonth}) ÷ |lucro de ${previousMonth}|.`,
     })
   }
 
   const classA = byClass.A
-  if (classA.revenue) {
+  if (classA.revenue && classA.margin !== null && referenceMargin !== null) {
+    const share =
+      classA.profitShare !== null
+        ? `A classe A gera ${formatPercent(classA.profitShare)} do lucro do mês`
+        : `A classe A teve lucro de ${formatCurrencyCompact(classA.profit)}${totals.profit <= 0 ? ' em um mês com prejuízo no total' : ''}`
     insights.push({
       title: 'Lucro da classe A',
-      description: `A classe A gera ${formatPercent(classA.profitShare)} do lucro do mês, com margem de ${formatPercent(classA.margin ?? 0)} (média geral: ${averageMargin}).`,
-      tone: (classA.margin ?? 0) >= (totals.margin ?? 0) ? 'positive' : 'negative',
-      explanation: `Lucro dos itens classe A ÷ lucro total do mês. Margem da classe = lucro ÷ valor vendido desses itens. Se a classe que mais vende tem margem abaixo da média, o volume não está se convertendo em lucro.`,
+      description: `${share}, com margem de ${formatPercent(classA.margin)} (${reference}: ${averageMargin}).`,
+      tone: classA.margin >= referenceMargin ? 'positive' : 'negative',
+      explanation: `Participação = lucro dos itens classe A ÷ lucro total do mês, mostrada só quando o lucro total é positivo e nenhuma classe dá prejuízo. Margem da classe = lucro ÷ valor vendido dos itens A com custo cadastrado.`,
     })
   }
 
   if (lowMarginVolume.length) {
     insights.push({
       title: 'Vende muito, lucra pouco',
-      description: `${lowMarginVolume.length} ${lowMarginVolume.length === 1 ? 'item da classe A tem' : 'itens da classe A têm'} margem abaixo da média: ${describeMargins(lowMarginVolume)}.`,
+      description: `${lowMarginVolume.length} ${lowMarginVolume.length === 1 ? 'item da classe A tem' : 'itens da classe A têm'} margem abaixo da ${reference} (${averageMargin}): ${describeMargins(lowMarginVolume)}.`,
       tone: 'negative',
-      explanation: `Itens classe A (maior volume) com margem de lucro menor que a média do mês (${averageMargin}). São candidatos a revisão de preço ou de custo de compra. Itens sem custo cadastrado ficam de fora.`,
+      explanation: `Itens classe A (maior volume) com margem menor que a ${reference}. A média é o lucro ÷ valor vendido somente dos itens com custo cadastrado, para não ser inflada por itens com custo zero. São candidatos a revisão de preço ou de custo de compra.`,
     })
   }
 
   if (hiddenGems.length) {
     insights.push({
       title: 'Alta margem pouco explorada',
-      description: `${hiddenGems.length} ${hiddenGems.length === 1 ? 'item das classes B/C tem' : 'itens das classes B/C têm'} margem acima da média: ${describeMargins(hiddenGems)}.`,
+      description: `${hiddenGems.length} ${hiddenGems.length === 1 ? 'item das classes B/C tem' : 'itens das classes B/C têm'} margem acima da ${reference} (${averageMargin}): ${describeMargins(hiddenGems)}.`,
       tone: 'positive',
-      explanation: `Itens fora da classe A, com lucro positivo e margem acima da média do mês (${averageMargin}). Vender mais deles aumenta o lucro com eficiência. Itens sem custo cadastrado ficam de fora.`,
+      explanation: `Itens das classes B e C, com lucro positivo e margem acima da ${reference}. Itens sem custo cadastrado ou fora da Curva ABC ficam de fora. Vender mais deles aumenta o lucro com eficiência.`,
     })
   }
 
@@ -124,6 +161,15 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous 
     })
   }
 
+  if (!profitCheck.divergent.length && items.length) {
+    insights.push({
+      title: 'Lucro conferido',
+      description: `O lucro informado dos ${items.length} itens bate com valor vendido − custo − impostos − taxas.`,
+      tone: 'positive',
+      explanation: checkFormula,
+    })
+  }
+
   const divergences = mismatches.onlyInAbc.length + mismatches.onlyInProfit.length + mismatches.revenueDiffers.length
   if (divergences) {
     const parts = [
@@ -147,7 +193,8 @@ const shareOf = (part: number, total: number) => ratio(part, total) ?? 0
 export function buildAbcInsights({ current, previous, ranking, movements }: AbcAnalysis): Insight[] {
   const items: Insight[] = []
   const classA = current.byClass.A
-  const basis = current.report.basis === 'value' ? 'faturamento' : 'quantidade'
+  const basis = current.report.basis
+  const shareLabel = basis === 'value' ? 'do faturamento' : basis === 'quantity' ? 'da quantidade' : 'de participação'
   const previousMonth = previous ? formatAbcMonth(previous.report) : ''
 
   if (classA.items) {
@@ -163,9 +210,12 @@ export function buildAbcInsights({ current, previous, ranking, movements }: AbcA
   if (leader) {
     items.push({
       title: 'Item líder',
-      description: `${leader.description}: ${formatNumber(leader.quantity)} unidades e ${formatCurrency(leader.value)} (${formatPercent(leader.share)} da ${basis}).`,
+      description: `${leader.description}: ${formatNumber(leader.quantity)} unidades e ${formatCurrency(leader.value)} (${formatPercent(leader.share)} ${shareLabel}).`,
       tone: 'neutral',
-      explanation: `Primeiro item do relatório, ou seja, o de maior participação no critério de classificação (${basis}). O percentual é o informado pelo sistema de origem.`,
+      explanation:
+        basis === null
+          ? 'Item com a maior participação informada no relatório. Não foi possível identificar se a classificação é por quantidade ou por faturamento.'
+          : `Item com a maior participação no critério de classificação (${basis === 'value' ? 'faturamento' : 'quantidade'}). Quando o relatório traz a coluna de percentual, o valor é o informado pelo sistema de origem.`,
     })
   }
 
@@ -180,13 +230,15 @@ export function buildAbcInsights({ current, previous, ranking, movements }: AbcA
   }
 
   if (previous) {
-    const change = relativeChange(current.value, previous.value) ?? 0
-    items.push({
-      title: change >= 0 ? 'Faturamento em alta' : 'Faturamento em queda',
-      description: `${formatCurrencyCompact(current.value)} no mês, ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
-      tone: change >= 0 ? 'positive' : 'negative',
-      explanation: `(Faturamento do mês − faturamento de ${previousMonth}) ÷ faturamento de ${previousMonth}. O faturamento é a soma do valor total de todos os itens.`,
-    })
+    const change = relativeChange(current.value, previous.value)
+    if (change !== null) {
+      items.push({
+        title: change >= 0 ? 'Faturamento em alta' : 'Faturamento em queda',
+        description: `${formatCurrencyCompact(current.value)} no mês, ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
+        tone: change >= 0 ? 'positive' : 'negative',
+        explanation: `(Faturamento do mês − faturamento de ${previousMonth}) ÷ faturamento de ${previousMonth}. O faturamento é a soma do valor total de todos os itens.`,
+      })
+    }
 
     const withMovement = (movement: AbcMovement) => movements.filter((m) => m.movement === movement)
     const up = withMovement(AbcMovement.Up)
@@ -227,7 +279,7 @@ export function buildAbcInsights({ current, previous, ranking, movements }: AbcA
     if (best && best.delta > 0) {
       items.push({
         title: 'Maior alta de faturamento',
-        description: `${best.description}: +${formatCurrency(best.delta)} em relação ao mês anterior.`,
+        description: `${best.description}: +${formatCurrency(best.delta)} frente a ${previousMonth}.`,
         tone: 'positive',
         explanation: deltaExplanation,
       })
@@ -235,7 +287,7 @@ export function buildAbcInsights({ current, previous, ranking, movements }: AbcA
     if (worst && worst.delta < 0) {
       items.push({
         title: 'Maior queda de faturamento',
-        description: `${worst.description}: ${formatCurrency(worst.delta)} em relação ao mês anterior.`,
+        description: `${worst.description}: ${formatCurrency(worst.delta)} frente a ${previousMonth}.`,
         tone: 'negative',
         explanation: deltaExplanation,
       })

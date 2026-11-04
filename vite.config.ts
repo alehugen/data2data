@@ -5,6 +5,9 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  server: {
+    watch: { usePolling: process.cwd().startsWith('/mnt/') },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

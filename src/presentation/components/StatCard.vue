@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PhArrowDownRight, PhArrowUpRight, PhMinus } from '@phosphor-icons/vue'
 import { computed } from 'vue'
-import { formatSignedPercent } from '@/presentation/format'
+import { formatSignedPercent, formatSignedPoints } from '@/presentation/format'
 import InfoTip from './InfoTip.vue'
 
 const props = withDefaults(
@@ -11,10 +11,11 @@ const props = withDefaults(
     hint?: string
     delta?: number | null
     deltaLabel?: string
+    deltaUnit?: 'relative' | 'points'
     lowerIsBetter?: boolean
     info?: string
   }>(),
-  { hint: undefined, delta: null, deltaLabel: undefined, lowerIsBetter: false, info: undefined },
+  { hint: undefined, delta: null, deltaLabel: undefined, deltaUnit: 'relative', lowerIsBetter: false, info: undefined },
 )
 
 const tone = computed(() => {
@@ -42,7 +43,7 @@ const TONE_CLASSES = {
         <PhArrowUpRight v-if="delta > 0" weight="bold" aria-hidden="true" />
         <PhArrowDownRight v-else-if="delta < 0" weight="bold" aria-hidden="true" />
         <PhMinus v-else weight="bold" aria-hidden="true" />
-        {{ formatSignedPercent(delta) }}
+        {{ deltaUnit === 'points' ? formatSignedPoints(delta) : formatSignedPercent(delta) }}
       </span>
       <span v-if="deltaLabel" class="text-muted-foreground">vs {{ deltaLabel }}</span>
     </p>

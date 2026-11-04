@@ -49,7 +49,7 @@ export class AnalyzeDatasetUseCase {
       ...breakdowns.flatMap(({ categoryKey, valueKey, items }) => {
         const [top] = items
         const total = items.reduce((acc, item) => acc + item.total, 0)
-        if (!top || total === 0) return []
+        if (!top || total <= 0 || items.some((item) => item.total < 0)) return []
         const share = Math.round((top.total / total) * 100)
         return [
           {
