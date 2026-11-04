@@ -75,7 +75,7 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
     const r = report.value
     const a = analysis.value
     const s = selection.value
-    if (!r || !a || !s) return { current: '', currentLong: '', previous: '', reference: '', window: '', when: '' }
+    if (!r || !a || !s) return { current: '', currentLong: '', previous: '', reference: '', window: '', when: '', heading: '' }
     const span = (indexes: number[]) => {
       const first = formatPeriod(r.periods[indexes[0]!]!)
       const last = formatPeriod(r.periods[indexes.at(-1)!]!)
@@ -89,6 +89,7 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
       reference: s.type === 'month' ? `em ${labelOf(s)}` : `na média mensal de ${s.year}`,
       window: s.type === 'month' ? `até ${labelOf(s)}` : `de ${s.year}`,
       when: s.type === 'month' ? `em ${labelOf(s)}` : `no acumulado de ${s.year}`,
+      heading: s.type === 'month' ? `Resultado de ${formatPeriodLong(r.periods[s.index]!)}` : `Resultado acumulado de ${s.year}`,
     }
   })
 

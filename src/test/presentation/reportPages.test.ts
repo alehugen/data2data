@@ -57,7 +57,7 @@ describe('DrePage', () => {
     const page = await mountDre()
     page.getComponent(PeriodSelect).vm.$emit('update:modelValue', 'y:2026')
     await flushPromises()
-    expect(page.text()).toContain('Resultado de acumulado de 2026')
+    expect(page.text()).toContain('Resultado acumulado de 2026')
     expect(page.getComponent(ProfitTarget).props('reference')).toBe('na média mensal de 2026')
   })
 

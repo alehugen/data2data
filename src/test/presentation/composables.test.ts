@@ -103,6 +103,7 @@ describe('useDreAnalysis', () => {
       reference: 'em mar/26',
       window: 'até mar/26',
       when: 'em mar/26',
+      heading: 'Resultado de março de 2026',
     })
     expect(insights.value.length).toBeGreaterThan(0)
 
@@ -111,6 +112,7 @@ describe('useDreAnalysis', () => {
     expect(periodLabels.value.currentLong).toBe('acumulado de 2026')
     expect(periodLabels.value.reference).toBe('na média mensal de 2026')
     expect(periodLabels.value.when).toBe('no acumulado de 2026')
+    expect(periodLabels.value.heading).toBe('Resultado acumulado de 2026')
   })
 
   it('não encontra uma DRE inexistente', () => {

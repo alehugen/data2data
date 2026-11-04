@@ -146,7 +146,7 @@ const expenseItems = computed(() =>
       </template>
 
       <PageSection id="indicadores" class="space-y-3">
-        <SectionHeading title="Indicadores" :subtitle="`Resultado de ${periodLabels.currentLong}`" />
+        <SectionHeading title="Indicadores" :subtitle="periodLabels.heading" />
         <StatGrid columns="grid-cols-2 md:grid-cols-3">
           <StatCard
             v-for="kpi in kpiCards"

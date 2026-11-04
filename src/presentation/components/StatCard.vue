@@ -31,7 +31,7 @@ const TONE_CLASSES = {
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-col gap-1 bg-card p-5">
+  <div class="flex min-w-0 flex-col gap-1 rounded-xl border border-border bg-card p-5 shadow-card">
     <div class="flex items-start justify-between gap-2">
       <p class="text-sm text-muted-foreground">{{ label }}</p>
       <InfoTip v-if="info" :text="info" class="-mt-1 -mr-2 shrink-0" />

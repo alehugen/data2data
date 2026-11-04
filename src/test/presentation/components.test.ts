@@ -123,8 +123,9 @@ describe('ProfitTarget', () => {
       { label: 'DESPESAS ADMINISTRATIVAS', value: 7_000 },
     ],
   }
-  const mountTarget = (overrides: Partial<ProfitTargetBase> = {}) =>
+  const mountTarget = (overrides: Partial<ProfitTargetBase> = {}, attachTo?: HTMLElement) =>
     mountWithProviders(ProfitTarget, {
+      attachTo,
       props: {
         base: { ...base, ...overrides },
         reference: 'em out/26',
@@ -222,6 +223,55 @@ describe('ProfitTarget', () => {
     expect(text).toContain('Reajustar preços')
     expect(text).not.toContain('Negociar compras')
     expect(text).not.toContain('Maiores grupos')
+  })
+
+  it('abre como modal mantendo o slide e fecha pelo Esc, pelo X ou pelo fundo', async () => {
+    const host = document.body.appendChild(document.createElement('div'))
+    const wrapper = mountTarget({}, host)
+    const dialog = () => document.body.querySelector('[role="dialog"]')
+    const open = async () => {
+      await wrapper.get('button[aria-label="Abrir em tela cheia"]').trigger('click')
+      await flushPromises()
+    }
+    const afterClosing = () => new Promise((resolve) => setTimeout(resolve, 300))
+
+    await next(wrapper)
+    await open()
+    expect(dialog()!.getAttribute('aria-modal')).toBe('true')
+    expect(dialog()!.querySelector('#meta-modal-titulo')!.textContent).toBe('Meta de lucro')
+    expect(dialog()!.querySelector('[aria-current="step"]')!.textContent).toContain('Hoje × meta')
+    expect(dialog()!.querySelector('.animate-modal-in')).not.toBeNull()
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Fechar')
+
+    const listbox = document.createElement('div')
+    listbox.setAttribute('role', 'listbox')
+    document.body.appendChild(listbox)
+    listbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(dialog()!.querySelector('.animate-modal-out')).toBeNull()
+    listbox.remove()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(dialog()!.querySelector('.animate-modal-out')).not.toBeNull()
+    await afterClosing()
+    await flushPromises()
+    expect(dialog()).toBeNull()
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Hoje × meta')
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Abrir em tela cheia')
+
+    await open()
+    ;(document.body.querySelector('button[aria-label="Fechar"]') as HTMLButtonElement).click()
+    await afterClosing()
+    await flushPromises()
+    expect(dialog()).toBeNull()
+
+    await open()
+    ;(dialog()!.querySelector('.animate-backdrop-in') as HTMLElement).click()
+    await afterClosing()
+    await flushPromises()
+    expect(dialog()).toBeNull()
+    host.remove()
   })
 
   it('reconhece a meta já batida em vez de sugerir caminhos', async () => {
