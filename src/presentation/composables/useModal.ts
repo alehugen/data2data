@@ -75,7 +75,7 @@ export function useModal(options: ModalOptions) {
   }
 
   useEventListener('keydown', (event: KeyboardEvent) => {
-    const inPopup = event.target instanceof Element && event.target.closest('[role="listbox"], [role="menu"]')
+    const inPopup = event.target instanceof Element && event.target.closest('[role="listbox"], [role="menu"], [data-reka-popper-content-wrapper]')
     if (event.key !== 'Escape' || state.value !== 'open' || event.defaultPrevented || inPopup) return
     if (openModals.at(-1) !== id) return
     ;(options.onEscape ?? close)()

@@ -477,6 +477,31 @@ describe('DreTable', () => {
     ])
   })
 
+  it('mostra todos os meses por padrão e esconde os que forem desmarcados no filtro', async () => {
+    const wrapper = mountTable()
+    const headers = () => wrapper.findAll('thead th[data-period]').map((th) => th.text())
+    const revenueRow = () => wrapper.findAll('tbody tr')[0]!.findAll('td').map((td) => td.text())
+    expect(headers()).toEqual(['jan/26', 'fev/26', 'mar/26'])
+    expect(wrapper.text()).toContain('Meses: todos')
+
+    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
+    await flushPromises()
+    const option = (label: string) => [...document.body.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((b) => b.textContent!.trim() === label)!
+    option('jan/26').click()
+    await flushPromises()
+    expect(headers()).toEqual(['fev/26', 'mar/26'])
+    expect(revenueRow()).toEqual(['1.200', '900'])
+    expect(wrapper.text()).toContain('Meses: 2 de 3')
+
+    option('fev/26').click()
+    await flushPromises()
+    expect(option('mar/26').disabled).toBe(true)
+
+    option('Todos').click()
+    await flushPromises()
+    expect(headers()).toEqual(['jan/26', 'fev/26', 'mar/26'])
+  })
+
   it('destaca a coluna do período selecionado', () => {
     expect(mountTable().get('[data-highlight]').text()).toBe('mar/26')
   })

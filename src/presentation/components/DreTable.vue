@@ -10,13 +10,14 @@ import CellBreakdown from './CellBreakdown.vue'
 import ExpandablePanel from './ExpandablePanel.vue'
 import ExpandButton from './ExpandButton.vue'
 import InfoTip from './InfoTip.vue'
+import MonthFilter from './MonthFilter.vue'
 import SegmentedControl from './SegmentedControl.vue'
 
 const props = defineProps<{ report: DreReport; highlight: number[] }>()
 const { open, breakdown, canInspect, inspect } = useCellBreakdown(() => props.report)
 
 const TABLE_INFO =
-  'Valores como na planilha: receitas positivas, custos e despesas negativos. AV % = cada linha ÷ receita bruta do mesmo mês. Clique em um grupo para ver as contas que o compõem; a coluna destacada é o período selecionado. Quando a planilha traz a aba de fluxo de caixa, clique em um valor para ver os lançamentos que o compõem.'
+  'Valores como na planilha: receitas positivas, custos e despesas negativos. AV % = cada linha ÷ receita bruta do mesmo mês. Clique em um grupo para ver as contas que o compõem; a coluna destacada é o período selecionado. Em Meses, escolha quais meses aparecem, para focar em um período ao apresentar. Quando a planilha traz a aba de fluxo de caixa, clique em um valor para ver os lançamentos que o compõem.'
 
 const MODES = [
   { value: 'value', label: 'Valores (R$)' },
@@ -24,11 +25,14 @@ const MODES = [
 ] as const
 const mode = ref<Mode>('value')
 const showZero = ref(false)
+const allMonths = () => props.report.periods.map((_, index) => index)
+const shown = ref(allMonths())
+watch(() => props.report, () => (shown.value = allMonths()))
 const expanded = ref(new Set(props.report.lines.filter((l) => l.kind === DreLineKind.Section).map((l) => l.id)))
 
 const integer = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 })
 const revenue = computed(() => props.report.metric(DreMetric.GrossRevenue))
-const isZero = (line: DreLine) => line.values.every((v) => v === 0)
+const isZero = (line: DreLine) => shown.value.every((i) => (line.values[i] ?? 0) === 0)
 const hasChildren = (line: DreLine) => props.report.lines.some((l) => l.parentId === line.id && (showZero.value || !isZero(l)))
 
 const byId = computed(() => new Map(props.report.lines.map((l) => [l.id, l])))
@@ -75,7 +79,10 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
 <template>
   <ExpandablePanel v-slot="{ expanded: fullscreen, expand }" title="DRE completa" :subtitle="report.name" class="flex flex-col">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-      <SegmentedControl v-model="mode" :options="MODES" label="Exibir" />
+      <div class="flex flex-wrap items-center gap-3">
+        <SegmentedControl v-model="mode" :options="MODES" label="Exibir" />
+        <MonthFilter v-if="report.periods.length > 1" v-model="shown" :periods="report.periods" />
+      </div>
       <div class="flex items-center gap-3">
         <label class="flex cursor-pointer items-center gap-2 text-sm text-body">
           <Checkbox :model-value="showZero" @update:model-value="showZero = $event === true" />
@@ -92,14 +99,14 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
           <tr>
             <th class="sticky left-0 z-10 min-w-64 bg-muted px-3 py-2 font-medium">Conta</th>
             <th
-              v-for="(period, i) in report.periods"
+              v-for="i in shown"
               :key="i"
               data-period
               :data-highlight="highlight.includes(i) ? '' : undefined"
               class="px-3 py-2 text-right figure font-medium whitespace-nowrap"
               :class="highlight.includes(i) && 'bg-accent text-accent-foreground'"
             >
-              {{ formatPeriod(period) }}
+              {{ formatPeriod(report.periods[i]!) }}
             </th>
           </tr>
         </thead>
@@ -139,13 +146,13 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
               <span v-else>{{ prettifyLabel(line.label) }}</span>
             </th>
             <td
-              v-for="(value, i) in line.values"
+              v-for="i in shown"
               :key="i"
               class="px-3 py-1.5 text-right figure whitespace-nowrap"
-              :class="[highlight.includes(i) && 'bg-accent/40', value < 0 && 'text-destructive']"
+              :class="[highlight.includes(i) && 'bg-accent/40', (line.values[i] ?? 0) < 0 && 'text-destructive']"
             >
               <button
-                v-if="value !== 0 && canInspect(line)"
+                v-if="(line.values[i] ?? 0) !== 0 && canInspect(line)"
                 type="button"
                 class="-mx-1 rounded px-1 transition-colors duration-(--duration-fast) ease-out hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent"
                 :aria-label="`${cell(line, i)}: ver lançamentos de ${prettifyLabel(line.label)} em ${formatPeriod(report.periods[i]!)}`"

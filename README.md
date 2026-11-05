@@ -26,7 +26,7 @@ Para conhecer o app sem arquivos próprios, use **"Ver com dados de exemplo"** n
 - **Meta de lucro:** escolha um lucro mensal (R$ 10, 15, 20, 25, 50 ou 100 mil) e a receita considerada (a receita bruta ou só algumas das suas contas) e veja, em slides, quanto a empresa precisa faturar por mês, a comparação entre hoje e a meta, o cálculo linha a linha e os caminhos para chegar lá: vender mais, reajustar preços, negociar compras, cortar despesas ou um plano combinado. Pode ser aberta em tela cheia para apresentar.
 - **Ponto de equilíbrio** nos pontos de análise: receita que cobre as despesas operacionais com a margem de contribuição atual.
 - **Gráficos:** composição de custos e da receita e saldo de caixa.
-- **DRE completa** em tabela, com grupos recolhíveis e alternância entre valores (R$) e análise vertical (AV%).
+- **DRE completa** em tabela, com grupos recolhíveis, alternância entre valores (R$) e análise vertical (AV%), escolha dos meses exibidos (todos por padrão, ou só um período para apresentar) e tela cheia.
 - **Composição de cada valor:** se a planilha tiver uma aba de fluxo de caixa (classificação, valor e data de pagamento), clicar em um valor da DRE completa abre os lançamentos pagos naquele mês que o compõem, com subtotal por conta e a conferência com a célula. Contas com o mesmo nome em grupos diferentes não são detalhadas, para não misturar lançamentos.
 - Filtro por mês ou acumulado do ano.
 
