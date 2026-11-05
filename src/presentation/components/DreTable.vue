@@ -4,10 +4,11 @@ import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DreLineKind, DreMetric, type DreLine, type DreReport } from '@/domain/dre'
 import { useCellBreakdown } from '@/presentation/composables/useCellBreakdown'
 import { formatPercent, formatPeriod, formatPeriodLong, prettifyLabel } from '@/presentation/format'
-import { Card } from '@/presentation/components/ui/card'
 import { Checkbox } from '@/presentation/components/ui/checkbox'
 import AppModal from './AppModal.vue'
 import CellBreakdown from './CellBreakdown.vue'
+import ExpandablePanel from './ExpandablePanel.vue'
+import ExpandButton from './ExpandButton.vue'
 import InfoTip from './InfoTip.vue'
 import SegmentedControl from './SegmentedControl.vue'
 
@@ -21,7 +22,7 @@ const MODES = [
   { value: 'value', label: 'Valores (R$)' },
   { value: 'av', label: 'AV % da receita' },
 ] as const
-const mode = ref<(typeof MODES)[number]['value']>('value')
+const mode = ref<Mode>('value')
 const showZero = ref(false)
 const expanded = ref(new Set(props.report.lines.filter((l) => l.kind === DreLineKind.Section).map((l) => l.id)))
 
@@ -48,12 +49,18 @@ function toggle(line: DreLine) {
   expanded.value = next
 }
 
-function cell(line: DreLine, index: number) {
+type Mode = (typeof MODES)[number]['value']
+
+function format(line: DreLine, index: number, as: Mode) {
   const value = line.values[index] ?? 0
-  if (mode.value === 'value') return value === 0 ? '–' : integer.format(value)
+  if (as === 'value') return value === 0 ? '–' : integer.format(value)
   const base = revenue.value?.values[index] ?? 0
   return base && value ? formatPercent(value / base) : '–'
 }
+
+const cell = (line: DreLine, index: number) => format(line, index, mode.value)
+const CELL_TEXT = 'inline-grid justify-items-end after:invisible after:content-[attr(data-alt)] after:[grid-area:1/1]'
+const otherMode = computed<Mode>(() => (mode.value === 'value' ? 'av' : 'value'))
 
 const scroller = useTemplateRef('scroller')
 const scrollToHighlight = () => {
@@ -66,7 +73,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
 </script>
 
 <template>
-  <Card class="gap-0 py-0">
+  <ExpandablePanel v-slot="{ expanded: fullscreen, expand }" title="DRE completa" :subtitle="report.name" class="flex flex-col">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
       <SegmentedControl v-model="mode" :options="MODES" label="Exibir" />
       <div class="flex items-center gap-3">
@@ -75,10 +82,11 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
           Mostrar contas zeradas
         </label>
         <InfoTip :text="TABLE_INFO" label="Como ler a tabela" />
+        <ExpandButton v-if="!fullscreen" title="Abrir a DRE em tela cheia" @click="expand" />
       </div>
     </div>
 
-    <div ref="scroller" class="max-h-[70vh] overflow-auto">
+    <div ref="scroller" class="overflow-auto overscroll-contain" :class="fullscreen ? 'min-h-0 flex-1' : 'max-h-[70vh]'">
       <table class="min-w-full text-sm">
         <thead class="sticky top-0 z-10 bg-muted text-left">
           <tr>
@@ -86,6 +94,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
             <th
               v-for="(period, i) in report.periods"
               :key="i"
+              data-period
               :data-highlight="highlight.includes(i) ? '' : undefined"
               class="px-3 py-2 text-right figure font-medium whitespace-nowrap"
               :class="highlight.includes(i) && 'bg-accent text-accent-foreground'"
@@ -142,9 +151,13 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
                 :aria-label="`${cell(line, i)}: ver lançamentos de ${prettifyLabel(line.label)} em ${formatPeriod(report.periods[i]!)}`"
                 @click="inspect(line, i)"
               >
-                {{ cell(line, i) }}
+                <span :data-alt="format(line, i, otherMode)" :class="CELL_TEXT">
+                  <span class="[grid-area:1/1]">{{ cell(line, i) }}</span>
+                </span>
               </button>
-              <template v-else>{{ cell(line, i) }}</template>
+              <span v-else :data-alt="format(line, i, otherMode)" :class="CELL_TEXT">
+                <span class="[grid-area:1/1]">{{ cell(line, i) }}</span>
+              </span>
             </td>
           </tr>
         </tbody>
@@ -157,5 +170,5 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
     >
       <CellBreakdown v-if="breakdown" :breakdown="breakdown" />
     </AppModal>
-  </Card>
+  </ExpandablePanel>
 </template>

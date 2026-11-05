@@ -13,7 +13,7 @@ const modal = useModal({
   focusOnOpen: () => closeButton.value?.$el,
   onEscape: () => (open.value = false),
 })
-const state = modal.state
+const { state, zIndex } = modal
 
 watch(open, (isOpen) => (isOpen ? modal.open() : modal.close()), { immediate: true })
 </script>
@@ -25,7 +25,8 @@ watch(open, (isOpen) => (isOpen ? modal.open() : modal.close()), { immediate: tr
       role="dialog"
       aria-modal="true"
       :aria-labelledby="titleId"
-      class="fixed inset-0 z-(--layer-modal) flex items-center justify-center p-3 sm:p-8"
+      :style="{ zIndex }"
+      class="fixed inset-0 flex items-center justify-center p-3 sm:p-8"
     >
       <div
         class="absolute inset-0 bg-[rgb(8_6_28/0.62)] backdrop-blur-sm"

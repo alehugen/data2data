@@ -239,7 +239,7 @@ describe('ProfitTarget', () => {
     await next(wrapper)
     await open()
     expect(dialog()!.getAttribute('aria-modal')).toBe('true')
-    expect(dialog()!.querySelector('#meta-modal-titulo')!.textContent).toBe('Meta de lucro')
+    expect(dialog()!.querySelector('h2')!.textContent).toBe('Meta de lucro')
     expect(dialog()!.querySelector('[aria-current="step"]')!.textContent).toContain('Hoje × meta')
     expect(dialog()!.querySelector('.animate-modal-in')).not.toBeNull()
     expect(document.activeElement?.getAttribute('aria-label')).toBe('Fechar')
@@ -470,6 +470,11 @@ describe('DreTable', () => {
     expect(revenueRow()).toEqual(['1.000', '1.200', '900'])
     await wrapper.findAll('button[aria-pressed]')[1]!.trigger('click')
     expect(revenueRow()).toEqual(['100%', '100%', '100%'])
+    expect(wrapper.findAll('tbody tr')[0]!.findAll('td [data-alt]').map((el) => el.attributes('data-alt'))).toEqual([
+      '1.000',
+      '1.200',
+      '900',
+    ])
   })
 
   it('destaca a coluna do período selecionado', () => {
@@ -505,6 +510,47 @@ describe('DreTable', () => {
     await new Promise((resolve) => setTimeout(resolve, 300))
     await flushPromises()
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('abre em tela cheia e, dali, o detalhe de um valor fecha sem fechar a tabela', async () => {
+    const withLedger = DreReport.fromTables([
+      { name: 'DRE', sheet: 'DRE Geral', rows: dreRows() },
+      { name: 'Fluxo', sheet: 'Fluxo de Caixa', rows: LEDGER_ROWS },
+    ])!
+    const host = document.body.appendChild(document.createElement('div'))
+    const wrapper = mountWithProviders(DreTable, { props: { report: withLedger, highlight: [2] }, attachTo: host })
+    const dialogs = () => [...document.body.querySelectorAll('[role="dialog"]')]
+    const afterClosing = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      await flushPromises()
+    }
+
+    await wrapper.get('button[aria-label="Abrir em tela cheia"]').trigger('click')
+    await flushPromises()
+    expect(dialogs().map((d) => d.querySelector('h2')!.textContent)).toEqual(['DRE completa'])
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Fechar')
+
+    const buttons = () => [...dialogs()[0]!.querySelectorAll('button')]
+    buttons().find((b) => b.textContent!.trim() === 'Despesas com pessoal')!.click()
+    await flushPromises()
+    buttons().find((b) => b.getAttribute('aria-label')?.endsWith('ver lançamentos de Salários em mar/26'))!.click()
+    await flushPromises()
+    expect(dialogs()).toHaveLength(2)
+    const layer = (dialog: Element) => (dialog as HTMLElement).style.zIndex
+    const titled = (title: string) => dialogs().find((d) => d.querySelector('h2')!.textContent === title)!
+    expect(layer(titled('DRE completa'))).toBe('calc(var(--layer-modal) + 0)')
+    expect(layer(titled('Salários'))).toBe('calc(var(--layer-modal) + 1)')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await afterClosing()
+    expect(dialogs().map((d) => d.querySelector('h2')!.textContent)).toEqual(['DRE completa'])
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await afterClosing()
+    expect(dialogs()).toEqual([])
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Abrir em tela cheia')
+    wrapper.vm.$.appContext.app.unmount()
+    host.remove()
   })
 })
 
