@@ -77,7 +77,7 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous,
       title: change >= 0 ? 'Lucro em alta' : 'Lucro em queda',
       description: `Lucro bruto de ${formatCurrencyCompact(totals.profit)}${totals.margin !== null ? ` (margem de ${formatPercent(totals.margin)})` : ''}, ${change >= 0 ? 'alta' : 'queda'} de ${formatPercent(Math.abs(change))} frente a ${previousMonth}.`,
       tone: change >= 0 ? 'positive' : 'negative',
-      explanation: `Lucro bruto = valor vendido − custo gerencial − impostos − materiais, somado em todos os itens. A taxa financeira do relatório não entra. Variação = (lucro do mês − lucro de ${previousMonth}) ÷ |lucro de ${previousMonth}|.`,
+      explanation: `Lucro bruto = valor vendido − custo gerencial − impostos − materiais, somado em todos os itens. A taxa financeira do relatório não entra. Variação = (lucro bruto do mês − lucro bruto de ${previousMonth}) ÷ |lucro bruto de ${previousMonth}|.`,
     })
   }
 
@@ -86,12 +86,12 @@ export function buildProfitInsights(profitability: AbcProfitability, { previous,
     const share =
       classA.profitShare !== null
         ? `A classe A gera ${formatPercent(classA.profitShare)} do lucro do ${scope}`
-        : `A classe A teve lucro de ${formatCurrencyCompact(classA.profit)}${totals.profit <= 0 ? ' em um mês com prejuízo no total' : ''}`
+        : `A classe A teve lucro de ${formatCurrencyCompact(classA.profit)}${totals.profit <= 0 ? ` em um ${scope} com prejuízo no total` : ''}`
     insights.push({
       title: 'Lucro da classe A',
       description: `${share}, com margem de ${formatPercent(classA.margin)} (${reference}: ${averageMargin}).`,
       tone: classA.margin >= referenceMargin ? 'positive' : 'negative',
-      explanation: `Participação = lucro dos itens classe A ÷ lucro total do ${scope}, mostrada só quando o lucro total é positivo e nenhuma classe dá prejuízo. Margem da classe = lucro ÷ valor vendido dos itens A com custo cadastrado.`,
+      explanation: `Participação = lucro dos itens classe A ÷ lucro bruto do ${scope}, mostrada só quando o lucro bruto é positivo e nenhuma classe dá prejuízo. Margem da classe = lucro ÷ valor vendido dos itens A com custo cadastrado.`,
     })
   }
 

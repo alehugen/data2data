@@ -74,6 +74,10 @@ describe('ImportPage', () => {
     await remove(abcReports.value[0]!.id)
     await flushPromises()
     expect(page.find('[role="status"]').exists()).toBe(false)
+
+    page.vm.$.appContext.app.unmount()
+    const again = mountWithProviders(ImportPage, { global: { stubs } })
+    expect(again.find('[role="alert"]').exists()).toBe(false)
   })
 
   it('avisa quando o mês não foi identificado no nome do arquivo', async () => {

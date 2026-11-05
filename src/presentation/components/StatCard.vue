@@ -7,7 +7,7 @@ import InfoTip from './InfoTip.vue'
 const props = withDefaults(
   defineProps<{
     label: string
-    value: string | number
+    value: string
     hint?: string
     delta?: number | null
     deltaLabel?: string

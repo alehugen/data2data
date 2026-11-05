@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { PhArrowsOut, PhX } from '@phosphor-icons/vue'
-import { useEventListener, useScrollLock } from '@vueuse/core'
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef } from 'vue'
 import type { ProfitTargetBase } from '@/application'
 import CalculationSlide from '@/presentation/components/profit-target/CalculationSlide.vue'
 import ComparisonSlide from '@/presentation/components/profit-target/ComparisonSlide.vue'
@@ -11,6 +10,7 @@ import PathsSlide from '@/presentation/components/profit-target/PathsSlide.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import { Button } from '@/presentation/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/presentation/components/ui/select'
+import { useModal } from '@/presentation/composables/useModal'
 import { PROFIT_TARGETS, useProfitTarget } from '@/presentation/composables/useProfitTarget'
 import { formatCurrencyCompact, formatPercent, prettifyLabel } from '@/presentation/format'
 
@@ -41,35 +41,16 @@ async function goTo(index: number) {
   headings.value[index]?.focus({ preventScroll: true })
 }
 
-const CLOSE_DURATION = 260
-const modal = ref<'closed' | 'open' | 'closing'>('closed')
-const expanded = computed(() => modal.value !== 'closed')
 const expandButton = useTemplateRef('expandButton')
 const closeButton = useTemplateRef('closeButton')
-const scrollLocked = useScrollLock(typeof document === 'undefined' ? null : document.body)
-
-function openModal() {
-  modal.value = 'open'
-}
-
-function closeModal() {
-  if (modal.value !== 'open') return
-  modal.value = 'closing'
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  setTimeout(() => (modal.value = 'closed'), reduced ? 0 : CLOSE_DURATION)
-}
-
-watch(expanded, async (isExpanded) => {
-  scrollLocked.value = isExpanded
-  const app = document.getElementById('app')
-  if (app) app.inert = isExpanded
-  await nextTick()
-  ;(isExpanded ? closeButton : expandButton).value?.$el?.focus()
-})
-
-useEventListener('keydown', (event: KeyboardEvent) => {
-  const inPopup = event.target instanceof Element && event.target.closest('[role="listbox"], [role="menu"]')
-  if (event.key === 'Escape' && !event.defaultPrevented && !inPopup) closeModal()
+const {
+  state: modal,
+  visible: expanded,
+  open: openModal,
+  close: closeModal,
+} = useModal({
+  focusOnOpen: () => closeButton.value?.$el,
+  focusOnClose: () => expandButton.value?.$el,
 })
 
 const slideState = (index: number) => (index === step.value ? 'active' : index < step.value ? 'before' : 'after')
@@ -99,7 +80,7 @@ const SLIDE_CLASSES = {
         class="overflow-hidden rounded-xl border bg-card shadow-card"
         :class="
           expanded && [
-            'relative flex h-full max-h-[54rem] w-full max-w-6xl flex-col rounded-2xl shadow-floating',
+            'relative flex h-full max-h-216 w-full max-w-6xl flex-col rounded-2xl shadow-floating',
             modal === 'closing' ? 'animate-modal-out' : 'animate-modal-in',
           ]
         "

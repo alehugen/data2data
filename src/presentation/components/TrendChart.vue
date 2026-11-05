@@ -8,12 +8,7 @@ import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import ChartEmpty from './ChartEmpty.vue'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
-import {
-  formatCurrency,
-  formatCurrencyCompact,
-  formatNumber,
-  formatPercent,
-} from '@/presentation/format'
+import { formatCurrency, formatCurrencyCompact } from '@/presentation/format'
 
 use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer])
 
@@ -29,26 +24,18 @@ const props = withDefaults(
   defineProps<{
     categories: string[]
     series: TrendSeries[]
-    format?: 'currency' | 'percent' | 'number'
     height?: number
     highlightIndex?: number
   }>(),
-  { format: 'currency', height: 280, highlightIndex: undefined },
+  { height: 280, highlightIndex: undefined },
 )
 
 const theme = useChartTheme()
 
 const hasData = computed(() => props.series.some((s) => s.data.some((value) => value !== null && value !== 0)))
 
-const formatters = {
-  currency: { full: formatCurrency, axis: formatCurrencyCompact },
-  percent: { full: formatPercent, axis: formatPercent },
-  number: { full: formatNumber, axis: formatNumber },
-}
-
 const option = computed<EChartsOption>(() => {
   const { chrome, series: palette, axisTooltip, fontFamily } = theme.value
-  const { full, axis } = formatters[props.format]
   const hasLegend = props.series.length > 1
   const stackTops = new Map(props.series.filter((s) => s.stack).map((s) => [s.stack, s.name]))
 
@@ -61,7 +48,7 @@ const option = computed<EChartsOption>(() => {
       : undefined,
     tooltip: {
       ...axisTooltip,
-      valueFormatter: (value) => (value == null ? '—' : full(Number(value))),
+      valueFormatter: (value) => (value == null ? '—' : formatCurrency(Number(value))),
     },
     xAxis: {
       type: 'category',
@@ -76,7 +63,7 @@ const option = computed<EChartsOption>(() => {
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: chrome.textMuted, formatter: (v: number) => axis(v) },
+      axisLabel: { color: chrome.textMuted, formatter: (v: number) => formatCurrencyCompact(v) },
       splitLine: { lineStyle: { color: chrome.grid } },
     },
     series: props.series.map((s, i) => {

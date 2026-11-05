@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PhChartLineUp, PhCheckCircle, PhRanking, PhTable, PhX } from '@phosphor-icons/vue'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 import type { MonthlyReport } from '@/domain/report'
 import { compareByPeriod, periodKey } from '@/domain/shared'
 import FileDropzone from '@/presentation/components/FileDropzone.vue'
@@ -14,7 +14,8 @@ import { describeReport, formatAbcMonth, formatPeriod, formatPeriodList } from '
 import { routeForReport } from '@/presentation/router'
 
 const { reports, dreReports, abcReports, profitReports, datasets, remove } = useReports()
-const { isImporting, errors, lastImported, importFiles, dismissSummary } = useFileImport()
+const { isImporting, errors, lastImported, importFiles, dismissSummary, clearErrors } = useFileImport()
+onBeforeUnmount(clearErrors)
 const { loadSample } = useTemplates()
 
 const byPeriod = <T extends MonthlyReport>(list: readonly T[]) => [...list].sort(compareByPeriod)

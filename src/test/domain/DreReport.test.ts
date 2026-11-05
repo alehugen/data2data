@@ -142,3 +142,19 @@ describe('DreReport: cabeçalho de meses', () => {
     expect(report.metric(DreMetric.GrossRevenue)?.values).toEqual([100, 200, 300])
   })
 })
+
+describe('meses sem movimento', () => {
+  it('não entram na análise só porque o saldo foi carregado do mês anterior', () => {
+    const lines = DRE_LINES.map((line) => {
+      if (!line || line[0].startsWith('Saldo')) return line
+      const [label, ...values] = line
+      return [label, ...values.slice(0, -1), 0] as const
+    })
+    const report = parse(dreRows({ lines }))
+    expect(report.periods).toEqual([
+      { year: 2026, month: 1 },
+      { year: 2026, month: 2 },
+    ])
+    expect(report.ignoredPeriods).toEqual([])
+  })
+})

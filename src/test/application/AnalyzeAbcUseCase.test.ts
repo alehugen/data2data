@@ -190,3 +190,16 @@ describe('analyzeProfitability', () => {
     ])
   })
 })
+
+describe('Curva ABC sem coluna de valor', () => {
+  it('não aponta divergência de faturamento em todos os itens', () => {
+    const withoutValue = AbcReport.fromTable({
+      name: 'Curva ABC out.2026',
+      rows: [
+        ['Código', 'Descrição', 'Qtde', 'Classe'],
+        ['1', 'Vacina Alfa', '8', 'A'],
+      ],
+    })!
+    expect(analyzeProfitability(withoutValue, profitOctober).mismatches.revenueDiffers).toEqual([])
+  })
+})

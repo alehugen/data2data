@@ -33,10 +33,19 @@ export function findTableHeader<Name extends string>(
       const index = columns[name]
       return index === undefined ? '' : (row[index] ?? '').trim()
     }
+    const body = rows.slice(rowIndex + 1)
+    let tableConvention: NumberConvention | undefined | null = null
+    const conventionOfTable = () => {
+      if (tableConvention === null) {
+        const numeric = body.flatMap((row) => row.filter((cell) => Number.isFinite(parseNumber(cell))))
+        tableConvention = detectNumberConvention(numeric)
+      }
+      return tableConvention
+    }
     const conventions = new Map<number, NumberConvention | undefined>()
     const conventionOf = (index: number) => {
       if (!conventions.has(index)) {
-        conventions.set(index, detectNumberConvention(rows.slice(rowIndex + 1).map((row) => row[index] ?? '')))
+        conventions.set(index, detectNumberConvention(body.map((row) => row[index] ?? '')) ?? conventionOfTable())
       }
       return conventions.get(index)
     }

@@ -114,3 +114,44 @@ describe('AbcReport.combine', () => {
     expect(AbcReport.combine([september, byValue], 'Meses').basis).toBe('value')
   })
 })
+
+describe('formato dos números', () => {
+  it('lê quantidades como 1,000 pelo formato brasileiro das outras colunas', () => {
+    const report = parse([
+      ['Descrição', 'Qtde', 'Valor total', 'Classe'],
+      ['Vacina', '2,000', '1.234,56', 'A'],
+      ['Seringa', '1,000', '99,90', 'B'],
+    ])!
+    expect(report.items.map((item) => [item.quantity, item.value])).toEqual([
+      [2, 1234.56],
+      [1, 99.9],
+    ])
+  })
+})
+
+describe('Curva ABC sem coluna de valor', () => {
+  const withoutValue = parse([
+    ['Descrição', 'Qtde', 'Classe'],
+    ['Vacina Alfa', '30', 'A'],
+    ['Vacina Beta', '1', 'C'],
+  ])!
+
+  it('combina pela quantidade, já que um dos meses não tem faturamento', () => {
+    const byValue = parse([
+      ['Descrição', 'Qtde', 'Valor total', 'Classe'],
+      ['Vacina Beta', '1', '1000', 'A'],
+      ['Vacina Alfa', '2', '10', 'C'],
+    ])!
+    const combined = AbcReport.combine([withoutValue, byValue], 'Meses')
+    expect(combined.basis).toBe('quantity')
+    expect(combined.items[0]).toMatchObject({ description: 'Vacina Alfa', abcClass: 'A' })
+  })
+
+  it('classifica tudo como C quando não há nada para dividir', () => {
+    const empty = parse([
+      ['Descrição', 'Qtde', 'Classe'],
+      ['Item', '0', 'A'],
+    ])!
+    expect(AbcReport.combine([empty], 'Meses').items[0]!.abcClass).toBe('C')
+  })
+})

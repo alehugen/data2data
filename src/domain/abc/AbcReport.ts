@@ -57,6 +57,7 @@ export class AbcReport {
   static combine(reports: readonly AbcReport[], name: string): AbcReport {
     const first = reports[0]?.basis
     const sameBasis = first && reports.every((report) => report.basis === first) ? first : 'value'
+    const allValued = reports.every((report) => report.totalValue > 0)
     const merged = new Map<string, { code: string; description: string; quantity: number; value: number }>()
     for (const item of reports.flatMap((report) => report.items)) {
       const existing = merged.get(item.code)
@@ -68,7 +69,7 @@ export class AbcReport {
       })
     }
     const totals = [...merged.values()]
-    const basis = sameBasis === 'value' && sum(totals.map(pickValue)) <= 0 ? 'quantity' : sameBasis
+    const basis = sameBasis === 'value' && !allValued ? 'quantity' : sameBasis
     const pick = basis === 'quantity' ? pickQuantity : pickValue
     const total = sum(totals.map(pick))
     let before = 0
@@ -76,7 +77,7 @@ export class AbcReport {
       .sort((a, b) => pick(b) - pick(a))
       .map((item): AbcItem => {
         const share = total ? pick(item) / total : 0
-        const abcClass = before < A_CUTOFF ? AbcClass.A : before < B_CUTOFF ? AbcClass.B : AbcClass.C
+        const abcClass = total <= 0 ? AbcClass.C : before < A_CUTOFF ? AbcClass.A : before < B_CUTOFF ? AbcClass.B : AbcClass.C
         before += share
         return { ...item, share, abcClass }
       })
@@ -109,7 +110,7 @@ export class AbcReport {
       ...row,
       code: row.code || row.description,
       abcClass: row.abcClass as AbcClass,
-      share: declared && rawShare !== null ? rawShare / shareScale : 0,
+      share: declared ? (rawShare ?? 0) / shareScale : 0,
     }))
     const items = mergeByCode(classified)
 

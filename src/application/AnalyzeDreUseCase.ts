@@ -53,7 +53,12 @@ export interface ProfitPaths {
   readonly price: number | null
   readonly purchases: { readonly amount: number; readonly share: number } | null
   readonly fixed: { readonly amount: number; readonly share: number } | null
-  readonly combined: { readonly sales: number; readonly price: number | null; readonly fixed: number }
+  readonly combined: {
+    readonly fronts: number
+    readonly sales: number
+    readonly price: number | null
+    readonly fixed: number | null
+  } | null
 }
 
 export interface ProjectedCostLine extends VariableCostLine {
@@ -183,7 +188,7 @@ export class AnalyzeDreUseCase {
   breakdown(report: DreReport, lineId: string, periodIndex: number): CellBreakdown | null {
     const line = report.lines.find((candidate) => candidate.id === lineId)
     const period = report.periods[periodIndex]
-    if (!report.ledger.length || !line || !period || !report.accountsOf(line).length) return null
+    if (!line || !period || !report.isTraceable(line)) return null
 
     const entries = [...report.entriesOf(line, periodIndex)].sort((a, b) => a.date.localeCompare(b.date))
     const total = sum(entries.map((entry) => entry.value))
@@ -232,15 +237,22 @@ export class AnalyzeDreUseCase {
     const priceBase = base.revenue * (1 - priceSensitive)
     const priceFor = (amount: number) => (priceBase > 0 ? amount / priceBase : null)
     const salesFor = (amount: number) => amount / base.contributionRatio
-    const third = gap / 3
+    const canCut = (amount: number) => base.fixedCosts > 0 && amount <= base.fixedCosts
+    const withPrice = priceBase > 0
+    const withFixed = canCut(gap / (withPrice ? 3 : 2))
+    const fronts = 1 + Number(withPrice) + Number(withFixed)
+    const share = gap / fronts
 
     return {
       gap,
       sales: { amount: salesFor(gap), change: ratio(salesFor(gap), base.revenue) },
       price: priceFor(gap),
       purchases: purchasesValue > 0 && gap <= purchasesValue ? { amount: gap, share: gap / purchasesValue } : null,
-      fixed: base.fixedCosts > 0 && gap <= base.fixedCosts ? { amount: gap, share: gap / base.fixedCosts } : null,
-      combined: { sales: salesFor(third), price: priceFor(third), fixed: third },
+      fixed: canCut(gap) ? { amount: gap, share: gap / base.fixedCosts } : null,
+      combined:
+        fronts > 1
+          ? { fronts, sales: salesFor(share), price: withPrice ? priceFor(share) : null, fixed: withFixed ? share : null }
+          : null,
     }
   }
 
@@ -335,13 +347,16 @@ export class AnalyzeDreUseCase {
   ): ProfitTargetBase | null {
     const margin = report.metric(DreMetric.ContributionMargin)
     const operating = report.metric(DreMetric.OperatingExpenses)
-    const sources = sourceIds ? this.revenueSources(report, indexes).filter((s) => sourceIds.includes(s.id)) : null
     const months = indexes.length
-    const revenue = sources ? sum(sources.map((source) => source.value)) * months : totalRevenue
+    const monthly = (line: DreLine) => report.valueOf(line, indexes) / months
+    const grossRevenue = totalRevenue / months
+    const sources = sourceIds ? this.revenueSources(report, indexes).filter((s) => sourceIds.includes(s.id)) : null
+    const revenue = sources ? sum(sources.map((source) => source.value)) : grossRevenue
     if (!margin || !operating || revenue <= 0) return null
 
-    const contribution = (report.valueOf(margin, indexes) - (totalRevenue - revenue)) / months
-    const fixedCosts = -report.valueOf(operating, indexes) / months
+    const excludedRevenue = grossRevenue - revenue
+    const contribution = monthly(margin) - excludedRevenue
+    const fixedCosts = -monthly(operating)
 
     const linesBetween = (from: DreLine | undefined, to: DreLine | undefined) => {
       const start = from ? report.lines.indexOf(from) : -1
@@ -349,7 +364,7 @@ export class AnalyzeDreUseCase {
       return report.lines
         .slice(start + 1, end)
         .filter((line) => line.parentId === null && line.kind !== DreLineKind.Result && line.kind !== DreLineKind.Balance)
-        .map((line) => ({ line, value: report.valueOf(line, indexes) / months }))
+        .map((line) => ({ line, value: monthly(line) }))
         .filter(({ value }) => value !== 0)
     }
 
@@ -361,17 +376,17 @@ export class AnalyzeDreUseCase {
 
     return {
       months,
-      revenue: revenue / months,
+      revenue,
       revenueLabel: sources ? sources.map((source) => source.label).join(' + ') : null,
-      excludedRevenue: (totalRevenue - revenue) / months,
+      excludedRevenue,
       profit: contribution - fixedCosts,
-      contributionRatio: (contribution * months) / revenue,
+      contributionRatio: contribution / revenue,
       fixedCosts,
       variableLines: linesBetween(report.metric(DreMetric.GrossRevenue), margin).map(({ line, value }) => ({
         label: line.label,
         value: -value,
         kind: kindOf(line),
-        ratio: -value / (revenue / months),
+        ratio: -value / revenue,
       })),
       excludedLines: lastResult
         ? linesBetween(margin, lastResult)
@@ -380,7 +395,7 @@ export class AnalyzeDreUseCase {
         : [],
       fixedGroups: report
         .children(operating.id)
-        .map((line) => ({ label: line.label, value: -report.valueOf(line, indexes) / months }))
+        .map((line) => ({ label: line.label, value: -monthly(line) }))
         .filter((line) => line.value > 0)
         .sort((a, b) => b.value - a.value),
     }

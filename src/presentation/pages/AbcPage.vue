@@ -7,6 +7,7 @@ import { ratio, relativeChange } from '@/domain/shared'
 import AbcBadge from '@/presentation/components/AbcBadge.vue'
 import ChartCard from '@/presentation/components/ChartCard.vue'
 import InsightList from '@/presentation/components/InsightList.vue'
+import NotFound from '@/presentation/components/NotFound.vue'
 import PageHeader from '@/presentation/components/PageHeader.vue'
 import PageSection from '@/presentation/components/PageSection.vue'
 import PeriodSelect from '@/presentation/components/PeriodSelect.vue'
@@ -16,14 +17,16 @@ import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
 import SegmentedControl from '@/presentation/components/SegmentedControl.vue'
 import ShareBar from '@/presentation/components/ShareBar.vue'
+import SortableHead from '@/presentation/components/SortableHead.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import StatGrid from '@/presentation/components/StatGrid.vue'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/presentation/components/ui/table'
 import { Badge } from '@/presentation/components/ui/badge'
 import { Card } from '@/presentation/components/ui/card'
 import TrendChart from '@/presentation/components/TrendChart.vue'
 import { MOVEMENT_LABELS, useAbcAnalysis } from '@/presentation/composables/useAbcAnalysis'
 import { useChartTheme } from '@/presentation/composables/useChartTheme'
+import { useTableSort } from '@/presentation/composables/useTableSort'
 import {
   formatAbcMonth,
   formatCurrency,
@@ -44,27 +47,29 @@ const rankingBy = ref<(typeof RANKING_OPTIONS)[number]['value']>('quantity')
 
 const BASIS_LABELS = { quantity: 'quantidade vendida', value: 'faturamento' } as const
 
-const INFO = {
-  revenue: 'Soma do valor total de todos os itens da Curva ABC do mês. A variação compara com o mês anterior importado.',
-  quantity: 'Soma das quantidades vendidas de todos os itens no mês.',
-  items: 'Quantidade de produtos diferentes (pelo código) com venda no mês.',
+const scope = computed(() => (combined.value ? 'período' : 'mês'))
+
+const INFO = computed(() => ({
+  revenue: `Soma do valor total de todos os itens da Curva ABC do ${scope.value}. A variação compara com o mês anterior importado.`,
+  quantity: `Soma das quantidades vendidas de todos os itens no ${scope.value}.`,
+  items: `Quantidade de produtos diferentes (pelo código) com venda no ${scope.value}.`,
   averagePrice: 'Faturamento ÷ quantidade vendida: quanto, em média, cada unidade vendida rendeu.',
   distribution:
-    'Participação de cada classe no total do mês. A classe A reúne os poucos itens que concentram a maior parte do critério do relatório (geralmente ~80%), a B os intermediários e a C o restante. A classificação vem do sistema de origem.',
+    `Participação de cada classe no total do ${scope.value}. A classe A reúne os poucos itens que concentram a maior parte do critério do relatório (geralmente ~80%), a B os intermediários e a C o restante. ${scope.value === 'mês' ? 'A classificação vem do sistema de origem.' : 'Com meses combinados, a classificação é recalculada sobre o total.'}`,
   ranking:
     'Itens ordenados pela quantidade vendida ou pelo faturamento, conforme a opção escolhida. A cor indica a classe ABC do item.',
   evolution:
-    'Faturamento de cada mês importado, dividido por classe. Quando há relatório de lucro do mês, a linha mostra o lucro total para comparar com as vendas.',
+    'Faturamento de cada mês importado, dividido por classe. Quando há relatório de lucro, a linha mostra o lucro bruto de cada mês para comparar com as vendas.',
   movement:
     'Compara cada item com o mês anterior importado, pelo código. Novo: não vendeu antes. Subiu/Caiu: mudou de classe (A é a melhor). Saiu: não vendeu neste mês.',
   profit: 'Lucro bruto = valor vendido − custo gerencial − impostos − materiais, somado em todos os itens. A taxa financeira e o lucro informados no relatório não entram na conta.',
   margin: 'Lucro ÷ valor vendido. Mostra quanto de cada real vendido vira lucro. A variação é em pontos percentuais (p.p.): de 20% para 22% são +2 p.p.',
   cost: 'Soma do custo gerencial dos itens vendidos (custo de aquisição do produto). O percentual é custo ÷ valor vendido.',
   taxes: 'Soma de impostos e materiais usados na aplicação dos itens vendidos. O percentual é sobre o valor vendido.',
-  profitRanking: 'Itens ordenados pelo lucro em reais no mês. A cor indica a classe ABC; o tooltip mostra a margem e o lucro por unidade.',
+  profitRanking: `Itens ordenados pelo lucro bruto em reais no ${scope.value}. A cor indica a classe ABC; o tooltip mostra a margem e o lucro por unidade.`,
   profitTable:
-    'Valores do relatório de lucro por produto, com a classe da Curva ABC do mesmo mês. O alerta indica custo zerado, o que costuma ser falta de cadastro e infla a margem.',
-}
+    `Valores do relatório de lucro por produto, com a classe da Curva ABC do mesmo ${scope.value}. O alerta indica custo zerado, o que costuma ser falta de cadastro e infla a margem. Clique no título de uma coluna para ordenar.`,
+}))
 
 const current = computed(() => analysis.value?.current)
 const previous = computed(() => analysis.value?.previous)
@@ -113,14 +118,14 @@ const kpis = computed(() => {
   const p = previous.value
   const average = (s: { value: number; quantity: number }) => (s.quantity ? s.value / s.quantity : 0)
   return [
-    { label: 'Faturamento', value: formatCurrencyCompact(c.value), delta: relativeChange(c.value, p?.value), info: INFO.revenue },
-    { label: 'Quantidade vendida', value: formatNumber(c.quantity), delta: relativeChange(c.quantity, p?.quantity), info: INFO.quantity },
-    { label: 'Itens vendidos', value: formatNumber(c.items), delta: relativeChange(c.items, p?.items), info: INFO.items },
+    { label: 'Faturamento', value: formatCurrencyCompact(c.value), delta: relativeChange(c.value, p?.value), info: INFO.value.revenue },
+    { label: 'Quantidade vendida', value: formatNumber(c.quantity), delta: relativeChange(c.quantity, p?.quantity), info: INFO.value.quantity },
+    { label: 'Itens vendidos', value: formatNumber(c.items), delta: relativeChange(c.items, p?.items), info: INFO.value.items },
     {
       label: 'Valor médio por unidade',
       value: formatCurrency(average(c)),
       delta: p ? relativeChange(average(c), average(p)) : null,
-      info: INFO.averagePrice,
+      info: INFO.value.averagePrice,
     },
   ]
 })
@@ -132,13 +137,13 @@ const profitKpis = computed(() => {
   if (!data) return []
   const { totals, previousTotals } = data
   return [
-    { label: 'Lucro bruto', value: formatCurrencyCompact(totals.profit), delta: relativeChange(totals.profit, previousTotals?.profit), info: INFO.profit },
+    { label: 'Lucro bruto', value: formatCurrencyCompact(totals.profit), delta: relativeChange(totals.profit, previousTotals?.profit), info: INFO.value.profit },
     {
       label: 'Margem de lucro',
       value: totals.margin !== null ? formatPercent(totals.margin) : '–',
       delta: totals.margin !== null && previousTotals?.margin != null ? totals.margin - previousTotals.margin : null,
       deltaUnit: 'points' as const,
-      info: INFO.margin,
+      info: INFO.value.margin,
     },
     {
       label: 'Custo gerencial',
@@ -146,7 +151,7 @@ const profitKpis = computed(() => {
       hint: `${formatPercent(shareOfRevenue(totals.cost))} do valor vendido`,
       delta: relativeChange(totals.cost, previousTotals?.cost),
       lowerIsBetter: true,
-      info: INFO.cost,
+      info: INFO.value.cost,
     },
     {
       label: 'Impostos e materiais',
@@ -154,7 +159,7 @@ const profitKpis = computed(() => {
       hint: `${formatPercent(shareOfRevenue(otherCosts(totals)))} do valor vendido`,
       delta: previousTotals ? relativeChange(otherCosts(totals), otherCosts(previousTotals)) : null,
       lowerIsBetter: true,
-      info: INFO.taxes,
+      info: INFO.value.taxes,
     },
   ]
 })
@@ -234,6 +239,27 @@ const navSections = computed<NavSection[]>(() => {
   ]
 })
 
+const profitSort = useTableSort(() => profitability.value?.items ?? [], {
+  description: (item) => item.description,
+  abcClass: (item) => item.abcClass,
+  quantity: (item) => item.quantity,
+  revenue: (item) => item.revenue,
+  cost: (item) => item.cost,
+  materials: (item) => item.materials,
+  tax: (item) => item.tax,
+  profit: (item) => item.profit,
+  margin: (item) => item.margin,
+  profitPerUnit: (item) => item.profitPerUnit,
+})
+
+const movementSort = useTableSort(() => analysis.value?.movements ?? [], {
+  description: (m) => m.description,
+  abcClass: (m) => m.to ?? m.from,
+  movement: (m) => MOVEMENT_LABELS[m.movement],
+  quantity: (m) => m.quantity,
+  value: (m) => m.value,
+})
+
 const movementTone: Record<AbcMovement, string> = {
   new: 'bg-accent text-accent-foreground',
   up: 'bg-success-soft text-success',
@@ -244,11 +270,12 @@ const movementTone: Record<AbcMovement, string> = {
 </script>
 
 <template>
-  <div v-if="!analysis" class="max-w-xl space-y-3 py-8">
-    <h1 class="text-4xl font-bold tracking-tight">Curva ABC</h1>
-    <p class="text-body">Nenhum relatório de Curva ABC importado ainda.</p>
-    <RouterLink :to="{ name: 'import' }" class="link">Importar relatórios</RouterLink>
-  </div>
+  <NotFound
+    v-if="!analysis"
+    message="Curva ABC"
+    description="Nenhum relatório de Curva ABC importado ainda."
+    action="Importar relatórios"
+  />
 
   <div v-else-if="current" class="space-y-6">
     <PageHeader
@@ -380,21 +407,21 @@ const movementTone: Record<AbcMovement, string> = {
             <Table>
               <TableHeader class="bg-muted/60">
                 <TableRow>
-                  <TableHead class="px-3 py-2 font-medium">Item</TableHead>
-                  <TableHead class="px-3 py-2 font-medium">Classe</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Qtde</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Valor vendido</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Custo</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Materiais</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Impostos</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Lucro bruto</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Margem</TableHead>
-                  <TableHead class="px-3 py-2 text-right font-medium">Lucro/un.</TableHead>
+                  <SortableHead :sort="profitSort" column="description">Item</SortableHead>
+                  <SortableHead :sort="profitSort" column="abcClass">Classe</SortableHead>
+                  <SortableHead :sort="profitSort" column="quantity" align="right">Qtde</SortableHead>
+                  <SortableHead :sort="profitSort" column="revenue" align="right">Valor vendido</SortableHead>
+                  <SortableHead :sort="profitSort" column="cost" align="right">Custo</SortableHead>
+                  <SortableHead :sort="profitSort" column="materials" align="right">Materiais</SortableHead>
+                  <SortableHead :sort="profitSort" column="tax" align="right">Impostos</SortableHead>
+                  <SortableHead :sort="profitSort" column="profit" align="right">Lucro bruto</SortableHead>
+                  <SortableHead :sort="profitSort" column="margin" align="right">Margem</SortableHead>
+                  <SortableHead :sort="profitSort" column="profitPerUnit" align="right">Lucro/un.</SortableHead>
                 </TableRow>
               </TableHeader>
               <TableBody class="tabular-nums">
-                <TableRow v-for="item in profitability.items" :key="item.code">
-                  <TableCell class="px-3 py-2">
+                <TableRow v-for="item in profitSort.rows" :key="item.code">
+                  <TableCell class="min-w-36 px-3 py-2 whitespace-normal">
                     <span class="inline-flex items-center gap-1.5">
                       {{ item.description }}
                       <span v-if="item.costMissing" class="inline-flex text-destructive" title="Custo não cadastrado">
@@ -433,15 +460,15 @@ const movementTone: Record<AbcMovement, string> = {
           <Table>
             <TableHeader class="bg-muted/60">
               <TableRow>
-                <TableHead class="px-3 py-2 font-medium">Item</TableHead>
-                <TableHead class="px-3 py-2 font-medium">Classe</TableHead>
-                <TableHead class="px-3 py-2 font-medium">Situação</TableHead>
-                <TableHead class="px-3 py-2 text-right font-medium">Quantidade</TableHead>
-                <TableHead class="px-3 py-2 text-right font-medium">Faturamento</TableHead>
+                <SortableHead :sort="movementSort" column="description">Item</SortableHead>
+                <SortableHead :sort="movementSort" column="abcClass">Classe</SortableHead>
+                <SortableHead :sort="movementSort" column="movement">Situação</SortableHead>
+                <SortableHead :sort="movementSort" column="quantity" align="right">Quantidade</SortableHead>
+                <SortableHead :sort="movementSort" column="value" align="right">Faturamento</SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody class="tabular-nums">
-              <TableRow v-for="m in analysis.movements" :key="m.code">
+              <TableRow v-for="m in movementSort.rows" :key="m.code">
                 <TableCell class="px-3 py-2">{{ m.description }}</TableCell>
                 <TableCell class="px-3 py-2 whitespace-nowrap">
                   <span class="inline-flex items-center gap-1.5">

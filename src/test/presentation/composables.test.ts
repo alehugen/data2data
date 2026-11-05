@@ -97,7 +97,6 @@ describe('useDreAnalysis', () => {
     const { selections, selectedKey, analysis, periodLabels, insights } = useDreAnalysis(report!.id)
     expect(selections.value.map((s) => s.label)).toEqual(['mar/26', 'fev/26', 'jan/26', 'Acumulado 2026'])
     expect(periodLabels.value).toEqual({
-      current: 'mar/26',
       currentLong: 'março de 2026',
       previous: 'fev/26',
       reference: 'em mar/26',

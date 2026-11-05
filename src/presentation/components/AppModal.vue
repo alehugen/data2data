@@ -1,54 +1,21 @@
 <script setup lang="ts">
 import { PhX } from '@phosphor-icons/vue'
-import { useEventListener, useScrollLock } from '@vueuse/core'
-import { nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { useId, useTemplateRef, watch } from 'vue'
 import { Button } from '@/presentation/components/ui/button'
+import { useModal } from '@/presentation/composables/useModal'
 
 defineProps<{ title: string; subtitle?: string }>()
 const open = defineModel<boolean>('open', { required: true })
 
-const CLOSE_DURATION = 260
-const state = ref<'closed' | 'open' | 'closing'>('closed')
 const titleId = useId()
 const closeButton = useTemplateRef('closeButton')
-const scrollLocked = useScrollLock(typeof document === 'undefined' ? null : document.body)
-let returnFocus: HTMLElement | null = null
-
-watch(
-  open,
-  async (isOpen) => {
-    if (isOpen && state.value !== 'open') {
-      returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      state.value = 'open'
-      scrollLocked.value = true
-      setAppInert(true)
-      await nextTick()
-      closeButton.value?.$el?.focus()
-    } else if (!isOpen && state.value === 'open') {
-      state.value = 'closing'
-      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      setTimeout(finishClosing, reduced ? 0 : CLOSE_DURATION)
-    }
-  },
-  { immediate: true },
-)
-
-function setAppInert(inert: boolean) {
-  const app = document.getElementById('app')
-  if (app) app.inert = inert
-}
-
-function finishClosing() {
-  state.value = 'closed'
-  scrollLocked.value = false
-  setAppInert(false)
-  returnFocus?.focus()
-}
-
-useEventListener('keydown', (event: KeyboardEvent) => {
-  const inPopup = event.target instanceof Element && event.target.closest('[role="listbox"], [role="menu"]')
-  if (event.key === 'Escape' && state.value === 'open' && !event.defaultPrevented && !inPopup) open.value = false
+const modal = useModal({
+  focusOnOpen: () => closeButton.value?.$el,
+  onEscape: () => (open.value = false),
 })
+const state = modal.state
+
+watch(open, (isOpen) => (isOpen ? modal.open() : modal.close()), { immediate: true })
 </script>
 
 <template>

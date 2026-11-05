@@ -12,7 +12,7 @@ const titles = (insights: readonly { title: string }[]) => insights.map((i) => i
 describe('buildDreInsights', () => {
   const report = DreReport.fromTable({ name: 'DRE', sheet: 'DRE Geral', rows: dreRows() })!
   const analysis = new AnalyzeDreUseCase().execute(report, { type: 'month', index: 2 })
-  const insights = buildDreInsights(report, analysis, { current: 'mar/26', previous: 'fev/26', window: 'até mar/26', when: 'em mar/26' })
+  const insights = buildDreInsights(report, analysis, { previous: 'fev/26', window: 'até mar/26', when: 'em mar/26' })
 
   it('gera os pontos de análise esperados com tom e explicação', () => {
     expect(titles(insights)).toEqual([
@@ -38,7 +38,7 @@ describe('buildDreInsights', () => {
 
   it('omite tendências quando o período tem um mês só', () => {
     const january = new AnalyzeDreUseCase().execute(report, { type: 'month', index: 0 })
-    const titlesOfJanuary = titles(buildDreInsights(report, january, { current: 'jan/26', previous: '', window: 'até jan/26', when: 'em jan/26' }))
+    const titlesOfJanuary = titles(buildDreInsights(report, january, { previous: '', window: 'até jan/26', when: 'em jan/26' }))
     expect(titlesOfJanuary).not.toContain('Consistência do resultado')
     expect(titlesOfJanuary).not.toContain('Melhor mês de receita')
     expect(titlesOfJanuary).not.toContain('Margem de contribuição média')

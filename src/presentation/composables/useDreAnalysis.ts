@@ -44,7 +44,7 @@ export const DRE_METRIC_INFO: Record<DreMetric, string> = {
   endingCash: 'Saldo final de caixa do último mês do período (saldo inicial + variação do mês). Não é somado entre meses. A variação compara com o saldo do período anterior.',
 }
 
-const selectionKey =(s: DreSelection) => (s.type === 'month' ? `m:${s.index}` : `y:${s.year}`)
+const selectionKey = (s: DreSelection) => (s.type === 'month' ? `m:${s.index}` : `y:${s.year}`)
 
 export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
   const { dreReports } = useReports()
@@ -75,7 +75,7 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
     const r = report.value
     const a = analysis.value
     const s = selection.value
-    if (!r || !a || !s) return { current: '', currentLong: '', previous: '', reference: '', window: '', when: '', heading: '' }
+    if (!r || !a || !s) return { currentLong: '', previous: '', reference: '', window: '', when: '', heading: '' }
     const span = (indexes: number[]) => {
       const first = formatPeriod(r.periods[indexes[0]!]!)
       const last = formatPeriod(r.periods[indexes.at(-1)!]!)
@@ -83,7 +83,6 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
     }
     const previous = a.previousIndexes ? span(a.previousIndexes) : ''
     return {
-      current: labelOf(s),
       currentLong: s.type === 'month' ? formatPeriodLong(r.periods[s.index]!) : `acumulado de ${s.year}`,
       previous,
       reference: s.type === 'month' ? `em ${labelOf(s)}` : `na média mensal de ${s.year}`,
@@ -114,7 +113,7 @@ export function useDreAnalysis(id: MaybeRefOrGetter<Identifier>) {
 export function buildDreInsights(
   report: DreReport,
   analysis: DreAnalysis,
-  labels: { current: string; previous: string; window: string; when: string },
+  labels: { previous: string; window: string; when: string },
 ): Insight[] {
   const { facts, kpis, breakEven } = analysis
   const items: Insight[] = []

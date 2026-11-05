@@ -8,18 +8,44 @@ import PageSection from '@/presentation/components/PageSection.vue'
 import RankingBarChart from '@/presentation/components/RankingBarChart.vue'
 import ReportLayout from '@/presentation/components/ReportLayout.vue'
 import SectionHeading from '@/presentation/components/SectionHeading.vue'
+import SortableHead from '@/presentation/components/SortableHead.vue'
 import type { NavSection } from '@/presentation/components/SectionNav.vue'
 import StatCard from '@/presentation/components/StatCard.vue'
 import StatGrid from '@/presentation/components/StatGrid.vue'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/presentation/components/ui/table'
 import { Card } from '@/presentation/components/ui/card'
 import { useDatasetAnalysis } from '@/presentation/composables/useDatasetAnalysis'
+import { useTableSort, type SortAccessors } from '@/presentation/composables/useTableSort'
 import { formatNumber } from '@/presentation/format'
+import { ColumnType, type Row } from '@/domain/dataset'
+import { detectNumberConvention, parseNumber } from '@/domain/shared'
 
 const props = defineProps<{ id: string }>()
 const { dataset, analysis } = useDatasetAnalysis(() => props.id)
 
 const PREVIEW_ROWS = 20
+
+const toIsoDate = (value: string) => {
+  const match = /^(\d{2})[/.](\d{2})[/.](\d{4})$/.exec(value.trim())
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : value.trim()
+}
+
+const accessors = computed<SortAccessors<Row>>(() => {
+  const data = dataset.value
+  if (!data) return {}
+  return Object.fromEntries(
+    data.columns.map((column) => {
+      const read = (row: Row) => row[column.key] ?? ''
+      if (column.type === ColumnType.Number) {
+        const convention = detectNumberConvention(data.columnValues(column.key))
+        return [column.key, (row: Row) => parseNumber(read(row), convention)]
+      }
+      if (column.type === ColumnType.Date) return [column.key, (row: Row) => toIsoDate(read(row))]
+      return [column.key, (row: Row) => read(row).trim()]
+    }),
+  )
+})
+const rowSort = useTableSort(() => dataset.value?.rows ?? [], accessors)
 
 const navSections = computed<NavSection[]>(() => [
   { id: 'analise', label: 'Pontos de análise' },
@@ -85,7 +111,7 @@ const navSections = computed<NavSection[]>(() => [
       </PageSection>
 
       <PageSection id="previa" class="space-y-3">
-        <SectionHeading title="Prévia dos dados" :subtitle="`Primeiras ${Math.min(PREVIEW_ROWS, dataset.rowCount)} linhas`" />
+        <SectionHeading title="Prévia dos dados" :subtitle="`${Math.min(PREVIEW_ROWS, dataset.rowCount)} de ${dataset.rowCount} linhas${rowSort.key ? ', na ordem escolhida' : ''}`" />
         <p v-if="!dataset.rowCount" class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
           A tabela só tem cabeçalho, sem linhas de dados.
         </p>
@@ -93,15 +119,26 @@ const navSections = computed<NavSection[]>(() => [
           <Table>
             <TableHeader class="bg-muted/60">
               <TableRow>
-                <TableHead v-for="column in dataset.columns" :key="column.key" class="px-3 py-2 font-medium whitespace-nowrap">
+                <SortableHead
+                  v-for="column in dataset.columns"
+                  :key="column.key"
+                  :sort="rowSort"
+                  :column="column.key"
+                  :align="column.type === ColumnType.Number ? 'right' : 'left'"
+                >
                   {{ column.label }}
                   <span class="ml-1 text-xs font-normal text-muted-foreground">{{ column.type }}</span>
-                </TableHead>
+                </SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow v-for="(row, i) in dataset.rows.slice(0, PREVIEW_ROWS)" :key="i">
-                <TableCell v-for="column in dataset.columns" :key="column.key" class="px-3 py-2 whitespace-nowrap">
+              <TableRow v-for="(row, i) in rowSort.rows.slice(0, PREVIEW_ROWS)" :key="i">
+                <TableCell
+                  v-for="column in dataset.columns"
+                  :key="column.key"
+                  class="px-3 py-2 whitespace-nowrap"
+                  :class="column.type === ColumnType.Number && 'text-right tabular-nums'"
+                >
                   {{ row[column.key] }}
                 </TableCell>
               </TableRow>

@@ -41,10 +41,19 @@ const useImportStore = defineStore('import', () => {
     lastImported.value = []
   }
 
-  return { isImporting, errors, lastImported, importFiles, dismissSummary }
+  function clearErrors() {
+    errors.value = []
+  }
+
+  return { isImporting, errors, lastImported, importFiles, dismissSummary, clearErrors }
 })
 
 export function useFileImport() {
   const store = useImportStore()
-  return { ...storeToRefs(store), importFiles: store.importFiles, dismissSummary: store.dismissSummary }
+  return {
+    ...storeToRefs(store),
+    importFiles: store.importFiles,
+    dismissSummary: store.dismissSummary,
+    clearErrors: store.clearErrors,
+  }
 }

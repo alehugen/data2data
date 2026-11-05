@@ -489,7 +489,7 @@ describe('DreTable', () => {
     const group = wrapper.findAll('tbody button').find((b) => b.text() === 'Despesas com pessoal')!
     await group.trigger('click')
 
-    await wrapper.get('button[aria-label="Ver lançamentos de Salários em mar/26"]').trigger('click')
+    await wrapper.get('button[aria-label$="ver lançamentos de Salários em mar/26"]').trigger('click')
     await flushPromises()
     const dialog = document.body.querySelector('[role="dialog"]')!
     expect(dialog.querySelector('h2')!.textContent).toBe('Salários')
@@ -532,6 +532,20 @@ describe('CellBreakdown', () => {
     expect(wrapper.text()).toMatch(/Salários\s*-R\$\s?350,00\s*\(58,3%\)/)
     expect(wrapper.findAll('thead th').map((th) => th.text())).toContain('Conta')
     expect(wrapper.findAll('tbody tr')[1]!.text()).toMatch(/10\/03\/2026\s*–\s*Aluguel\s*–/)
+  })
+
+  it('ordena os lançamentos ao clicar no cabeçalho', async () => {
+    const wrapper = mount(CellBreakdown, { props: { breakdown } })
+    const header = () => wrapper.findAll('thead th').find((th) => th.text() === 'Valor')!
+    const values = () => wrapper.findAll('tbody tr').map((tr) => tr.findAll('td').at(-1)!.text())
+
+    await header().get('button').trigger('click')
+    expect(header().attributes('aria-sort')).toBe('descending')
+    expect(values().map((v) => v.replace(/\s/g, ''))).toEqual(['-R$250,00', '-R$350,00'])
+
+    await wrapper.findAll('thead th').find((th) => th.text() === 'Conta')!.get('button').trigger('click')
+    expect(wrapper.findAll('tbody tr')[0]!.text()).toContain('Aluguel')
+    expect(header().attributes('aria-sort')).toBe('none')
   })
 
   it('avisa quando não há lançamentos pagos no mês', () => {

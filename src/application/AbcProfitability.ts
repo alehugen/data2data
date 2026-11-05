@@ -62,7 +62,7 @@ export function analyzeProfitability(
   previousProfit: ProfitReport | null = null,
 ): AbcProfitability {
   const classByCode = new Map(abc.items.map((item) => [item.code, item.abcClass]))
-  const profitCodes = new Set(profit.items.map((item) => item.code))
+  const profitByCode = new Map(profit.items.map((item) => [item.code, item]))
   const totals = summarize(profit.totals)
 
   const items: ProfitabilityItem[] = profit.items
@@ -105,10 +105,10 @@ export function analyzeProfitability(
     losses: items.filter((item) => item.profit < 0).sort((a, b) => a.profit - b.profit),
     missingCost: items.filter((item) => item.costMissing),
     mismatches: {
-      onlyInAbc: abc.items.filter((item) => !profitCodes.has(item.code)).map((item) => item.description),
-      onlyInProfit: items.filter((item) => item.abcClass === null).map((item) => item.description),
-      revenueDiffers: abc.items.flatMap((abcItem) => {
-        const match = profit.items.find((item) => item.code === abcItem.code)
+      onlyInAbc: abc.items.filter((item) => !profitByCode.has(item.code)).map((item) => item.description),
+      onlyInProfit: outside.map((item) => item.description),
+      revenueDiffers: abc.totalValue <= 0 ? [] : abc.items.flatMap((abcItem) => {
+        const match = profitByCode.get(abcItem.code)
         if (!match || Math.abs(match.revenue - abcItem.value) <= REVENUE_TOLERANCE) return []
         return [{ description: abcItem.description, abcValue: abcItem.value, profitRevenue: match.revenue }]
       }),

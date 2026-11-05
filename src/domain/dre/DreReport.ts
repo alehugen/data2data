@@ -70,6 +70,7 @@ export class DreReport {
   readonly ignoredPeriods: readonly Period[]
   readonly ledger: readonly LedgerEntry[]
   private readonly metrics: ReadonlyMap<DreMetric, DreLine>
+  private readonly ambiguousLabels: ReadonlySet<string>
 
   private constructor(
     name: string,
@@ -84,6 +85,7 @@ export class DreReport {
     this.ignoredPeriods = ignoredPeriods
     this.ledger = ledger
     this.metrics = matchMetrics(lines)
+    this.ambiguousLabels = repeatedLabels(lines.filter((line) => this.accountsOf(line)[0] === line))
   }
 
   static fromTables(tables: readonly RawTable[], asOf: Date = new Date()): DreReport | null {
@@ -142,6 +144,15 @@ export class DreReport {
     if (line.kind === DreLineKind.Result || line.kind === DreLineKind.Balance) return []
     const children = this.children(line.id)
     return children.length ? children.flatMap((child) => this.accountsOf(child)) : [line]
+  }
+
+  isTraceable(line: DreLine): boolean {
+    const accounts = this.accountsOf(line)
+    return (
+      this.ledger.length > 0 &&
+      accounts.length > 0 &&
+      accounts.every((account) => !this.ambiguousLabels.has(normalizeText(account.label)))
+    )
   }
 
   entriesOf(line: DreLine, periodIndex: number): LedgerEntry[] {
@@ -281,10 +292,22 @@ function classifyLines(entries: Entry[]): DreLine[] {
 }
 
 function activeRange(lines: DreLine[], periodCount: number): [number, number] | null {
-  const active = Array.from({ length: periodCount }, (_, i) => lines.some((line) => line.values[i] !== 0))
+  const flows = lines.filter((line) => line.aggregation === 'sum')
+  const active = Array.from({ length: periodCount }, (_, i) => flows.some((line) => line.values[i] !== 0))
   const start = active.indexOf(true)
   const end = active.lastIndexOf(true)
   return start === -1 ? null : [start, end]
+}
+
+function repeatedLabels(lines: readonly DreLine[]): Set<string> {
+  const seen = new Set<string>()
+  const repeated = new Set<string>()
+  for (const line of lines) {
+    const label = normalizeText(line.label)
+    if (seen.has(label)) repeated.add(label)
+    seen.add(label)
+  }
+  return repeated
 }
 
 function matchMetrics(lines: DreLine[]): Map<DreMetric, DreLine> {

@@ -22,11 +22,12 @@ Para conhecer o app sem arquivos próprios, use **"Ver com dados de exemplo"** n
 
 - Lê a DRE gerencial mensal e reconstrói a hierarquia de contas (seções, grupos, contas e linhas de resultado) a partir da estrutura da planilha.
 - **Indicadores:** receita bruta, lucro bruto, margem de contribuição, EBITDA, resultado líquido e saldo de caixa, com margem sobre a receita e variação frente ao período anterior.
-- **Ponto de equilíbrio:** receita necessária para cobrir as despesas fixas com a margem de contribuição atual.
-- **Meta de lucro:** escolha um lucro mensal (R$ 10, 15, 20, 25, 50 ou 100 mil) e veja quanto a empresa precisa faturar por mês para chegar lá, quanto falta frente ao período e os caminhos sem vender mais: cortar despesas fixas ou subir a margem de contribuição.
+- **Só meses encerrados:** o mês atual e os seguintes ficam de fora da análise, assim como meses sem nenhum movimento.
+- **Meta de lucro:** escolha um lucro mensal (R$ 10, 15, 20, 25, 50 ou 100 mil) e a receita considerada (a receita bruta ou só algumas das suas contas) e veja, em slides, quanto a empresa precisa faturar por mês, a comparação entre hoje e a meta, o cálculo linha a linha e os caminhos para chegar lá: vender mais, reajustar preços, negociar compras, cortar despesas ou um plano combinado. Pode ser aberta em tela cheia para apresentar.
+- **Ponto de equilíbrio** nos pontos de análise: receita que cobre as despesas operacionais com a margem de contribuição atual.
 - **Gráficos:** composição de custos e da receita e saldo de caixa.
 - **DRE completa** em tabela, com grupos recolhíveis e alternância entre valores (R$) e análise vertical (AV%).
-- **Composição de cada valor:** se a planilha tiver uma aba de fluxo de caixa (classificação, valor e data de pagamento), clicar em um valor da DRE completa abre os lançamentos pagos naquele mês que o compõem, com subtotal por conta e a conferência com a célula.
+- **Composição de cada valor:** se a planilha tiver uma aba de fluxo de caixa (classificação, valor e data de pagamento), clicar em um valor da DRE completa abre os lançamentos pagos naquele mês que o compõem, com subtotal por conta e a conferência com a célula. Contas com o mesmo nome em grupos diferentes não são detalhadas, para não misturar lançamentos.
 - Filtro por mês ou acumulado do ano.
 
 ### Curva ABC mensal (`.csv`)
@@ -44,12 +45,16 @@ Cruzado com a Curva ABC do mesmo mês, pelo código do produto, para verificar s
 
 - **Lucro bruto calculado pelo app:** valor vendido − custo gerencial − impostos − materiais. A taxa financeira e a coluna de lucro do arquivo não entram na conta.
 - **Indicadores:** lucro bruto, margem de lucro, custo gerencial e impostos e materiais, com variação frente ao mês anterior.
-- **Lucro por classe** na distribuição das classes, e ranking e tabela de lucro por item.
+- **Lucro por classe** na distribuição das classes, ranking de lucro por item e tabela de lucratividade por item.
 - **Pontos de análise cruzados:** itens da classe A com margem abaixo da média ("vende muito, lucra pouco"), itens B/C com margem acima da média, prejuízos, custo não cadastrado e divergências entre os dois relatórios.
 
 ### Outras tabelas
 
 Qualquer CSV ou planilha não reconhecida vira uma tabela genérica, com tipos de coluna inferidos, estatísticas e gráficos por categoria.
+
+### Tabelas ordenáveis
+
+As tabelas de lista (lucratividade e movimentação da Curva ABC, lançamentos de um valor da DRE e prévia das tabelas genéricas) ordenam por qualquer coluna ao clicar no título: números do maior para o menor, texto de A a Z; o segundo clique inverte e o terceiro volta à ordem original. Os demonstrativos (DRE completa e linhas da meta) mantêm a ordem da DRE.
 
 ### Pontos de análise explicados
 

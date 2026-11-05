@@ -2,7 +2,9 @@
 import { PhCheckCircle, PhWarning } from '@phosphor-icons/vue'
 import { computed } from 'vue'
 import type { CellBreakdown } from '@/application'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/presentation/components/ui/table'
+import SortableHead from '@/presentation/components/SortableHead.vue'
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/presentation/components/ui/table'
+import { useTableSort } from '@/presentation/composables/useTableSort'
 import { formatCurrency, formatPercent, prettifyLabel } from '@/presentation/format'
 
 const props = defineProps<{ breakdown: CellBreakdown }>()
@@ -10,6 +12,14 @@ const props = defineProps<{ breakdown: CellBreakdown }>()
 const ROUNDING = 0.05
 const matches = computed(() => Math.abs(props.breakdown.difference) <= ROUNDING)
 const largest = computed(() => Math.max(...props.breakdown.accounts.map((account) => Math.abs(account.total)), 1))
+
+const entrySort = useTableSort(() => props.breakdown.entries, {
+  date: (entry) => entry.date,
+  description: (entry) => entry.description,
+  classification: (entry) => prettifyLabel(entry.classification),
+  unit: (entry) => entry.unit,
+  value: (entry) => entry.value,
+})
 
 const formatDate = (date: string) => {
   const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(date)
@@ -82,15 +92,15 @@ const formatDate = (date: string) => {
         <Table>
           <TableHeader class="bg-muted">
             <TableRow>
-              <TableHead class="px-3">Pagamento</TableHead>
-              <TableHead class="px-3">Histórico</TableHead>
-              <TableHead v-if="breakdown.accounts.length > 1" class="px-3">Conta</TableHead>
-              <TableHead class="px-3">Unidade</TableHead>
-              <TableHead class="px-3 text-right">Valor</TableHead>
+              <SortableHead :sort="entrySort" column="date">Pagamento</SortableHead>
+              <SortableHead :sort="entrySort" column="description">Histórico</SortableHead>
+              <SortableHead v-if="breakdown.accounts.length > 1" :sort="entrySort" column="classification">Conta</SortableHead>
+              <SortableHead :sort="entrySort" column="unit">Unidade</SortableHead>
+              <SortableHead :sort="entrySort" column="value" align="right">Valor</SortableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="(entry, index) in breakdown.entries" :key="index">
+            <TableRow v-for="(entry, index) in entrySort.rows" :key="index">
               <TableCell class="px-3 figure whitespace-nowrap">{{ formatDate(entry.date) }}</TableCell>
               <TableCell class="max-w-80 px-3 whitespace-normal">{{ entry.description || '–' }}</TableCell>
               <TableCell v-if="breakdown.accounts.length > 1" class="px-3">{{ prettifyLabel(entry.classification) }}</TableCell>

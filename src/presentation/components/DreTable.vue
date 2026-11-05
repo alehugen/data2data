@@ -139,7 +139,7 @@ watch(() => props.highlight, scrollToHighlight, { flush: 'post' })
                 v-if="value !== 0 && canInspect(line)"
                 type="button"
                 class="-mx-1 rounded px-1 transition-colors duration-(--duration-fast) ease-out hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent"
-                :aria-label="`Ver lançamentos de ${prettifyLabel(line.label)} em ${formatPeriod(report.periods[i]!)}`"
+                :aria-label="`${cell(line, i)}: ver lançamentos de ${prettifyLabel(line.label)} em ${formatPeriod(report.periods[i]!)}`"
                 @click="inspect(line, i)"
               >
                 {{ cell(line, i) }}

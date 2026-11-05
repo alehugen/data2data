@@ -24,21 +24,29 @@ const COLUMN_ALIASES = {
 
 const REQUIRED_COLUMNS = ['classification', 'value'] as const
 
-function parseDate(text: string): { year: number; month: number } | null {
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(text)
-  if (iso) return { year: Number(iso[1]), month: Number(iso[2]) }
-  const br = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text)
-  if (br) return { year: Number(br[3]), month: Number(br[2]) }
-  return null
-}
-
 const isMonth = (month: number) => Number.isInteger(month) && month >= 1 && month <= 12
 const isYear = (year: number) => Number.isInteger(year) && year >= 1900 && year <= 2999
+const isDay = (day: number) => Number.isInteger(day) && day >= 1 && day <= 31
+const pad = (value: number) => String(value).padStart(2, '0')
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})/
+const BR_DATE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/
+
+function parseDate(text: string): { iso: string; period: Period } | null {
+  const iso = ISO_DATE.exec(text.trim())
+  const br = iso ? null : BR_DATE.exec(text.trim())
+  const parts = iso ? [iso[1], iso[2], iso[3]] : br ? [br[3], br[2], br[1]] : null
+  if (!parts) return null
+  const [rawYear, month, day] = parts.map(Number) as [number, number, number]
+  const year = rawYear < 100 ? 2000 + rawYear : rawYear
+  if (!isYear(year) || !isMonth(month) || !isDay(day)) return null
+  return { iso: `${year}-${pad(month)}-${pad(day)}`, period: { year, month } }
+}
 
 export function readLedger(table: RawTable): LedgerEntry[] | null {
   const header = findTableHeader(table.rows, COLUMN_ALIASES, REQUIRED_COLUMNS)
-  const hasCashMonth = header?.columns.cashMonth !== undefined && header.columns.cashYear !== undefined
-  if (!header || (!hasCashMonth && header.columns.paidAt === undefined)) return null
+  if (!header || header.columns.paidAt === undefined) return null
+  const hasCashMonth = header.columns.cashMonth !== undefined && header.columns.cashYear !== undefined
 
   const signed = (row: readonly string[]) => {
     if (header.columns.signedValue !== undefined) return header.number(row, 'signedValue')
@@ -49,30 +57,26 @@ export function readLedger(table: RawTable): LedgerEntry[] | null {
     return header.number(row, 'value')
   }
 
-  const periodOf = (row: readonly string[]): Period | null => {
-    const paid = parseDate(header.text(row, 'paidAt'))
-    if (!paid) return null
-    if (hasCashMonth) {
-      const month = header.number(row, 'cashMonth')
-      const year = header.number(row, 'cashYear')
-      if (isMonth(month) && isYear(year)) return { year, month }
-    }
-    return paid
+  const cashPeriodOf = (row: readonly string[]): Period | null => {
+    if (!hasCashMonth) return null
+    const month = header.number(row, 'cashMonth')
+    const year = header.number(row, 'cashYear')
+    return isMonth(month) && isYear(year) ? { year, month } : null
   }
 
   const entries = table.rows.slice(header.rowIndex + 1).flatMap((row): LedgerEntry[] => {
     const classification = header.text(row, 'classification')
-    const period = periodOf(row)
+    const paid = parseDate(header.text(row, 'paidAt'))
     const value = signed(row)
-    if (!classification || !period || !value) return []
+    if (!classification || !paid || !value) return []
     return [
       {
-        date: header.text(row, 'paidAt'),
+        date: paid.iso,
         description: header.text(row, 'description'),
         classification,
         unit: header.text(row, 'unit'),
         value,
-        period,
+        period: cashPeriodOf(row) ?? paid.period,
       },
     ]
   })

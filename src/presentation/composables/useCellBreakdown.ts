@@ -10,7 +10,7 @@ export function useCellBreakdown(report: MaybeRefOrGetter<DreReport>) {
     cell.value ? container.analyzeDre.breakdown(toValue(report), cell.value.lineId, cell.value.periodIndex) : null,
   )
 
-  const canInspect = (line: DreLine) => toValue(report).ledger.length > 0 && toValue(report).accountsOf(line).length > 0
+  const canInspect = (line: DreLine) => toValue(report).isTraceable(line)
 
   function inspect(line: DreLine, periodIndex: number) {
     cell.value = { lineId: line.id, periodIndex }

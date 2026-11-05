@@ -135,6 +135,7 @@
 
   --shadow-card: var(--elevation-1);
   --shadow-primary: var(--elevation-primary);
+  --shadow-floating: var(--elevation-2);
 }
 
 :root {

@@ -41,6 +41,7 @@ const COLUMN_ALIASES = {
 } as const
 
 const REQUIRED_COLUMNS = ['description', 'revenue', 'cost', 'profit'] as const
+const AMOUNT_COLUMNS = ['revenue', 'cost', 'tax', 'materials'] as const
 
 const grossProfit = (item: Pick<ProfitItem, 'revenue' | 'cost' | 'tax' | 'materials'>) =>
   item.revenue - item.cost - item.tax - item.materials
@@ -80,7 +81,7 @@ export class ProfitReport {
 
     const items = table.rows
       .slice(header.rowIndex + 1)
-      .filter((row) => header.text(row, 'description') && header.text(row, 'revenue'))
+      .filter((row) => header.text(row, 'description') && AMOUNT_COLUMNS.some((name) => header.text(row, name)))
       .filter((row) => !isTotalLabel(header.text(row, 'description')) && !isTotalLabel(header.text(row, 'code')))
       .map((row) => {
         const description = header.text(row, 'description')

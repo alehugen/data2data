@@ -1,19 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { ProfitTargetBase, ReachableProjection } from '@/application'
 import { formatCurrencyCompact, formatCurrencyWhole, formatPercent, prettifyLabel } from '@/presentation/format'
 
-defineProps<{
+const props = defineProps<{
   base: ProfitTargetBase
   projection: ReachableProjection
   reference: string
 }>()
+
+const combined = computed(() => props.projection.paths?.combined ?? null)
 </script>
 
 <template>
   <div v-if="projection.paths" class="mt-1 space-y-5">
     <p class="text-sm text-body">
       Faltam <strong class="text-foreground figure">{{ formatCurrencyWhole(projection.paths.gap) }}</strong> de
-      resultado por mês. Cada caminho abaixo fecha essa diferença sozinho; o plano combinado divide o esforço.
+      resultado por mês. Cada caminho abaixo fecha essa diferença sozinho<template v-if="combined">; o plano combinado divide o esforço</template>.
     </p>
     <ul class="grid gap-3 sm:grid-cols-2">
       <li class="flex flex-col rounded-lg border p-4">
@@ -61,20 +64,20 @@ defineProps<{
           }}.
         </p>
       </li>
-      <li class="rounded-lg border border-primary bg-accent/40 p-4 sm:col-span-2">
+      <li v-if="combined" class="rounded-lg border border-primary bg-accent/40 p-4 sm:col-span-2">
         <h4 class="font-semibold">Plano combinado</h4>
-        <p class="text-sm text-muted-foreground">Cada frente cobre um terço da diferença.</p>
-        <ul class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+        <p class="text-sm text-muted-foreground">Cada frente cobre {{ combined.fronts === 3 ? 'um terço' : 'metade' }} da diferença.</p>
+        <ul class="mt-3 grid gap-3 text-sm" :class="combined.fronts === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'">
           <li>
-            <span class="block text-lg font-semibold figure">+{{ formatCurrencyCompact(projection.paths.combined.sales) }}</span>
+            <span class="block text-lg font-semibold figure">+{{ formatCurrencyCompact(combined.sales) }}</span>
             em vendas por mês
           </li>
-          <li v-if="projection.paths.combined.price !== null">
-            <span class="block text-lg font-semibold figure">+{{ formatPercent(projection.paths.combined.price) }}</span>
+          <li v-if="combined.price !== null">
+            <span class="block text-lg font-semibold figure">+{{ formatPercent(combined.price) }}</span>
             nos preços
           </li>
-          <li>
-            <span class="block text-lg font-semibold figure">−{{ formatCurrencyCompact(projection.paths.combined.fixed) }}</span>
+          <li v-if="combined.fixed !== null">
+            <span class="block text-lg font-semibold figure">−{{ formatCurrencyCompact(combined.fixed) }}</span>
             em despesas por mês
           </li>
         </ul>

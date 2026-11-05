@@ -50,7 +50,7 @@ const FEATURES = [
   {
     icon: PhChartLineUp,
     title: 'DRE',
-    text: 'Receita, margens, EBITDA, resultado e saldo de caixa por mês ou acumulado do ano. Cascata da receita ao resultado, ponto de equilíbrio, meta de lucro e a DRE completa com análise vertical.',
+    text: 'Receita, margens, EBITDA, resultado e saldo de caixa por mês ou acumulado do ano. Meta de lucro com caminhos para alcançá-la e a DRE completa, com os lançamentos de cada valor.',
   },
   {
     icon: PhRanking,
@@ -60,7 +60,7 @@ const FEATURES = [
   {
     icon: PhCoins,
     title: 'Lucro por produto',
-    text: 'Cruza o lucro com a Curva ABC: itens que vendem muito e lucram pouco, margens por classe, prejuízos e custos não cadastrados.',
+    text: 'Cruza o lucro com a Curva ABC: lucro bruto e margem por item, itens que vendem muito e lucram pouco, prejuízos e custos não cadastrados.',
   },
   {
     icon: PhTable,

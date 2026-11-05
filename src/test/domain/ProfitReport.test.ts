@@ -110,3 +110,18 @@ describe('ProfitReport.combine', () => {
     expect(combined.totals.profit).toBe(1790 + 190)
   })
 })
+
+describe('linhas sem valor vendido', () => {
+  it('mantém o custo de itens sem venda no mês, para não esconder o prejuízo', () => {
+    const report = parse([
+      ['Código', 'Descrição', 'Valor total', 'Custo', 'Lucro'],
+      ['1', 'Vendido', '100', '60', '40'],
+      ['2', 'Só custo', '', '30', '-30'],
+      ['', 'Grupo: Vacinas', '', '', ''],
+    ])!
+    expect(report.items.map((item) => [item.description, item.profit])).toEqual([
+      ['Vendido', 40],
+      ['Só custo', -30],
+    ])
+  })
+})

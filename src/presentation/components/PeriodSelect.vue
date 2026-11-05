@@ -23,7 +23,7 @@ const model = defineModel<string>({ required: true })
   <div class="flex flex-col gap-1.5 text-sm">
     <span id="periodo" class="hidden font-medium text-muted-foreground lg:block">Período</span>
     <Select v-model="model">
-      <SelectTrigger aria-labelledby="periodo" aria-label="Período" class="w-36 bg-card shadow-card lg:w-full">
+      <SelectTrigger aria-labelledby="periodo" class="w-36 bg-card shadow-card lg:w-full">
         <PhCalendarBlank class="text-muted-foreground" aria-hidden="true" />
         <SelectValue />
       </SelectTrigger>

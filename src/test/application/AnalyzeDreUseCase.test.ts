@@ -211,8 +211,27 @@ describe('meta de lucro', () => {
     expect(paths.price).toBeCloseTo(170 / (900 * 0.9))
     expect(paths.purchases!.share).toBeCloseTo(170 / 280)
     expect(paths.fixed!.share).toBeCloseTo(170 / 600)
-    expect(paths.combined.fixed).toBeCloseTo(170 / 3)
-    expect(paths.combined.sales * (530 / 900) + paths.combined.price! * 810 + paths.combined.fixed).toBeCloseTo(170)
+    const combined = paths.combined!
+    expect(combined.fronts).toBe(3)
+    expect(combined.fixed).toBeCloseTo(170 / 3)
+    expect(combined.sales * (530 / 900) + combined.price! * 810 + combined.fixed!).toBeCloseTo(170)
+  })
+
+  it('divide o plano combinado só entre as frentes possíveis, cobrindo toda a diferença', () => {
+    const withoutPrice = { ...base, variableLines: [{ label: 'IMPOSTOS', value: 900, kind: 'taxes' as const, ratio: 1 }] }
+    const noPrice = useCase.projectProfitTarget({ ...withoutPrice, contributionRatio: 530 / 900 }, 100)
+    if (noPrice.status === 'unreachable' || !noPrice.paths) throw new Error('esperava caminhos')
+    const halves = noPrice.paths.combined!
+    expect(halves).toMatchObject({ fronts: 2, price: null })
+    expect(halves.sales * (530 / 900) + halves.fixed!).toBeCloseTo(170)
+
+    const noFixed = useCase.projectProfitTarget({ ...base, fixedCosts: 0, profit: base.profit }, 100)
+    if (noFixed.status === 'unreachable' || !noFixed.paths) throw new Error('esperava caminhos')
+    expect(noFixed.paths.combined).toMatchObject({ fronts: 2, fixed: null })
+
+    const onlySales = useCase.projectProfitTarget({ ...withoutPrice, fixedCosts: 0 }, 10_000)
+    if (onlySales.status === 'unreachable' || !onlySales.paths) throw new Error('esperava caminhos')
+    expect(onlySales.paths.combined).toBeNull()
   })
 
   it('não sugere cortar mais do que existe nem caminhos para meta já batida', () => {

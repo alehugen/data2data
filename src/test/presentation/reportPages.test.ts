@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { container } from '@/infrastructure/container'
 import PeriodSelect, { type PeriodGroup } from '@/presentation/components/PeriodSelect.vue'
+import InfoTip from '@/presentation/components/InfoTip.vue'
 import ProfitTarget from '@/presentation/components/ProfitTarget.vue'
 import { useReports } from '@/presentation/composables/useReports'
 import AbcPage from '@/presentation/pages/AbcPage.vue'
@@ -106,6 +107,28 @@ describe('AbcPage', () => {
     expect(page.text()).toContain('Lucratividade por item: set/26')
   })
 
+  it('ordena as tabelas de lucro e de movimentação por qualquer coluna', async () => {
+    const page = await mountAbc()
+    const table = (id: string) => page.get(`#${id} table`)
+    const firstColumn = (id: string) => table(id).findAll('tbody tr').map((tr) => tr.findAll('td')[0]!.text())
+    const clickHeader = (id: string, label: string) =>
+      table(id).findAll('thead th').find((th) => th.text() === label)!.get('button').trigger('click')
+
+    const profitHeaders = table('tabela-lucro').findAll('thead th')
+    expect(profitHeaders.every((th) => th.find('button').exists())).toBe(true)
+
+    await clickHeader('tabela-lucro', 'Item')
+    const names = firstColumn('tabela-lucro')
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'pt-BR')))
+
+    await clickHeader('tabela-lucro', 'Item')
+    expect(firstColumn('tabela-lucro')).toEqual([...names].reverse())
+
+    const movementBefore = firstColumn('movimentacao')
+    await clickHeader('movimentacao', 'Item')
+    expect(firstColumn('movimentacao')).toEqual([...movementBefore].sort((a, b) => a.localeCompare(b, 'pt-BR')))
+  })
+
   it('combina todos os meses pelo seletor e explica a classificação recalculada', async () => {
     const page = await mountAbc()
     const select = page.getComponent(PeriodSelect)
@@ -120,6 +143,9 @@ describe('AbcPage', () => {
     expect(page.text()).toContain('Lucratividade por item: set/26 a out/26')
     expect(page.text()).not.toContain('do mês')
     expect(page.text()).not.toContain('Movimentação')
+    const tips = page.findAllComponents(InfoTip).map((tip) => tip.props('text') as string)
+    expect(tips.length).toBeGreaterThan(5)
+    expect(tips.filter((tip) => /(do|no) mês/.test(tip))).toEqual([])
   })
 
   it('mostra a variação da margem em pontos percentuais e a tabela de lucro com materiais', async () => {
@@ -146,5 +172,19 @@ describe('DatasetPage', () => {
     await flushPromises()
     expect(page.text()).toContain('2 linhas e 2 colunas')
     expect(page.text()).toMatch(/Soma\s*40/)
+  })
+
+  it('ordena a prévia pelos valores numéricos da coluna, e não pelo texto', async () => {
+    await importAll([new File(['Produto;Valor\nA;9\nB;100\nC;1.234,5'], 'vendas.csv')])
+    const page = mountWithProviders(DatasetPage, {
+      props: { id: useReports().datasets.value[0]!.id },
+      global: { stubs },
+    })
+    await flushPromises()
+    const products = () => page.findAll('#previa tbody tr').map((tr) => tr.findAll('td')[0]!.text())
+
+    await page.findAll('#previa thead th')[1]!.get('button').trigger('click')
+    expect(products()).toEqual(['C', 'B', 'A'])
+    expect(page.text()).toContain('3 de 3 linhas, na ordem escolhida')
   })
 })
